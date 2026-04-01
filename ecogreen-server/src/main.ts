@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -9,11 +10,22 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // Tự động vứt bỏ các trường "rác" khách cố tình gửi lên thêm để hack
-      forbidNonWhitelisted: true, // Báo lỗi thẳng vào mặt nếu khách gửi trường lạ
+      forbidNonWhitelisted: true, // Báo lỗi nếu khách gửi trường lạ
     }),
   );
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
+  // Ăng-ten bắt sóng MQTT
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.MQTT,
+    options: {
+      url: 'mqtt://broker.emqx.io:1883', // Trạm bưu điện công cộng miễn phí
+    },
+  });
+
+  await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3000);
+
+  console.log('🚀 Server đang chạy HTTP (port 3000) và đã kết nối MQTT!');
 }
 bootstrap();

@@ -1,6 +1,7 @@
 #include "wifi_greenhouse.h"
 #include "iot_bridge.h"   // xWiFiEventGroup, WIFI_CONNECTED_BIT
-#include "check_info.h"   // WIFI_SSID, WIFI_PASS (đọc từ /info.dat trên LittleFS)
+#include "check_info.h"
+#include <WiFiManager.h>   // WIFI_SSID, WIFI_PASS (đọc từ /info.dat trên LittleFS)
  
 /* ============================================================
    wifi_greenhouse.cpp
@@ -14,46 +15,23 @@
 // ============================================================================
 //KHỞI TẠO WIFI (gọi từ setup())
 // ============================================================================
-void initWiFi()
-{
-    // ── Bật đồng thời cả 2 mode: AP + STA ──
-    // AP (Access Point): ESP32 phát WiFi riêng "Greenhouse-AP"
-    //   → dùng để cấu hình lần đầu hoặc khi mất mạng
-    // STA (Station): ESP32 kết nối vào router nhà
-    //   → dùng để truy cập internet, MQTT, WebSocket từ xa
-    WiFi.mode(WIFI_AP_STA);
-    WiFi.softAP("Greenhouse-AP", "12345678");
-    Serial.printf("[WiFi] AP started: 192.168.4.1\n");
-
-    // ── Kiểm tra đã có config STA chưa ──
-    // WIFI_SSID được load từ file /info.dat (LittleFS) trong check_info_File()
-    // Nếu chưa cấu hình thì SSID rỗng → chỉ chạy AP, không thử kết nối
-    if (WIFI_SSID[0] == '\0')
-    {
-        Serial.println("[WiFi] No STA config - AP only");
-        return;
-    }
-
-    // ── Bắt đầu kết nối STA vào router ──
-    // Hỗ trợ cả mạng có password và mạng mở (không password)
-    if (WIFI_PASS[0] == '\0') WiFi.begin(WIFI_SSID);
-    else                      WiFi.begin(WIFI_SSID, WIFI_PASS);
-
-    Serial.printf("[WiFi] Connecting to %s...\n", WIFI_SSID);
-
-    uint32_t t0 = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - t0 < 15000)
-        delay(200);
-
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        Serial.printf("[WiFi] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
-        if (xWiFiEventGroup)
-            xEventGroupSetBits(xWiFiEventGroup, WIFI_CONNECTED_BIT);
-    }
-    else
-    {
-        Serial.println("[WiFi] STA timeout - AP only");
+void initWiFi() {
+    Serial.println("Đang kết nối WiFi...");
+    
+    // Khởi tạo WiFiManager
+    WiFiManager wm;
+    
+    // Tự động kết nối WiFi cũ, nếu không có/đổi pass thì phát WiFi tên "EcoGreen_Setup"
+    bool res = wm.autoConnect("EcoGreen_Setup"); 
+    
+    if(!res) {
+        Serial.println("Không thể kết nối WiFi. Hãy khởi động lại mạch!");
+        ESP.restart();
+    } 
+    else {
+        Serial.println("Đã kết nối WiFi thành công!");
+        Serial.print("IP Address: ");
+        Serial.println(WiFi.localIP());
     }
 }
 
