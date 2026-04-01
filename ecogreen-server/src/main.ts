@@ -12,6 +12,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true, // Báo lỗi thẳng vào mặt nếu khách gửi trường lạ
     }),
   );
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   await app.listen(process.env.PORT ?? 3000);
 }
