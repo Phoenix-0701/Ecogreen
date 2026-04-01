@@ -1,0 +1,13 @@
+/* ============================================================
+   styles.css — Greenhouse IoT  (Offline-first)
+   Entry point — import theo thứ tự dependency
+
+   Cấu trúc:
+     base.css       ← CSS variables + reset + form + scrollbar
+     utilities.css  ← Utility classes (layout, spacing, color...)
+     components.css ← App components (toast, toggle, modal...)
+============================================================ */
+
+@import url("base.css");
+@import url("utilities.css");
+@import url("components.css");

@@ -18,21 +18,22 @@
 // ============================================================================
 // MQTT CLIENT
 // ============================================================================
-static WiFiClient   s_wifiClient;
+static WiFiClient s_wifiClient;
 static PubSubClient s_mqttClient(s_wifiClient);
 
 // Topics ThingsBoard/CoreIoT
-static const char* TOPIC_TELEMETRY   = "v1/devices/me/telemetry";
-static const char* TOPIC_ATTRIBUTES  = "v1/devices/me/attributes";
-static const char* TOPIC_RPC_REQUEST = "v1/devices/me/rpc/request/+";
+static const char *TOPIC_TELEMETRY = "v1/devices/me/telemetry";
+static const char *TOPIC_ATTRIBUTES = "v1/devices/me/attributes";
+static const char *TOPIC_RPC_REQUEST = "v1/devices/me/rpc/request/+";
 
 // ============================================================================
 // HELPER: Lấy request ID từ topic RPC "v1/devices/me/rpc/request/<id>"
 // ============================================================================
-static const char* extractRequestId(const char *topic)
+static const char *extractRequestId(const char *topic)
 {
     const char *p = strrchr(topic, '/');
-    if (!p || *(p + 1) == '\0') return nullptr;
+    if (!p || *(p + 1) == '\0')
+        return nullptr;
     return p + 1;
 }
 
@@ -43,16 +44,18 @@ static void sendRpcResponse(const char *requestId, const char *method,
                             bool success, const char *extraKey = nullptr,
                             const char *extraVal = nullptr)
 {
-    if (!requestId) return;
+    if (!requestId)
+        return;
 
     char respTopic[64];
     snprintf(respTopic, sizeof(respTopic),
              "v1/devices/me/rpc/response/%s", requestId);
 
     StaticJsonDocument<128> resp;
-    resp["method"]  = method;
+    resp["method"] = method;
     resp["success"] = success;
-    if (extraKey && extraVal) resp[extraKey] = extraVal;
+    if (extraKey && extraVal)
+        resp[extraKey] = extraVal;
 
     String payload;
     serializeJson(resp, payload);
@@ -75,17 +78,19 @@ static void onMqttMessage(char *topic, byte *payload, unsigned int length)
     Serial.printf("[MQTT] RPC: %s\n", msg);
 
     StaticJsonDocument<256> doc;
-    if (deserializeJson(doc, msg)) return;
+    if (deserializeJson(doc, msg))
+        return;
 
-    const char *method    = doc["method"];
+    const char *method = doc["method"];
     const char *requestId = extractRequestId(topic);
-    if (!method) return;
+    if (!method)
+        return;
 
     // ---- setPump ----
     if (strcmp(method, "setPump") == 0)
     {
         bool state = doc["params"].as<bool>();
-        RpcPacket_t pkt = { state ? RPC_PUMP_ON : RPC_PUMP_OFF };
+        RpcPacket_t pkt = {state ? RPC_PUMP_ON : RPC_PUMP_OFF};
         xQueueSend(xRpcCommandQueue, &pkt, 0);
         sendRpcResponse(requestId, method, true,
                         "pump", state ? "ON" : "OFF");
@@ -94,7 +99,7 @@ static void onMqttMessage(char *topic, byte *payload, unsigned int length)
     else if (strcmp(method, "setFan") == 0)
     {
         bool state = doc["params"].as<bool>();
-        RpcPacket_t pkt = { state ? RPC_FAN_ON : RPC_FAN_OFF };
+        RpcPacket_t pkt = {state ? RPC_FAN_ON : RPC_FAN_OFF};
         xQueueSend(xRpcCommandQueue, &pkt, 0);
         sendRpcResponse(requestId, method, true,
                         "fan", state ? "ON" : "OFF");
@@ -106,10 +111,10 @@ static void onMqttMessage(char *topic, byte *payload, unsigned int length)
         bool isAuto = false;
         if (doc["params"].is<bool>())
             isAuto = doc["params"].as<bool>();
-        else if (doc["params"].is<const char*>())
-            isAuto = (strcmp(doc["params"].as<const char*>(), "AUTO") == 0);
+        else if (doc["params"].is<const char *>())
+            isAuto = (strcmp(doc["params"].as<const char *>(), "AUTO") == 0);
 
-        RpcPacket_t pkt = { isAuto ? RPC_MODE_AUTO : RPC_MODE_MANUAL };
+        RpcPacket_t pkt = {isAuto ? RPC_MODE_AUTO : RPC_MODE_MANUAL};
         xQueueSend(xRpcCommandQueue, &pkt, 0);
         sendRpcResponse(requestId, method, true,
                         "mode", isAuto ? "AUTO" : "MANUAL");
@@ -120,12 +125,12 @@ static void onMqttMessage(char *topic, byte *payload, unsigned int length)
         // Không cần queue, chỉ cần đọc global vars an toàn
         // (chỉ đọc, không ghi → không cần mutex cho ESP32 single-writer)
         StaticJsonDocument<256> resp;
-        resp["method"]       = "getStatus";
-        resp["pump"]         = (bool)g_pumpState;  // extern từ global_vars
-        resp["fan"]          = (bool)g_fanState;
-        resp["mode"]         = g_autoMode ? "AUTO" : "MANUAL";
-        resp["temperature"]  = g_temperature;
-        resp["humidity"]     = g_humidity;
+        resp["method"] = "getStatus";
+        resp["pump"] = (bool)g_pumpState; // extern từ global_vars
+        resp["fan"] = (bool)g_fanState;
+        resp["mode"] = g_autoMode ? "AUTO" : "MANUAL";
+        resp["temperature"] = g_temperature;
+        resp["humidity"] = g_humidity;
         resp["soilMoisture"] = g_soilMoisture;
 
         if (requestId)
@@ -145,14 +150,16 @@ static void onMqttMessage(char *topic, byte *payload, unsigned int length)
 // ============================================================================
 static bool mqttReconnect()
 {
-    if (s_mqttClient.connected()) return true;
-    if (WiFi.status() != WL_CONNECTED) return false;
+    if (s_mqttClient.connected())
+        return true;
+    if (WiFi.status() != WL_CONNECTED)
+        return false;
 
     Serial.print("[MQTT] Connecting...");
     String clientId = "GH-ESP32-" + String(random(0xffff), HEX);
 
     if (s_mqttClient.connect(clientId.c_str(),
-                         CORE_IOT_TOKEN, nullptr))
+                             CORE_IOT_TOKEN, nullptr))
     {
         Serial.println(" OK");
         s_mqttClient.subscribe(TOPIC_RPC_REQUEST);
@@ -160,7 +167,7 @@ static bool mqttReconnect()
         // Gửi attributes ngay khi connect
         StaticJsonDocument<128> attr;
         attr["fw_version"] = "1.0.0";
-        attr["device"]     = "Greenhouse-ESP32";
+        attr["device"] = "Greenhouse-ESP32";
         String attrStr;
         serializeJson(attr, attrStr);
         s_mqttClient.publish(TOPIC_ATTRIBUTES, attrStr.c_str());
@@ -179,13 +186,13 @@ static void publishTelemetry(const TelemetryPacket_t &pkt)
 {
     // --- Telemetry: sensor data ---
     StaticJsonDocument<384> tele;
-    tele["temperature"]  = pkt.temperature;
-    tele["humidity"]     = pkt.humidity;
+    tele["temperature"] = pkt.temperature;
+    tele["humidity"] = pkt.humidity;
     tele["soilMoisture"] = pkt.soilMoisture;
-    tele["lightLux"]     = pkt.lightLux;
-    tele["pump"]         = pkt.pumpState;
-    tele["fan"]          = pkt.fanState;
-    tele["autoMode"]     = pkt.autoMode;
+    tele["lightLux"] = pkt.lightLux;
+    tele["pump"] = pkt.pumpState;
+    tele["fan"] = pkt.fanState;
+    tele["autoMode"] = pkt.autoMode;
 
     String teleStr;
     serializeJson(tele, teleStr);
@@ -193,13 +200,13 @@ static void publishTelemetry(const TelemetryPacket_t &pkt)
 
     // --- Attributes: thống kê và cảnh báo (ít thay đổi hơn) ---
     StaticJsonDocument<256> attr;
-    attr["pumpCount"]        = pkt.pumpCount;
+    attr["pumpCount"] = pkt.pumpCount;
     attr["totalPumpTimeSec"] = pkt.totalPumpTimeSec;
-    attr["alertTemp"]        = pkt.alertTemp;
-    attr["alertHumidity"]    = pkt.alertHumidity;
-    attr["alertSoil"]        = pkt.alertSoil;
-    attr["alertLight"]       = pkt.alertLight;
-    attr["dhtError"]         = pkt.dhtError;
+    attr["alertTemp"] = pkt.alertTemp;
+    attr["alertHumidity"] = pkt.alertHumidity;
+    attr["alertSoil"] = pkt.alertSoil;
+    attr["alertLight"] = pkt.alertLight;
+    attr["dhtError"] = pkt.dhtError;
 
     // LED color dạng hex string "#RRGGBB"
     char ledHex[8];
@@ -222,10 +229,10 @@ static void publishTelemetry(const TelemetryPacket_t &pkt)
 void greenhouse_coreiot_task(void *pvParameters)
 {
     // Đợi WiFi kết nối trước khi bắt đầu MQTT (tối đa 60s, nếu không có WiFi thì vẫn chạy nhưng chỉ có AP)
-     if (xWiFiEventGroup != nullptr)
+    if (xWiFiEventGroup != nullptr)
         xEventGroupWaitBits(xWiFiEventGroup,
                             WIFI_CONNECTED_BIT,
-                            pdFALSE,               // KHÔNG clear bit sau khi wait
+                            pdFALSE, // KHÔNG clear bit sau khi wait
                             pdTRUE,
                             pdMS_TO_TICKS(60000));
 
@@ -273,11 +280,6 @@ void greenhouse_coreiot_task(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
-
-
-
-
-
 
 // void greenhouse_wifi_task(void *pvParameters)
 // {
