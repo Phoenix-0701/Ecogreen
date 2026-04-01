@@ -1,0 +1,205 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. BẢNG USERS
+model USERS {
+  User_ID       String   @id @default(uuid())
+  username      String   @unique
+  email         String   @unique
+  password_hash String
+  full_name     String?
+  created_at    DateTime @default(now())
+
+  // Các trường quan hệ (Không tạo cột trong DB)
+  devices              DEVICES[]
+  notification_configs NOTIFICATION_CONFIGS[]
+  activity_logs        ACTIVITY_LOGS[]
+}
+
+// 2. BẢNG DEVICES
+model DEVICES {
+  Device_ID    String    @id @default(uuid())
+  User_ID      String
+  name         String
+  mac_address  String    @unique
+  status       String    @default("offline")
+  last_seen_at DateTime?
+  created_at   DateTime  @default(now())
+
+  // Quan hệ
+  user                USERS                 @relation(fields: [User_ID], references: [User_ID], onDelete: Cascade)
+  sensors             SENSORS[]
+  actuators           ACTUATORS[]
+  smart_logic_configs SMART_LOGIC_CONFIGS?
+  activity_logs       ACTIVITY_LOGS[]
+  pump_safety_logs    PUMP_SAFETY_LOGS[]
+}
+
+// 3. BẢNG SENSORS
+model SENSORS {
+  Sensor_ID      String   @id @default(uuid())
+  Device_ID      String
+  name           String
+  type           String
+  unit           String
+  pin_connection Int
+  created_at     DateTime @default(now())
+
+  // Quan hệ
+  device          DEVICES           @relation(fields: [Device_ID], references: [Device_ID], onDelete: Cascade)
+  sensor_readings SENSOR_READINGS[]
+  thresholds      THRESHOLDS[]
+}
+
+// 4. BẢNG ACTUATORS
+model ACTUATORS {
+  Actuator_ID    String   @id @default(uuid())
+  Device_ID      String
+  name           String
+  type           String
+  pin_connection Int
+  created_at     DateTime @default(now())
+
+  // Quan hệ
+  device        DEVICES         @relation(fields: [Device_ID], references: [Device_ID], onDelete: Cascade)
+  thresholds    THRESHOLDS[]
+  schedules     SCHEDULES[]
+  actuator_logs ACTUATOR_LOGS[]
+}
+
+// 5. BẢNG SENSOR_READINGS
+model SENSOR_READINGS {
+  Reading_ID  BigInt   @id @default(autoincrement())
+  Sensor_ID   String
+  value       Float
+  recorded_at DateTime @default(now())
+  is_buffered Boolean  @default(false)
+
+  // Quan hệ
+  sensor SENSORS @relation(fields: [Sensor_ID], references: [Sensor_ID], onDelete: Cascade)
+
+  @@index([Sensor_ID, recorded_at])
+}
+
+// 6. BẢNG ACTUATOR_LOGS
+model ACTUATOR_LOGS {
+  Log_ID       String   @id @default(uuid())
+  Actuator_ID  String
+  action       String
+  triggered_by String
+  occurred_at  DateTime @default(now())
+
+  // Quan hệ
+  actuator ACTUATORS @relation(fields: [Actuator_ID], references: [Actuator_ID], onDelete: Cascade)
+}
+
+// 7. BẢNG THRESHOLDS
+model THRESHOLDS {
+  Threshold_ID String    @id @default(uuid())
+  Sensor_ID    String
+  Actuator_ID  String
+  min_value    Float
+  max_value    Float
+  is_enabled   Boolean   @default(true)
+  sync_status  String    @default("pending")
+  sync_at      DateTime?
+
+  // Quan hệ
+  sensor   SENSORS   @relation(fields: [Sensor_ID], references: [Sensor_ID], onDelete: Cascade)
+  actuator ACTUATORS @relation(fields: [Actuator_ID], references: [Actuator_ID], onDelete: Cascade)
+}
+
+// 8. BẢNG SCHEDULES
+model SCHEDULES {
+  Schedule_ID  String    @id @default(uuid())
+  Actuator_ID  String
+  start_time   DateTime
+  duration_min Int
+  days_of_week String
+  is_enabled   Boolean   @default(true)
+  sync_status  String    @default("pending")
+  sync_at      DateTime?
+
+  // Quan hệ
+  actuator ACTUATORS @relation(fields: [Actuator_ID], references: [Actuator_ID], onDelete: Cascade)
+}
+
+// 9. BẢNG SMART_LOGIC_CONFIGS
+model SMART_LOGIC_CONFIGS {
+  Config_ID           String    @id @default(uuid())
+  Device_ID           String    @unique
+  city_name           String
+  rain_prob_threshold Int
+  is_smart_mode       Boolean   @default(false)
+  last_weather_data   Json?
+  sync_status         String    @default("pending")
+  sync_at             DateTime?
+
+  // Quan hệ
+  device DEVICES @relation(fields: [Device_ID], references: [Device_ID], onDelete: Cascade)
+}
+
+// 10. BẢNG NOTIFICATION_CONFIGS
+model NOTIFICATION_CONFIGS {
+  Config_ID               String  @id @default(uuid())
+  User_ID                 String
+  tg_chat_id              String?
+  tg_bot_token_encrypted  String?
+  smtp_email              String?
+  smtp_password_encrypted String?
+  notify_on_error         Boolean @default(true)
+  notify_on_action        Boolean @default(false)
+
+  // Quan hệ
+  user USERS @relation(fields: [User_ID], references: [User_ID], onDelete: Cascade)
+}
+
+// 11. BẢNG ACTIVITY_LOGS
+model ACTIVITY_LOGS {
+  Log_ID      String   @id @default(uuid())
+  Device_ID   String
+  User_ID     String?
+  event_type  String
+  status      String
+  description String
+  extra_data  Json?
+  occurred_at DateTime @default(now())
+
+  // Quan hệ
+  device DEVICES @relation(fields: [Device_ID], references: [Device_ID], onDelete: Cascade)
+  // Đặt SetNull để khi người dùng bị xóa, lịch sử hoạt động của thiết bị vẫn được giữ lại, chỉ mất tên người dùng
+  user   USERS?  @relation(fields: [User_ID], references: [User_ID], onDelete: SetNull)
+
+  @@index([Device_ID, occurred_at])
+}
+
+// 12. BẢNG PUMP_SAFETY_LOGS
+model PUMP_SAFETY_LOGS {
+  SafetyLog_ID     String   @id @default(uuid())
+  Device_ID        String
+  reason           String
+  run_duration_sec Int
+  occurred_at      DateTime @default(now())
+
+  // Quan hệ
+  device DEVICES @relation(fields: [Device_ID], references: [Device_ID], onDelete: Cascade)
+}
+
+// 13. BẢNG WEATHER_CACHE
+model WEATHER_CACHE {
+  Cache_ID     Int      @id @default(autoincrement())
+  city_name    String
+  weather_data Json
+  updated_at   DateTime @updatedAt
+}

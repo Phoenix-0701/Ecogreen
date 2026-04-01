@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: ecogreen-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: ecogreendb
+    ports:
+      - '5433:5432'
+    volumes:
+      - ecogreen-postgresdata:/var/lib/postgresql/data
+
+volumes:
+  ecogreen-postgresdata:

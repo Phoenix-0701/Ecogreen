@@ -1,0 +1,216 @@
+-- CreateTable
+CREATE TABLE "USERS" (
+    "User_ID" TEXT NOT NULL,
+    "username" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password_hash" TEXT NOT NULL,
+    "full_name" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "USERS_pkey" PRIMARY KEY ("User_ID")
+);
+
+-- CreateTable
+CREATE TABLE "DEVICES" (
+    "Device_ID" TEXT NOT NULL,
+    "User_ID" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "mac_address" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'offline',
+    "last_seen_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DEVICES_pkey" PRIMARY KEY ("Device_ID")
+);
+
+-- CreateTable
+CREATE TABLE "SENSORS" (
+    "Sensor_ID" TEXT NOT NULL,
+    "Device_ID" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "unit" TEXT NOT NULL,
+    "pin_connection" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SENSORS_pkey" PRIMARY KEY ("Sensor_ID")
+);
+
+-- CreateTable
+CREATE TABLE "ACTUATORS" (
+    "Actuator_ID" TEXT NOT NULL,
+    "Device_ID" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "pin_connection" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ACTUATORS_pkey" PRIMARY KEY ("Actuator_ID")
+);
+
+-- CreateTable
+CREATE TABLE "SENSOR_READINGS" (
+    "Reading_ID" BIGSERIAL NOT NULL,
+    "Sensor_ID" TEXT NOT NULL,
+    "value" DOUBLE PRECISION NOT NULL,
+    "recorded_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "is_buffered" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "SENSOR_READINGS_pkey" PRIMARY KEY ("Reading_ID")
+);
+
+-- CreateTable
+CREATE TABLE "ACTUATOR_LOGS" (
+    "Log_ID" TEXT NOT NULL,
+    "Actuator_ID" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "triggered_by" TEXT NOT NULL,
+    "occurred_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ACTUATOR_LOGS_pkey" PRIMARY KEY ("Log_ID")
+);
+
+-- CreateTable
+CREATE TABLE "THRESHOLDS" (
+    "Threshold_ID" TEXT NOT NULL,
+    "Sensor_ID" TEXT NOT NULL,
+    "Actuator_ID" TEXT NOT NULL,
+    "min_value" DOUBLE PRECISION NOT NULL,
+    "max_value" DOUBLE PRECISION NOT NULL,
+    "is_enabled" BOOLEAN NOT NULL DEFAULT true,
+    "sync_status" TEXT NOT NULL DEFAULT 'pending',
+    "sync_at" TIMESTAMP(3),
+
+    CONSTRAINT "THRESHOLDS_pkey" PRIMARY KEY ("Threshold_ID")
+);
+
+-- CreateTable
+CREATE TABLE "SCHEDULES" (
+    "Schedule_ID" TEXT NOT NULL,
+    "Actuator_ID" TEXT NOT NULL,
+    "start_time" TIMESTAMP(3) NOT NULL,
+    "duration_min" INTEGER NOT NULL,
+    "days_of_week" TEXT NOT NULL,
+    "is_enabled" BOOLEAN NOT NULL DEFAULT true,
+    "sync_status" TEXT NOT NULL DEFAULT 'pending',
+    "sync_at" TIMESTAMP(3),
+
+    CONSTRAINT "SCHEDULES_pkey" PRIMARY KEY ("Schedule_ID")
+);
+
+-- CreateTable
+CREATE TABLE "SMART_LOGIC_CONFIGS" (
+    "Config_ID" TEXT NOT NULL,
+    "Device_ID" TEXT NOT NULL,
+    "city_name" TEXT NOT NULL,
+    "rain_prob_threshold" INTEGER NOT NULL,
+    "is_smart_mode" BOOLEAN NOT NULL DEFAULT false,
+    "last_weather_data" JSONB,
+    "sync_status" TEXT NOT NULL DEFAULT 'pending',
+    "sync_at" TIMESTAMP(3),
+
+    CONSTRAINT "SMART_LOGIC_CONFIGS_pkey" PRIMARY KEY ("Config_ID")
+);
+
+-- CreateTable
+CREATE TABLE "NOTIFICATION_CONFIGS" (
+    "Config_ID" TEXT NOT NULL,
+    "User_ID" TEXT NOT NULL,
+    "tg_chat_id" TEXT,
+    "tg_bot_token_encrypted" TEXT,
+    "smtp_email" TEXT,
+    "smtp_password_encrypted" TEXT,
+    "notify_on_error" BOOLEAN NOT NULL DEFAULT true,
+    "notify_on_action" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "NOTIFICATION_CONFIGS_pkey" PRIMARY KEY ("Config_ID")
+);
+
+-- CreateTable
+CREATE TABLE "ACTIVITY_LOGS" (
+    "Log_ID" TEXT NOT NULL,
+    "Device_ID" TEXT NOT NULL,
+    "User_ID" TEXT,
+    "event_type" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "extra_data" JSONB,
+    "occurred_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ACTIVITY_LOGS_pkey" PRIMARY KEY ("Log_ID")
+);
+
+-- CreateTable
+CREATE TABLE "PUMP_SAFETY_LOGS" (
+    "SafetyLog_ID" TEXT NOT NULL,
+    "Device_ID" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "run_duration_sec" INTEGER NOT NULL,
+    "occurred_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PUMP_SAFETY_LOGS_pkey" PRIMARY KEY ("SafetyLog_ID")
+);
+
+-- CreateTable
+CREATE TABLE "WEATHER_CACHE" (
+    "Cache_ID" SERIAL NOT NULL,
+    "city_name" TEXT NOT NULL,
+    "weather_data" JSONB NOT NULL,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WEATHER_CACHE_pkey" PRIMARY KEY ("Cache_ID")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "USERS_username_key" ON "USERS"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "USERS_email_key" ON "USERS"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DEVICES_mac_address_key" ON "DEVICES"("mac_address");
+
+-- CreateIndex
+CREATE INDEX "SENSOR_READINGS_Sensor_ID_recorded_at_idx" ON "SENSOR_READINGS"("Sensor_ID", "recorded_at");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SMART_LOGIC_CONFIGS_Device_ID_key" ON "SMART_LOGIC_CONFIGS"("Device_ID");
+
+-- AddForeignKey
+ALTER TABLE "DEVICES" ADD CONSTRAINT "DEVICES_User_ID_fkey" FOREIGN KEY ("User_ID") REFERENCES "USERS"("User_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SENSORS" ADD CONSTRAINT "SENSORS_Device_ID_fkey" FOREIGN KEY ("Device_ID") REFERENCES "DEVICES"("Device_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ACTUATORS" ADD CONSTRAINT "ACTUATORS_Device_ID_fkey" FOREIGN KEY ("Device_ID") REFERENCES "DEVICES"("Device_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SENSOR_READINGS" ADD CONSTRAINT "SENSOR_READINGS_Sensor_ID_fkey" FOREIGN KEY ("Sensor_ID") REFERENCES "SENSORS"("Sensor_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ACTUATOR_LOGS" ADD CONSTRAINT "ACTUATOR_LOGS_Actuator_ID_fkey" FOREIGN KEY ("Actuator_ID") REFERENCES "ACTUATORS"("Actuator_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "THRESHOLDS" ADD CONSTRAINT "THRESHOLDS_Sensor_ID_fkey" FOREIGN KEY ("Sensor_ID") REFERENCES "SENSORS"("Sensor_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "THRESHOLDS" ADD CONSTRAINT "THRESHOLDS_Actuator_ID_fkey" FOREIGN KEY ("Actuator_ID") REFERENCES "ACTUATORS"("Actuator_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SCHEDULES" ADD CONSTRAINT "SCHEDULES_Actuator_ID_fkey" FOREIGN KEY ("Actuator_ID") REFERENCES "ACTUATORS"("Actuator_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SMART_LOGIC_CONFIGS" ADD CONSTRAINT "SMART_LOGIC_CONFIGS_Device_ID_fkey" FOREIGN KEY ("Device_ID") REFERENCES "DEVICES"("Device_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "NOTIFICATION_CONFIGS" ADD CONSTRAINT "NOTIFICATION_CONFIGS_User_ID_fkey" FOREIGN KEY ("User_ID") REFERENCES "USERS"("User_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ACTIVITY_LOGS" ADD CONSTRAINT "ACTIVITY_LOGS_Device_ID_fkey" FOREIGN KEY ("Device_ID") REFERENCES "DEVICES"("Device_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ACTIVITY_LOGS" ADD CONSTRAINT "ACTIVITY_LOGS_User_ID_fkey" FOREIGN KEY ("User_ID") REFERENCES "USERS"("User_ID") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PUMP_SAFETY_LOGS" ADD CONSTRAINT "PUMP_SAFETY_LOGS_Device_ID_fkey" FOREIGN KEY ("Device_ID") REFERENCES "DEVICES"("Device_ID") ON DELETE RESTRICT ON UPDATE CASCADE;
