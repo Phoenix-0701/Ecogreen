@@ -60,7 +60,6 @@ void initWiFi()
     else
     {
         Serial.println("[WiFi] STA timeout - AP only");
->>>>>>> 8b47f2f (ecogreen-house)
     }
 }
 

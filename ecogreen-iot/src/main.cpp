@@ -1,11 +1,3 @@
-#include <Arduino.h>
-#include <WiFi.h>
-#include <PubSubClient.h> // Thư viện MQTT
-
-// Thông tin WiFi nhà bạn (Nhập tạm vào đây để test cho nhanh)
-const char *ssid = "Tên_WiFi_Nha_Ban";
-const char *password = "Mat_Khau_WiFi";
-
 /*
  * main.cpp - Greenhouse IoT System (+ CoreIoT + WebServer)
  *
@@ -45,202 +37,141 @@ char WIFI_PASS[65] = ""; // max WPA2 64 chars + null
 char CORE_IOT_TOKEN[64] = "";
 char CORE_IOT_SERVER[128] = "";
 char CORE_IOT_PORT[6] = "1883";
->>>>>>> 8b47f2f (ecogreen-house)
 
-// Thông tin Trạm bưu điện (Khớp với NestJS)
-const char *mqtt_server = "broker.emqx.io";
-const int mqtt_port = 1883;
-
-WiFiClient espClient;
-PubSubClient client(espClient);
-
-<<<<<<< HEAD
-// Hàm kết nối WiFi
-void setup_wifi()
+// ============================================================================
+// SETUP
+// ============================================================================
+void setup()
 {
-    Serial.print("Dang ket noi WiFi: ");
-    Serial.println(ssid);
-    WiFi.begin(ssid, password);
+    Serial.begin(115200);
+    delay(200);
+    Serial.println("\n==============================");
+    Serial.println("  Greenhouse IoT + CoreIoT ");
+    Serial.println("==============================");
 
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println("\nWiFi da ket noi!");
+    // ===== 1. LittleFS + Config =====
+    // check_info_File(false): mount LittleFS + load /info.dat
+    // Nếu chưa có config → tự động bật AP để cấu hình
+    check_info_File(false);
+
+    // ===== 2. IOT BRIDGE TRƯỚC — tạo mutex trước khi đọc sensor =====
+    iotBridge_init();
+
+    // Load lịch tưới từ FS (nếu có) sau khi đã có mutex
+    loadSchedulesFromFS();
+
+    // Đọc sensor lần đầu để có dữ liệu hiển thị ngay khi khởi động
+    readDHT();
+    readLightSensor();
+    readSoilMoisture();
+
+    // ===== 3. HARDWARE =====
+    initLCD();
+    initRTC();
+    initActuators();
+    initSensors();
+    initButtons();
+
+    // ===== 4. WIFI =====
+    initWiFi();
+
+    // ===== 5. FREERTOS TASKS trên Core 0 =====
+    xTaskCreatePinnedToCore(
+        greenhouse_wifi_task, "wifi",
+        4096, nullptr, 3, nullptr, 0);
+
+    xTaskCreatePinnedToCore(
+        greenhouse_coreiot_task, "coreiot",
+        8192, nullptr, 2, nullptr, 0);
+
+    xTaskCreatePinnedToCore(
+        greenhouse_webserver_task, "webserver",
+        8192, nullptr, 1, nullptr, 0);
+
+    // ===== 6. COOPERATIVE SCHEDULER (Core 1) =====
+    SCH_Init();
+    SCH_Init_Timer();
+
+    // Thêm các task vào scheduler với khoảng thời gian định kỳ
+    SCH_Add_Task(Task_ReadAirSensors, 0, TASK_SENSOR_READ_TICKS);        // Đọc cảm biến không khí mỗi 2 giây vì thay đổi nhanh hơn
+    SCH_Add_Task(Task_ReadSoilSensor, 0, TASK_SOIL_READ_TICKS);          // Đọc đất mỗi 5 giây vì thay đổi chậm hơn
+    SCH_Add_Task(Task_CheckAlerts, 0, TASK_ALERT_CHECK_TICKS);           // Kiểm tra cảnh báo mỗi 1 giây để phản hồi nhanh với thay đổi trạng thái
+    SCH_Add_Task(Task_AutoControl, 0, TASK_AUTO_CONTROL_TICKS);          // Task điều khiển tự động (bơm + quạt) mỗi 1 giây
+    SCH_Add_Task(Task_PumpWatchdog, 0, TASK_PUMP_WATCHDOG_TICKS);        // Giám sát bơm mỗi 1 giây
+    SCH_Add_Task(Task_UpdateLEDStatus, 0, TASK_LED_UPDATE_TICKS);        // Cập nhật LED mỗi 500ms để phản hồi nhanh với thay đổi trạng thái
+    SCH_Add_Task(Task_UpdateLCD, 0, TASK_LCD_UPDATE_TICKS);              // Task cập nhật LCD mỗi 500ms
+    SCH_Add_Task(Task_AutoSwitchLCDPage, 0, TASK_LCD_PAGE_SWITCH_TICKS); // Task tự động chuyển trang LCD mỗi 5s
+    SCH_Add_Task(Task_Heartbeat, 0, TASK_HEARTBEAT_TICKS);               // Task nhẹ, in trạng thái hệ thống mỗi 5s
+    SCH_Add_Task(Task_ScanButtons, 0, BTN_DEBOUNCE_TICKS);               // Task quét nút bấm với debounce
+    SCH_Add_Task(Task_SendTelemetry, 0, TASK_TELEMETRY_TICKS);           // Task: gửi telemetry lên cloud mỗi 5s
+    SCH_Add_Task(Task_ProcessRpc, 0, TASK_RPC_POLL_TICKS);               // Task: poll lệnh RPC từ cloud mỗi 200ms
+    SCH_Add_Task(Task_CheckSchedule, 0, TASK_SCHEDULE_CHECK_TICKS);      // Task: kiểm tra lịch tưới mỗi 10s
 }
 
-// Hàm kết nối MQTT
-void reconnect_mqtt()
+// ============================================================================
+// MAIN LOOP (Core 1)
+// ============================================================================
+void loop()
 {
-    while (!client.connected())
+    SCH_Dispatch_Tasks();
+
+    if (Serial.available())
     {
-        Serial.print("Dang ket noi MQTT Broker...");
-        // Tạo một cái tên ngẫu nhiên cho ESP32
-        String clientId = "ESP32Client-";
-        clientId += String(random(0xffff), HEX);
-
-        if (client.connect(clientId.c_str()))
+        char cmd = Serial.read();
+        switch (cmd)
         {
-            Serial.println(" Thanh cong!");
-        }
-        else
-        {
-            Serial.print(" That bai, ma loi=");
-            Serial.print(client.state());
-            Serial.println(" Thu lai sau 5 giay");
-            delay(5000);
-            == == == =
-                         // ===== 2. IOT BRIDGE TRƯỚC — tạo mutex trước khi đọc sensor =====
-                iotBridge_init();
-
-            // Load lịch tưới từ FS (nếu có) sau khi đã có mutex
-            loadSchedulesFromFS();
-
-            // Đọc sensor lần đầu để có dữ liệu hiển thị ngay khi khởi động
-            readDHT();
-            readLightSensor();
-            readSoilMoisture();
-
-            // ===== 3. HARDWARE =====
-            initLCD();
-            initRTC();
-            initActuators();
-            initSensors();
-            initButtons();
-
-            // ===== 4. WIFI =====
-            initWiFi();
-
-            // ===== 5. FREERTOS TASKS trên Core 0 =====
-            xTaskCreatePinnedToCore(
-                greenhouse_wifi_task, "wifi",
-                4096, nullptr, 3, nullptr, 0);
-
-            xTaskCreatePinnedToCore(
-                greenhouse_coreiot_task, "coreiot",
-                8192, nullptr, 2, nullptr, 0);
-
-            xTaskCreatePinnedToCore(
-                greenhouse_webserver_task, "webserver",
-                8192, nullptr, 1, nullptr, 0);
-
-            // ===== 6. COOPERATIVE SCHEDULER (Core 1) =====
-            SCH_Init();
-            SCH_Init_Timer();
-
-            // Thêm các task vào scheduler với khoảng thời gian định kỳ
-            SCH_Add_Task(Task_ReadAirSensors, 0, TASK_SENSOR_READ_TICKS);        // Đọc cảm biến không khí mỗi 2 giây vì thay đổi nhanh hơn
-            SCH_Add_Task(Task_ReadSoilSensor, 0, TASK_SOIL_READ_TICKS);          // Đọc đất mỗi 5 giây vì thay đổi chậm hơn
-            SCH_Add_Task(Task_CheckAlerts, 0, TASK_ALERT_CHECK_TICKS);           // Kiểm tra cảnh báo mỗi 1 giây để phản hồi nhanh với thay đổi trạng thái
-            SCH_Add_Task(Task_AutoControl, 0, TASK_AUTO_CONTROL_TICKS);          // Task điều khiển tự động (bơm + quạt) mỗi 1 giây
-            SCH_Add_Task(Task_PumpWatchdog, 0, TASK_PUMP_WATCHDOG_TICKS);        // Giám sát bơm mỗi 1 giây
-            SCH_Add_Task(Task_UpdateLEDStatus, 0, TASK_LED_UPDATE_TICKS);        // Cập nhật LED mỗi 500ms để phản hồi nhanh với thay đổi trạng thái
-            SCH_Add_Task(Task_UpdateLCD, 0, TASK_LCD_UPDATE_TICKS);              // Task cập nhật LCD mỗi 500ms
-            SCH_Add_Task(Task_AutoSwitchLCDPage, 0, TASK_LCD_PAGE_SWITCH_TICKS); // Task tự động chuyển trang LCD mỗi 5s
-            SCH_Add_Task(Task_Heartbeat, 0, TASK_HEARTBEAT_TICKS);               // Task nhẹ, in trạng thái hệ thống mỗi 5s
-            SCH_Add_Task(Task_ScanButtons, 0, BTN_DEBOUNCE_TICKS);               // Task quét nút bấm với debounce
-            SCH_Add_Task(Task_SendTelemetry, 0, TASK_TELEMETRY_TICKS);           // Task: gửi telemetry lên cloud mỗi 5s
-            SCH_Add_Task(Task_ProcessRpc, 0, TASK_RPC_POLL_TICKS);               // Task: poll lệnh RPC từ cloud mỗi 200ms
-            SCH_Add_Task(Task_CheckSchedule, 0, TASK_SCHEDULE_CHECK_TICKS);      // Task: kiểm tra lịch tưới mỗi 10s
-        }
-
-        // ============================================================================
-        // MAIN LOOP (Core 1)
-        // ============================================================================
-        void loop()
-        {
-            SCH_Dispatch_Tasks();
-
-            if (Serial.available())
+        case 'a':
+        case 'A':
+            g_autoMode = !g_autoMode;
+            if (g_autoMode)
+                g_pumpManual = false;
+            Serial.printf("[CMD] Mode -> %s\n", g_autoMode ? "AUTO" : "MANUAL");
+            setLCDPage(2);
+            break;
+        case 'p':
+        case 'P':
+            if (!g_autoMode)
             {
-                char cmd = Serial.read();
-                switch (cmd)
-                {
-                case 'a':
-                case 'A':
-                    g_autoMode = !g_autoMode;
-                    if (g_autoMode)
-                        g_pumpManual = false;
-                    Serial.printf("[CMD] Mode -> %s\n", g_autoMode ? "AUTO" : "MANUAL");
-                    setLCDPage(2);
-                    break;
-                case 'p':
-                case 'P':
-                    if (!g_autoMode)
-                    {
-                        g_pumpManual = true;
-                        g_pumpState ? pumpOff() : pumpOn();
-                    }
-                    else
-                        Serial.println("[CMD] Switch to MANUAL first");
-                    break;
-                case 'f':
-                case 'F':
-                    if (!g_autoMode)
-                    {
-                        g_fanState ? fanOff() : fanOn();
-                    }
-                    else
-                        Serial.println("[CMD] Switch to MANUAL first");
-                    break;
-                case 'n':
-                case 'N':
-                    nextLCDPage();
-                    Serial.printf("[CMD] LCD Page -> %d\n", g_lcdPage);
-                    break;
-                case 's':
-                case 'S':
-                    printSensorData();
-                    break;
-                case 'i':
-                case 'I':
-                    Serial.printf("[IOT] WiFi: %s | IP: %s\n",
-                                  WiFi.status() == WL_CONNECTED ? "OK" : "DISCONNECTED",
-                                  WiFi.localIP().toString().c_str());
-                    Serial.printf("[IOT] Server: %s:%s\n",
-                                  CORE_IOT_SERVER, CORE_IOT_PORT);
-                    Serial.printf("[IOT] Free heap: %u\n", ESP.getFreeHeap());
-                    break;
-                case '?':
-                    Serial.println("Commands: a=AutoToggle p=PumpToggle f=FanToggle n=NextPage s=Sensors i=IoTInfo");
-                    break;
-                default:
-                    break;
-                }
->>>>>>> 8b47f2f (ecogreen-house)
+                g_pumpManual = true;
+                g_pumpState ? pumpOff() : pumpOn();
             }
+            else
+                Serial.println("[CMD] Switch to MANUAL first");
+            break;
+        case 'f':
+        case 'F':
+            if (!g_autoMode)
+            {
+                g_fanState ? fanOff() : fanOn();
+            }
+            else
+                Serial.println("[CMD] Switch to MANUAL first");
+            break;
+        case 'n':
+        case 'N':
+            nextLCDPage();
+            Serial.printf("[CMD] LCD Page -> %d\n", g_lcdPage);
+            break;
+        case 's':
+        case 'S':
+            printSensorData();
+            break;
+        case 'i':
+        case 'I':
+            Serial.printf("[IOT] WiFi: %s | IP: %s\n",
+                          WiFi.status() == WL_CONNECTED ? "OK" : "DISCONNECTED",
+                          WiFi.localIP().toString().c_str());
+            Serial.printf("[IOT] Server: %s:%s\n",
+                          CORE_IOT_SERVER, CORE_IOT_PORT);
+            Serial.printf("[IOT] Free heap: %u\n", ESP.getFreeHeap());
+            break;
+        case '?':
+            Serial.println("Commands: a=AutoToggle p=PumpToggle f=FanToggle n=NextPage s=Sensors i=IoTInfo");
+            break;
+        default:
+            break;
         }
     }
 
-    void setup()
-    {
-        Serial.begin(115200);
-        setup_wifi();
-
-        // Cấu hình địa chỉ trạm bưu điện
-        client.setServer(mqtt_server, mqtt_port);
-    }
-
-    void loop()
-    {
-        if (!client.connected())
-        {
-            reconnect_mqtt();
-        }
-        client.loop(); // Lệnh bắt buộc để duy trì kết nối
-
-        // Cứ 5 giây, gửi 1 bức thư lên NestJS
-        static unsigned long lastMsg = 0;
-        unsigned long now = millis();
-        if (now - lastMsg > 5000)
-        {
-            lastMsg = now;
-
-            // Gửi dòng chữ này vào hòm thư "ecogreen/test"
-            String tinNhan = "Xin chao NestJS! Toi la ESP32 day, nhiet do dang la 30 do C";
-            client.publish("ecogreen/test", tinNhan.c_str());
-
-            Serial.println("Da gui thu len mây: " + tinNhan);
-        }
-    }
+    yield();
+}
