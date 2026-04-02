@@ -4,11 +4,11 @@ import { LoginDto } from './dto/login.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Authentication')
-@Controller('v1/auth') // Đường dẫn gốc là http://localhost:3000/auth
+@Controller('v1/auth') 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login') // Kết hợp lại thành POST http://localhost:3000/auth/login
+  @Post('login') 
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
