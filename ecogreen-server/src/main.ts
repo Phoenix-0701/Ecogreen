@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -22,6 +23,15 @@ async function bootstrap() {
       url: 'mqtt://broker.emqx.io:1883', // Trạm bưu điện công cộng miễn phí
     },
   });
+
+  const config = new DocumentBuilder()
+    .setTitle('Ecogreen API')
+    .setDescription('API documentation for PetCare application')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api-docs', app, document);
 
   await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3000);
