@@ -16,10 +16,17 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   // Ăng-ten bắt sóng MQTT
+  // app.connectMicroservice<MicroserviceOptions>({
+  //   transport: Transport.MQTT,
+  //   options: {
+  //     url: 'mqtt://broker.emqx.io:1883', // Trạm bưu điện công cộng miễn phí
+  //   },
+  // });
+
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.MQTT,
     options: {
-      url: 'mqtt://broker.emqx.io:1883', // Trạm bưu điện công cộng miễn phí
+      url: 'mqtt://localhost:1883',
     },
   });
 

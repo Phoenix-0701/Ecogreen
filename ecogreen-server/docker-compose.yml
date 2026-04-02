@@ -14,5 +14,17 @@ services:
     volumes:
       - ecogreen-postgresdata:/var/lib/postgresql/data
 
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    container_name: ecogreen-mqtt
+    restart: always
+    ports:
+      - '1883:1883'
+      - '9001:9001'
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ecogreen-mqttdata:/mosquitto/data
+
 volumes:
   ecogreen-postgresdata:
+  ecogreen-mqttdata:
