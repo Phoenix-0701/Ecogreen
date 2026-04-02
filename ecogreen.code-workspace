@@ -1,0 +1,7 @@
+{
+  "folders": [
+    { "path": "ecogreen-iot" },
+    { "path": "ecogreen-client" },
+    { "path": "ecogreen-server" },
+  ],
+}

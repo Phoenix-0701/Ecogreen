@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="vi" class="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Greenhouse IoT — Emerald Orbit</title>
+
+    <!--
+      OFFLINE-FIRST: Không cần Tailwind CDN.
+      Toàn bộ styles nằm trong css/styles.css (lưu vào LittleFS).
+
+      Cấu trúc file:
+        index.html          ← Shell chính (file này)
+        partials/
+          login.html        ← Use case: Xác thực người dùng
+          sidebar.html      ← Use case: Điều hướng app
+          topbar.html       ← Use case: Tiêu đề & đồng hồ
+        pages/
+          dashboard.html    ← Use case: Giám sát real-time
+          charts.html       ← Use case: Biểu đồ lịch sử cảm biến
+          logs.html         ← Use case: Nhật ký lần bơm
+          control.html      ← Use case: Điều khiển thủ công
+          threshold.html    ← Use case: Cấu hình ngưỡng tưới
+          schedule.html     ← Use case: Lập lịch tưới
+          smartlogic.html   ← Use case: Tưới thông minh theo thời tiết
+          devices.html      ← Use case: Quản lý thiết bị IoT
+          notify.html       ← Use case: Cấu hình thông báo
+          account.html      ← Use case: Quản lý tài khoản
+        js/
+          state.js          ← Single source of truth
+          helpers.js        ← Utility: toast, modal, navigate, format
+          websocket.js      ← WebSocket ↔ ESP32
+          ui.js             ← Update DOM từ WS data
+          auth.js           ← Đăng nhập / đăng xuất
+          control.js        ← Gửi lệnh setPump/setFan/setMode
+          logs.js           ← CRUD nhật ký bơm
+          charts.js         ← Chart.js sensor history
+          threshold.js      ← Cấu hình ngưỡng tưới
+          schedule.js       ← Quản lý lịch tưới
+          smartlogic.js     ← OpenWeather API integration
+          devices.js        ← Factory Method quản lý thiết bị
+          notify.js         ← Telegram + Email config
+        css/
+          styles.css        ← Toàn bộ styling (offline)
+    -->
+
+    <!-- Chart.js — có thể thay bằng /js/chart.min.js nếu muốn offline hoàn toàn -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Fonts: Fraunces (serif headline) + Plus Jakarta Sans (body) + Material Symbols -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Offline CSS — không phụ thuộc CDN -->
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+
+  <body class="text-on-surface min-h-screen antialiased bg-immersive">
+    <!-- ══════════════════════════════════════════════════════
+      LOGIN OVERLAY — partials/login.html
+      Use case: Xác thực người dùng trước khi vào app
+    ══════════════════════════════════════════════════════ -->
+    <div id="slot-login"></div>
+
+    <!-- ══════════════════════════════════════════════════════
+      APP SHELL
+    ══════════════════════════════════════════════════════ -->
+    <div id="app" style="display: none" class="min-h-screen flex">
+      <!-- SIDEBAR — partials/sidebar.html
+           Use case: Điều hướng chính giữa các trang -->
+      <div id="slot-sidebar"></div>
+
+      <!-- MAIN CONTENT -->
+      <div class="flex-1 flex flex-col min-w-0">
+        <!-- TOPBAR — partials/topbar.html
+             Use case: Tiêu đề trang + đồng hồ + avatar -->
+        <div id="slot-topbar"></div>
+
+        <!-- PAGES — mỗi file trong pages/ đảm nhận 1 use case -->
+        <main class="flex-1 overflow-y-auto">
+          <div id="slot-pages">
+            <!-- Các page được inject vào đây khi load -->
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <!-- GLOBAL MODALS & TOAST — partials/modals.html
+         Use case: Confirm dialog, Add Device modal, Toast notification -->
+    <div id="slot-modals"></div>
+
+    <!-- ══════════════════════════════════════════════════════
+      PARTIAL LOADER
+      Fetch HTML partials và inject vào các slot tương ứng.
+      Sau khi tất cả load xong → khởi động app.
+    ══════════════════════════════════════════════════════ -->
+    <script>
+      "use strict";
+
+      /**
+       * Fetch một file HTML và inject vào element target.
+       * @param {string} url - Đường dẫn đến file HTML partial
+       * @param {string} targetId - id của element nhận innerHTML
+       */
+      async function loadPartial(url, targetId, required = true) {
+        const res = await fetch(url);
+        if (!res.ok) {
+          if (required) throw new Error(`Failed to load ${url}: ${res.status}`);
+          console.warn(`[Bootstrap] Optional partial not found: ${url}`);
+          return; // bỏ qua, không crash
+        }
+        const html = await res.text();
+        document.getElementById(targetId).innerHTML = html;
+      }
+
+      /**
+       * Load tất cả pages vào slot-pages, mỗi page là 1 use case.
+       * Dùng Promise.all để tải song song.
+       */
+      async function loadAllPages() {
+        const pages = [
+          "dashboard",
+          "charts",
+          "logs",
+          "control",
+          "threshold",
+          "schedule",
+          "smartlogic",
+          "devices",
+          "notify",
+          "account",
+        ];
+
+        const container = document.getElementById("slot-pages");
+
+        // Tải song song
+        const results = await Promise.all(
+          pages.map((name) =>
+            fetch(`pages/${name}.html`).then((r) =>
+              r.ok ? r.text() : Promise.reject(`Failed: ${name}`),
+            ),
+          ),
+        );
+
+        container.innerHTML = results.join("\n");
+      }
+
+      /**
+       * Bootstrap: load tất cả partials & pages → rồi mới chạy JS
+       */
+      async function bootstrap() {
+        try {
+          // Load song song: partials + tất cả pages
+          await Promise.all([
+            loadPartial("partials/login.html", "slot-login"),
+            loadPartial("partials/sidebar.html", "slot-sidebar"),
+            loadPartial("partials/topbar.html", "slot-topbar"),
+            loadAllPages(),
+          ]);
+        } catch (e) {
+          console.error("[Bootstrap] Failed to load partials:", e);
+          // Fallback: hiện lỗi thân thiện
+          document.body.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;padding:2rem;text-align:center">
+              <div>
+                <p style="font-size:2rem">🌿</p>
+                <h2 style="margin:1rem 0">Không thể tải giao diện</h2>
+                <p style="color:#666">Hãy chạy app qua HTTP server (không phải file://).<br>Ví dụ: <code>python3 -m http.server 8080</code></p>
+              </div>
+            </div>`;
+          return;
+        }
+
+        // Dispatch event để báo hiệu partials đã sẵn sàng
+        // (dùng cho các JS module nếu cần lắng nghe)
+        document.dispatchEvent(new Event("partials-loaded"));
+      }
+
+      // Khởi động ngay khi DOM ready
+      document.addEventListener("DOMContentLoaded", bootstrap);
+    </script>
+
+    <!-- ══════════════════════════════════════════════════════
+      JS FILES — thứ tự quan trọng (dependency order)
+    ══════════════════════════════════════════════════════ -->
+    <script src="js/state.js"></script>
+    <script src="js/helpers.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/control.js"></script>
+    <script src="js/logs.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/threshold.js"></script>
+    <script src="js/schedule.js"></script>
+    <script src="js/smartlogic.js"></script>
+    <script src="js/devices.js"></script>
+    <script src="js/notify.js"></script>
+  </body>
+</html>
