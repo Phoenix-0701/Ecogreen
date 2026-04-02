@@ -17,7 +17,7 @@ export class UsersController {
   }
 
   @UseGuards(AuthGuard)
-  @Get() // Đường dẫn: GET http://localhost:3000/users
+  @Get() 
   async findAllUsers() {
     return this.usersService.findAll();
   }
