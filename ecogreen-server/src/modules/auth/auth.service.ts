@@ -2,13 +2,13 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
-import { JwtService } from '@nestjs/jwt'; // <-- 1. Import JwtService
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
-    private jwtService: JwtService, // <-- 2. Tiêm anh thợ làm thẻ vào đầu bếp
+    private jwtService: JwtService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -33,20 +33,17 @@ export class AuthService {
       );
     }
 
-    // --- PHẦN MỚI: TẠO THẺ VIP (JWT) ---
-    // 3. Ghi thông tin cơ bản lên mặt thẻ (Payload).
-    // Tuyệt đối KHÔNG ghi password vào đây vì ai cũng có thể đọc mặt thẻ.
+    // JWT
     const payload = {
-      sub: user.User_ID, // 'sub' (subject) là quy ước chuẩn của quốc tế để lưu ID người dùng
+      sub: user.User_ID,
       username: user.username,
     };
 
-    // 4. In thẻ và đóng dấu (Sign)
     const accessToken = await this.jwtService.signAsync(payload);
 
     return {
       message: '🎉 Đăng nhập thành công!',
-      access_token: accessToken, // <-- 5. Giao chiếc thẻ này cho khách hàng!
+      access_token: accessToken,
       user: {
         User_ID: user.User_ID,
         username: user.username,
