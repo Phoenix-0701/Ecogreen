@@ -15,7 +15,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true, // Báo lỗi nếu khách gửi trường lạ
     }),
   );
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  // app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   // Ăng-ten bắt sóng MQTT
   app.connectMicroservice<MicroserviceOptions>({
@@ -35,8 +35,9 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, document);
 
   await app.startAllMicroservices();
-  await app.listen(process.env.PORT ?? 3000);
+  // await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3001, process.env.HOST ?? '0.0.0.0');
 
-  console.log('🚀 Server đang chạy HTTP (port 3000) và đã kết nối MQTT!');
+  console.log(`🚀 Server đang chạy HTTP (port ${process.env.PORT ?? 3001}) và đã kết nối MQTT!`);
 }
 bootstrap();

@@ -14,8 +14,14 @@ export function DashboardView() {
   });
 
   useEffect(() => {
-    // 2. Kết nối tới WebSocket của Backend NestJS
-    const socket = io("http://localhost:3001");
+    // // 2. Kết nối tới WebSocket của Backend NestJS
+    // const socket = io("http://localhost:3001");
+
+    // 2. Tự động lấy IP của server đang phục vụ trang web
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 
+                   `http://${window.location.hostname}:3001`;
+
+    const socket = io(backendUrl);
 
     socket.on("connect", () => console.log("✅ Đã kết nối WebSocket!"));
 
