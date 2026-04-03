@@ -15,7 +15,7 @@ export function DashboardView() {
 
   useEffect(() => {
     // 2. Kết nối tới WebSocket của Backend NestJS
-    const socket = io("http://localhost:3000");
+    const socket = io("http://localhost:3001");
 
     socket.on("connect", () => console.log("✅ Đã kết nối WebSocket!"));
 
