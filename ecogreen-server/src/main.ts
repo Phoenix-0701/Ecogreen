@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors({ origin: '*' }); 
 
   // KÍCH HOẠT KIỂM DUYỆT BẢO MẬT TOÀN CỤC
   app.useGlobalPipes(
@@ -15,14 +16,6 @@ async function bootstrap() {
     }),
   );
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
-
-  // Ăng-ten bắt sóng MQTT
-  // app.connectMicroservice<MicroserviceOptions>({
-  //   transport: Transport.MQTT,
-  //   options: {
-  //     url: 'mqtt://broker.emqx.io:1883', // Trạm bưu điện công cộng miễn phí
-  //   },
-  // });
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.MQTT,
