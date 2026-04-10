@@ -4,7 +4,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 
-@ApiTags('User')
+@ApiTags('users')
 @Controller('v1/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -17,7 +17,7 @@ export class UsersController {
   }
 
   @UseGuards(AuthGuard)
-  @Get() 
+  @Get()
   async findAllUsers() {
     return this.usersService.findAll();
   }
