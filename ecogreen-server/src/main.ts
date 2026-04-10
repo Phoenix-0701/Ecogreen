@@ -6,13 +6,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors({ origin: '*' }); 
+  app.enableCors({ origin: '*' });
 
   // KÍCH HOẠT KIỂM DUYỆT BẢO MẬT TOÀN CỤC
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Tự động vứt bỏ các trường "rác" khách cố tình gửi lên thêm để hack
-      forbidNonWhitelisted: true, // Báo lỗi nếu khách gửi trường lạ
+      whitelist: true,
+      forbidNonWhitelisted: true,
     }),
   );
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
@@ -34,7 +34,7 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, document);
 
   await app.startAllMicroservices();
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3001);
 
   console.log('🚀 Server đang chạy HTTP (port 3000) và đã kết nối MQTT!');
 }
