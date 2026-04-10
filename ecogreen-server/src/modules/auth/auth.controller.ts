@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Get, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { AuthGuard } from '@nestjs/passport'; // <-- Import cực kỳ quan trọng!
+import { AuthGuard } from '@nestjs/passport';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Authentication')
@@ -14,16 +14,12 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  // --- 2 API MỚI DÀNH CHO GOOGLE ---
+  //  API MỚI DÀNH CHO GOOGLE
 
-  // 1. Khách gọi vào đây: Cảnh sát sẽ tự động ném khách sang trang đăng nhập của Google
   @Get('google')
   @UseGuards(AuthGuard('google'))
-  async googleAuth(@Req() req) {
-    // Không cần viết code ở đây, Passport tự làm hết!
-  }
+  async googleAuth(@Req() req) {}
 
-  // 2. Google ném khách về lại đây kèm thông tin: Bồi bàn gọi Service lấy Token
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(@Req() req) {
