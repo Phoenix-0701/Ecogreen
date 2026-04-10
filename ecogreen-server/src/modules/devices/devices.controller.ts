@@ -12,7 +12,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('devices')
-@Controller('devices')
+@Controller('v1/devices')
 @UseGuards(AuthGuard)
 export class DevicesController {
   constructor(private readonly devicesService: DevicesService) {}

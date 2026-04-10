@@ -26,7 +26,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Ecogreen API')
-    .setDescription('API documentation for PetCare application')
+    .setDescription('API documentation for Ecogreen application')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -36,6 +36,6 @@ async function bootstrap() {
   await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3001);
 
-  console.log('🚀 Server đang chạy HTTP (port 3000) và đã kết nối MQTT!');
+  console.log('🚀 Server đang chạy HTTP (port 3001) và đã kết nối MQTT!');
 }
 bootstrap();
