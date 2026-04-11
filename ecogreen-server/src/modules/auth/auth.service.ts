@@ -59,7 +59,6 @@ export class AuthService {
     };
   }
 
-  // Thêm hàm này vào dưới cùng của class AuthService
   async googleLogin(req: any) {
     if (!req.user) {
       return { message: 'Không có thông tin từ Google' };
@@ -74,11 +73,9 @@ export class AuthService {
       },
     });
 
-    // 2. Nếu khách CHƯA TỪNG tới quán -> Lập hồ sơ mới ngay lập tức
     if (!user) {
       user = await this.prisma.uSERS.create({
         data: {
-          // Tạo một username ngẫu nhiên từ email (VD: lebao_842)
           username:
             email.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
           email: email,
@@ -88,21 +85,17 @@ export class AuthService {
           provider_id: provider_id,
         },
       });
-    }
-    // 3. Nếu khách có email rồi (tạo tay ngày xưa) nhưng giờ mới dùng Google login lần đầu
-    // -> Cập nhật thêm provider_id để lần sau Google nhận ra
-    else if (!user.provider_id) {
+    } else if (!user.provider_id) {
       user = await this.prisma.uSERS.update({
         where: { email: email },
         data: {
           provider_id: provider_id,
           auth_provider: 'google',
-          avatar_url: avatar_url || user.avatar_url, // Lấy avatar Google nếu DB chưa có
+          avatar_url: avatar_url || user.avatar_url,
         },
       });
     }
 
-    // 4. In "Thẻ VIP" (JWT Token) giao cho khách y như quy trình Login cũ
     const payload = { sub: user.User_ID, username: user.username };
     const accessToken = await this.jwtService.signAsync(payload);
 

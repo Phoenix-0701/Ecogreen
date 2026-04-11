@@ -14,7 +14,7 @@ import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 @ApiTags('Authentication')
-@Controller('auth')
+@Controller('v1/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
