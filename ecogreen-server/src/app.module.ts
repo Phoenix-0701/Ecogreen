@@ -5,9 +5,16 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { AppController } from './app.controller';
 import { EventsGateway } from './events.gateway';
 import { DevicesModule } from './modules/devices/devices.module';
+import { SensorsModule } from './modules/sensors/sensors.module';
 
 @Module({
-  imports: [UsersModule, AuthModule, PrismaModule, DevicesModule],
+  imports: [
+    UsersModule,
+    AuthModule,
+    PrismaModule,
+    DevicesModule,
+    SensorsModule,
+  ],
   controllers: [AppController],
   providers: [EventsGateway],
 })

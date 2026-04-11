@@ -23,6 +23,29 @@ export class DevicesService {
         mac_address: createDeviceDto.mac_address,
         User_ID: userId,
         status: 'offline',
+
+        sensors: {
+          create: [
+            {
+              name: 'Nhiệt độ',
+              type: 'temperature',
+              unit: '°C',
+              pin_connection: 0,
+            },
+            {
+              name: 'Độ ẩm không khí',
+              type: 'humidity',
+              unit: '%',
+              pin_connection: 0,
+            },
+            {
+              name: 'Độ ẩm đất',
+              type: 'soil_moisture',
+              unit: '%',
+              pin_connection: 0,
+            },
+          ],
+        },
       },
     });
 
