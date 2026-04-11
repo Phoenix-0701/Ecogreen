@@ -3,9 +3,9 @@ import { SensorsService } from './sensors.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 
-@ApiTags('sensors')
+@ApiTags('Sensors')
 @UseGuards(AuthGuard)
-@Controller()
+@Controller('/v1')
 export class SensorsController {
   constructor(private readonly sensorsService: SensorsService) {}
 

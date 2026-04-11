@@ -11,7 +11,7 @@ import { CreateDeviceDto } from './dto/create-device.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { ApiTags } from '@nestjs/swagger';
 
-@ApiTags('devices')
+@ApiTags('Devices')
 @Controller('v1/devices')
 @UseGuards(AuthGuard)
 export class DevicesController {
