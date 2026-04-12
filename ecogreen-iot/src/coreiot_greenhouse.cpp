@@ -168,7 +168,7 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
 
     Serial.printf("[MQTT-LOCAL] CMD: %s\n", msg);
 
-    // FIX: tăng document size để parse setSchedules
+    // Parse JSON
     StaticJsonDocument<512> doc;
     if (deserializeJson(doc, msg))
     {
@@ -180,7 +180,7 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
     if (!method)
         return;
 
-    // ---- setPump ----
+    // Set pump — nhận boolean true/false (true = ON)
     if (strcmp(method, "setPump") == 0)
     {
         bool state = doc["params"].as<bool>();
@@ -188,7 +188,8 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
         xQueueSend(xRpcCommandQueue, &pkt, 0);
         Serial.printf("[MQTT-LOCAL] setPump → %s\n", state ? "ON" : "OFF");
     }
-    // ---- setFan ----
+
+    // Set fan — nhận boolean true/false (true = ON)
     else if (strcmp(method, "setFan") == 0)
     {
         bool state = doc["params"].as<bool>();
@@ -196,7 +197,7 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
         xQueueSend(xRpcCommandQueue, &pkt, 0);
         Serial.printf("[MQTT-LOCAL] setFan → %s\n", state ? "ON" : "OFF");
     }
-    // ---- setMode ----
+    // Set mode — nhận "AUTO"/"MANUAL" hoặc boolean true/false (true = AUTO)
     else if (strcmp(method, "setMode") == 0)
     {
         bool isAuto = false;
@@ -209,7 +210,8 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
         xQueueSend(xRpcCommandQueue, &pkt, 0);
         Serial.printf("[MQTT-LOCAL] setMode → %s\n", isAuto ? "AUTO" : "MANUAL");
     }
-    // ---- setThreshold ----
+
+    // Set threshold — nhận soilDry, soilWet, tempHigh, pumpMax, pumpCool
     else if (strcmp(method, "setThreshold") == 0)
     {
         float soilDry = doc["params"]["soilDry"] | g_soilDryThreshold;
@@ -238,7 +240,8 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
         Serial.printf("[MQTT-LOCAL] setThreshold: soilDry=%.0f soilWet=%.0f tempHigh=%.0f pumpMax=%ds pumpCool=%ds\n",
                       soilDry, soilWet, tempHigh, pumpMax, pumpCool);
     }
-    // ---- setSchedules ----
+
+    // Set schedule — nhận array of {time: "HH:MM", duration: min, days: [0-6], enabled: bool}
     else if (strcmp(method, "setSchedules") == 0)
     {
         bool enabled = doc["params"]["enabled"] | g_scheduleEnabled;
@@ -348,7 +351,7 @@ static bool localMqttReconnect()
 
 // ============================================================================
 // PUBLISH TELEMETRY — CoreIoT + Local
-// FIX: bổ sung đầy đủ fields cho local broker (NestJS cần để build web)
+// Gửi đầy đủ fields lên Local broker để NestJS có thể dùng, còn CoreIoT thì giữ gọn nhẹ hơn với các field cơ bản (để dashboard load nhanh hơn)
 // ============================================================================
 static void publishTelemetry(const TelemetryPacket_t &pkt)
 {
@@ -356,7 +359,7 @@ static void publishTelemetry(const TelemetryPacket_t &pkt)
     String mac = WiFi.macAddress();
     String macFlat = getMacFlat();
 
-    // FIX: tăng lên 512 để chứa thêm fields alert + ledColor
+    // Gửi telemetry lên CoreIoT (và local broker) — đầy đủ fields cho NestJS
     StaticJsonDocument<512> tele;
     tele["mac"] = mac;
     tele["temperature"] = pkt.temperature;
@@ -399,7 +402,7 @@ static void publishTelemetry(const TelemetryPacket_t &pkt)
     }
 
     // --- Attributes: thống kê và cảnh báo (chỉ lên CoreIoT) ---
-    // FIX: tăng lên 384 để an toàn khi thêm field sau này
+    // Các field này không cần thiết cho NestJS nên không gửi lên local broker, chỉ gửi lên CoreIoT để hiển thị trên dashboard và trigger rule
     StaticJsonDocument<384> attr;
     attr["pumpCount"] = pkt.pumpCount;
     attr["totalPumpTimeSec"] = pkt.totalPumpTimeSec;
