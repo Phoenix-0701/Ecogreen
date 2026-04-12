@@ -24,6 +24,11 @@ export class DevicesController {
     return this.devicesService.create(userId, createDeviceDto);
   }
 
+  @Get('discovery')
+  async getDiscoveredDevices() {
+    return this.devicesService.getDiscovered();
+  }
+
   @Get()
   async getMyDevices(@Request() req) {
     const userId = req.user.sub;
