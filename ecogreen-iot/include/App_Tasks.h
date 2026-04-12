@@ -23,9 +23,9 @@
 #define BTN_DEBOUNCE_MS 50                  // Debounce mỗi 50ms
 
 // Timing cho các task liên quan đến IoT và lịch tưới
-#define TASK_TELEMETRY_DELAY_MS 2000       // Gửi telemetry lên cloud mỗi 2 giây
-#define TASK_RPC_POLL_DELAY_MS 200         // Poll lệnh RPC từ cloud mỗi 200ms
-#define TASK_SCHEDULE_CHECK_DELAY_MS 10000 // Kiểm tra lịch tưới mỗi 10 giây
+#define TASK_TELEMETRY_DELAY_MS 2000      // Gửi telemetry lên cloud mỗi 2 giây
+#define TASK_RPC_POLL_DELAY_MS 200        // Poll lệnh RPC từ cloud mỗi 200ms
+#define TASK_SCHEDULE_CHECK_DELAY_MS 5000 // Kiểm tra lịch tưới mỗi 5 giây
 // #define TASK_WIFI_WATCHDOG_DELAY_MS 30000    // Kiểm tra WiFi mỗi 30 giây
 
 // ==================== TIMING IN TICKS ====================
