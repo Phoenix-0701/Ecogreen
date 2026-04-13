@@ -6,6 +6,8 @@ import { AppController } from './app.controller';
 import { EventsGateway } from './events.gateway';
 import { DevicesModule } from './modules/devices/devices.module';
 import { SensorsModule } from './modules/sensors/sensors.module';
+import { ThresholdsModule } from './modules/thresholds/thresholds.module';
+import { LogsModule } from './modules/logs/logs.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { SensorsModule } from './modules/sensors/sensors.module';
     PrismaModule,
     DevicesModule,
     SensorsModule,
+    ThresholdsModule,
+    LogsModule,
   ],
   controllers: [AppController],
   providers: [EventsGateway],

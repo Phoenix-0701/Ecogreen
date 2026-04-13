@@ -10,7 +10,7 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 @ApiTags('Authentication')
@@ -18,6 +18,7 @@ import type { Response } from 'express';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @ApiOperation({ summary: 'Login' })
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
@@ -25,10 +26,12 @@ export class AuthController {
 
   //  API MỚI DÀNH CHO GOOGLE
 
+  @ApiOperation({ summary: 'Active Oauth2' })
   @Get('google')
   @UseGuards(AuthGuard('google'))
   async googleAuth(@Req() req) {}
 
+  @ApiOperation({ summary: 'Automatic data capture point' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleAuthRedirect(@Req() req, @Res() res: Response) {
