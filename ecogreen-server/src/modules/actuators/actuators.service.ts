@@ -27,8 +27,8 @@ export class ActuatorsService {
 
     const payload = {
       mac: actuator.device.mac_address,
-      device: actuator.type, // Ví dụ: 'pump'
-      state: state ? 1 : 0, // 1 là Bật, 0 là Tắt
+      device: actuator.type,
+      state: state ? 1 : 0, 
     };
     this.mqttClient.emit('ecogreen/command', payload);
 
