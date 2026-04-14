@@ -17,7 +17,7 @@ export class SensorsService {
       include: { sensors: true },
     });
 
-    if (!device) return;
+    if (!device) return null;
 
     const readingsToInsert: { Sensor_ID: string; value: number }[] = [];
 
@@ -40,6 +40,10 @@ export class SensorsService {
 
     if (readingsToInsert.length > 0) {
       await this.prisma.sENSOR_READINGS.createMany({ data: readingsToInsert });
+      await this.prisma.dEVICES.update({
+        where: { mac_address: macAddress },
+        data: { status: 'online', last_seen_at: new Date() },
+      });
 
       for (const reading of readingsToInsert) {
         // Tìm xem Sensor này có được cấu hình ngưỡng không?
@@ -52,42 +56,54 @@ export class SensorsService {
             device.sensors.find((s) => s.Sensor_ID === reading.Sensor_ID)
               ?.name || 'Cảm biến';
 
+          const actuatorID = threshold.Actuator_ID;
+          const lastActuatorLog = await this.prisma.aCTUATOR_LOGS.findFirst({
+            where: { Actuator_ID: actuatorID },
+            orderBy: { occurred_at: 'desc' },
+          });
+
+          const isCurrentlyOn = lastActuatorLog
+            ? lastActuatorLog.action === 'ON'
+            : false;
+
           if (reading.value > threshold.max_value) {
-            console.log(
-              `🚨 CẢNH BÁO: ${sensorName} VƯỢT NGƯỠNG MAX! (${reading.value} > ${threshold.max_value})`,
-            );
-            // Bật máy bơm auto
-            await this.actuatorsService.toggle(
-              threshold.Actuator_ID,
-              true,
-              'AUTO_SYSTEM_MAX',
-            );
+            if (!isCurrentlyOn) {
+              console.log(
+                `🚨 ${sensorName} VƯỢT NGƯỠNG MAX (${reading.value}). Tự động bật máy bơm!`,
+              );
 
-            // Ghi Log ngầm vào Database
-            await this.logsService.createSystemLog(
-              device.Device_ID,
-              'WARNING',
-              'VƯỢT NGƯỠNG MAX',
-              `Cảnh báo: ${sensorName} đo được ${reading.value}, vượt mức tối đa ${threshold.max_value}`,
-            );
+              await this.logsService.createSystemLog(
+                device.Device_ID,
+                'WARNING',
+                'VƯỢT NGƯỠNG MAX',
+                `Cảnh báo: ${sensorName} đo được ${reading.value}, vượt mức tối đa ${threshold.max_value}. Hệ thống tự động bật máy bơm.`,
+              );
+
+              await this.actuatorsService.toggle(
+                actuatorID,
+                true,
+                'AUTO_SYSTEM_MAX',
+              );
+            }
           } else if (reading.value < threshold.min_value) {
-            console.log(
-              `🚨 CẢNH BÁO: ${sensorName} DƯỚI NGƯỠNG MIN! (${reading.value} < ${threshold.min_value})`,
-            );
-            // Tắt máy bơm
-            await this.actuatorsService.toggle(
-              threshold.Actuator_ID,
-              false,
-              'AUTO_SYSTEM_MIN',
-            );
+            if (isCurrentlyOn) {
+              console.log(
+                `✅ ${sensorName} ĐÃ AN TOÀN (${reading.value}). Tự động tắt máy bơm!`,
+              );
 
-            // Ghi Log ngầm vào Database
-            await this.logsService.createSystemLog(
-              device.Device_ID,
-              'WARNING',
-              'DƯỚI NGƯỠNG MIN',
-              `Cảnh báo: ${sensorName} đo được ${reading.value}, rớt dưới mức tối thiểu ${threshold.min_value}`,
-            );
+              await this.logsService.createSystemLog(
+                device.Device_ID,
+                'ACTION',
+                'DƯỚI NGƯỠNG MIN',
+                `Thông báo: ${sensorName} hạ xuống ${reading.value}, an toàn dưới mức ${threshold.min_value}. Hệ thống tự động tắt máy bơm.`,
+              );
+
+              await this.actuatorsService.toggle(
+                actuatorID,
+                false,
+                'AUTO_SYSTEM_MIN',
+              );
+            }
           }
         }
       }
