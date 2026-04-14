@@ -8,6 +8,7 @@ import { DevicesModule } from './modules/devices/devices.module';
 import { SensorsModule } from './modules/sensors/sensors.module';
 import { ThresholdsModule } from './modules/thresholds/thresholds.module';
 import { LogsModule } from './modules/logs/logs.module';
+import { ActuatorsModule } from './modules/actuators/actuators.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { LogsModule } from './modules/logs/logs.module';
     SensorsModule,
     ThresholdsModule,
     LogsModule,
+    ActuatorsModule,
   ],
   controllers: [AppController],
   providers: [EventsGateway],

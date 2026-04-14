@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LogsService } from '../logs/logs.service';
+import { ActuatorsService } from '../actuators/actuators.service';
 
 @Injectable()
 export class SensorsService {
   constructor(
     private prisma: PrismaService,
     private logsService: LogsService,
+    private actuatorsService: ActuatorsService,
   ) {}
 
   async saveSensorData(macAddress: string, payload: any) {
@@ -54,6 +56,12 @@ export class SensorsService {
             console.log(
               `🚨 CẢNH BÁO: ${sensorName} VƯỢT NGƯỠNG MAX! (${reading.value} > ${threshold.max_value})`,
             );
+            // Bật máy bơm auto
+            await this.actuatorsService.toggle(
+              threshold.Actuator_ID,
+              true,
+              'AUTO_SYSTEM_MAX',
+            );
 
             // Ghi Log ngầm vào Database
             await this.logsService.createSystemLog(
@@ -65,6 +73,12 @@ export class SensorsService {
           } else if (reading.value < threshold.min_value) {
             console.log(
               `🚨 CẢNH BÁO: ${sensorName} DƯỚI NGƯỠNG MIN! (${reading.value} < ${threshold.min_value})`,
+            );
+            // Tắt máy bơm
+            await this.actuatorsService.toggle(
+              threshold.Actuator_ID,
+              false,
+              'AUTO_SYSTEM_MIN',
             );
 
             // Ghi Log ngầm vào Database
