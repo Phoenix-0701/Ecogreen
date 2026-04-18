@@ -3,7 +3,7 @@ import { DashboardView } from "@/features/dashboard/components/DashboardView";
 
 export default function DashboardPage() {
   return (
-    <DashboardLayout>
+    <DashboardLayout activeMenu="DASHBOARD" pageTitle="Dashboard">
       <DashboardView />
     </DashboardLayout>
   );

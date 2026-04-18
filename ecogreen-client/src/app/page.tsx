@@ -1,25 +1,36 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/features/auth/auth.context";
+import { Leaf, Loader2 } from "lucide-react";
 
 export default function Home() {
-  return (
-    <div className="min-h-screen bg-green-50 flex flex-col items-center justify-center text-center p-6">
-      <h1 className="text-5xl font-bold text-green-700 mb-4">
-        🌿 EcoGreen IoT System
-      </h1>
-      <p className="text-lg text-gray-600 mb-8 max-w-2xl">
-        Hệ thống quản lý và giám sát nông nghiệp thông minh. Giám sát nhiệt độ,
-        độ ẩm và điều khiển máy bơm tự động.
-      </p>
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
-      {/* Nút bấm chuyển hướng sang trang Dashboard */}
-      <Link
-        href="/dashboard"
-        className="flex items-center gap-2 px-8 py-4 bg-green-600 text-white rounded-full font-semibold text-lg hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
-      >
-        Dashboard
-        <ArrowRight size={20} />
-      </Link>
+  useEffect(() => {
+    if (!isLoading) {
+      if (isAuthenticated) {
+        router.replace("/dashboard");
+      } else {
+        router.replace("/login");
+      }
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0a1a0f] via-[#0d2818] to-[#071510] flex flex-col items-center justify-center text-center p-6">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white shadow-lg shadow-green-500/30">
+          <Leaf size={28} />
+        </div>
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-green-400 to-green-500 bg-clip-text text-transparent">
+          EcoGreen
+        </h1>
+      </div>
+      <Loader2 size={28} className="text-green-400 animate-spin" />
+      <p className="text-white/40 text-sm mt-4">Đang chuyển hướng...</p>
     </div>
   );
 }
