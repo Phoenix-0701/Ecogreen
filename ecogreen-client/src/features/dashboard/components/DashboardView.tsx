@@ -1,58 +1,75 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Thermometer, Wind, Droplets } from "lucide-react";
-import { SensorCard } from "./SensorCard";
+import { Droplets, Thermometer, Wind } from "lucide-react";
 import { io } from "socket.io-client";
+import { SensorCard } from "./SensorCard";
+
+interface SensorData {
+  temp: number;
+  humi: number;
+  soil: number;
+}
+
+function parseSensorData(data: unknown): SensorData | null {
+  try {
+    const wrappedData =
+      typeof data === "object" && data !== null
+        ? (data as { payload?: unknown; message?: unknown })
+        : {};
+    let sensorPayload = wrappedData.payload ?? wrappedData.message ?? data;
+
+    if (typeof sensorPayload === "string") {
+      sensorPayload = JSON.parse(sensorPayload);
+    }
+
+    if (typeof sensorPayload !== "object" || sensorPayload === null) {
+      return null;
+    }
+
+    const payload = sensorPayload as Record<string, unknown>;
+    const readNumber = (...keys: string[]) => {
+      for (const key of keys) {
+        const value = payload[key];
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return value;
+        }
+      }
+      return 0;
+    };
+
+    return {
+      temp: readNumber("temp", "temperature"),
+      humi: readNumber("humi", "humidity", "hum"),
+      soil: readNumber("soil", "soil_moisture", "soilMoisture"),
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function DashboardView() {
-  // 1. Khởi tạo State để lưu trữ dữ liệu thật (Mặc định là 0 hoặc "--")
-  const [sensorData, setSensorData] = useState({
+  const [sensorData, setSensorData] = useState<SensorData>({
     temp: 0,
     humi: 0,
     soil: 0,
   });
 
   useEffect(() => {
-    // 2. Kết nối tới WebSocket của Backend NestJS
-    const socket = io("http://localhost:3001");
+    const backendUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      `http://${window.location.hostname}:3001`;
 
-    socket.on("connect", () => console.log("✅ Đã kết nối WebSocket!"));
+    const socket = io(backendUrl);
 
-    // 3. Lắng nghe dữ liệu thật từ Backend bắn qua
-    socket.on("realtime-data", (data: any) => {
-      console.log("📥 Nhận dữ liệu từ Server (Nguyên bản):", data);
-
-      try {
-        // 1. Tìm xem cái cục chứa dữ liệu cảm biến nó nằm ở biến 'payload' hay 'message'
-        let sensorPayload = data.payload || data.message;
-
-        // 2. GIẢI MÃ: Nếu ESP32 gửi lên một chuỗi String (Text), ta phải Ép nó thành JSON Object
-        if (typeof sensorPayload === "string") {
-          sensorPayload = JSON.parse(sensorPayload);
-        }
-
-        // 3. GÁN DỮ LIỆU: Bọc các trường hợp tên biến khác nhau để chống trượt
-        if (sensorPayload) {
-          setSensorData({
-            // Nếu có biến temp thì lấy temp, không thì tìm temperature, không có nữa thì lấy 0
-            temp: sensorPayload.temp || sensorPayload.temperature || 0,
-            humi:
-              sensorPayload.humi ||
-              sensorPayload.humidity ||
-              sensorPayload.hum ||
-              0,
-            soil:
-              sensorPayload.soil ||
-              sensorPayload.soil_moisture ||
-              sensorPayload.soilMoisture ||
-              0,
-          });
-        }
-      } catch (error) {
-        console.error(" Lỗi giải mã dữ liệu cảm biến:", error);
+    socket.on("connect", () => console.log("Connected to WebSocket"));
+    socket.on("realtime-data", (data: unknown) => {
+      const nextSensorData = parseSensorData(data);
+      if (nextSensorData) {
+        setSensorData(nextSensorData);
       }
     });
+
     return () => {
       socket.disconnect();
     };
