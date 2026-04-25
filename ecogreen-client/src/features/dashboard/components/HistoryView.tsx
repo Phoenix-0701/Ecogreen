@@ -11,14 +11,11 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { generateMockHistory } from "@/lib/mockData";
 
 export function HistoryView() {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month">("day");
-  const [chartData] = useState(() => generateMockHistory(24));
-
-  const hours = timeRange === "day" ? 24 : timeRange === "week" ? 168 : 720;
-  const displayData = generateMockHistory(hours);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const formatXAxis = (time: string) => {
     const date = new Date(time);
@@ -55,60 +52,17 @@ export function HistoryView() {
         </div>
 
         <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={displayData}>
+          <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis
-              dataKey="time"
-              tickFormatter={formatXAxis}
-              stroke="#6b7280"
-              fontSize={12}
-            />
+            <XAxis dataKey="time" stroke="#6b7280" fontSize={12} />
             <YAxis stroke="#6b7280" fontSize={12} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#fff",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-              }}
-              labelFormatter={(time) => new Date(time).toLocaleString("vi-VN")}
-            />
+            <Tooltip contentStyle={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: "8px" }} />
             <Legend />
-            <Line
-              type="monotone"
-              dataKey="temperature"
-              name="Nhiệt độ (°C)"
-              stroke="#f97316"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="humidity"
-              name="Độ ẩm không khí (%)"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="soilMoisture"
-              name="Độ ẩm đất (%)"
-              stroke="#22c55e"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
-            <Line
-              type="monotone"
-              dataKey="lightIntensity"
-              name="Ánh sáng (lux)"
-              stroke="#eab308"
-              strokeWidth={2}
-              dot={false}
-              isAnimationActive={false}
-            />
+            {chartData.length === 0 && (
+              <text x="50%" y="50%" textAnchor="middle" fill="#6b7280">
+                Đang chờ dữ liệu từ backend...
+              </text>
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>

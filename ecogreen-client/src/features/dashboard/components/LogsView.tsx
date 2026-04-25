@@ -2,14 +2,10 @@
 
 import React, { useState } from "react";
 import { Droplets, Wind, AlertCircle, Activity, Clock, Filter } from "lucide-react";
-import { mockActivityLogs } from "@/lib/mockData";
 
 export function LogsView() {
   const [filter, setFilter] = useState<string>("all");
-
-  const filteredLogs = filter === "all" 
-    ? mockActivityLogs 
-    : mockActivityLogs.filter(log => log.status === filter);
+  const [logs, setLogs] = useState<any[]>([]);
 
   const getStatusStyle = (status: string) => {
     switch (status) {
@@ -92,33 +88,41 @@ export function LogsView() {
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-600">{formatTime(log.time)}</span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2">
-                      {getEventIcon(log.eventType)}
-                      <span className="text-sm font-medium text-gray-900">{log.eventType}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-600">{log.description}</span>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusStyle(log.status)}`}>
-                      {getStatusLabel(log.status)}
-                    </span>
+              {logs.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-gray-500">
+                    Đang chờ dữ liệu từ backend...
                   </td>
                 </tr>
-              ))}
+              ) : (
+                logs.map((log) => (
+                  <tr key={log.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-3 px-4">
+                      <span className="text-sm text-gray-600">{formatTime(log.time)}</span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        {getEventIcon(log.eventType)}
+                        <span className="text-sm font-medium text-gray-900">{log.eventType}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="text-sm text-gray-600">{log.description}</span>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusStyle(log.status)}`}>
+                        {getStatusLabel(log.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="mt-4 text-sm text-gray-500">
-          Hiển thị {filteredLogs.length} / {mockActivityLogs.length} sự kiện
+          Hiển thị {logs.length} sự kiện
         </div>
       </div>
     </div>
