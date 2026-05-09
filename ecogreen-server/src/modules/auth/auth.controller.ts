@@ -1,15 +1,44 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 @ApiTags('Authentication')
-@Controller('v1/auth') 
+@Controller('v1/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login') 
+  @ApiOperation({ summary: 'Login' })
+  @Post('login')
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  //  API MỚI DÀNH CHO GOOGLE
+
+  @ApiOperation({ summary: 'Active Oauth2' })
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth(@Req() req) {}
+
+  @ApiOperation({ summary: 'Automatic data capture point' })
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthRedirect(@Req() req, @Res() res: Response) {
+    const result = await this.authService.googleLogin(req);
+
+    res.redirect(
+      `http://localhost:3000/dashboard?token=${result.access_token}`,
+    );
   }
 }

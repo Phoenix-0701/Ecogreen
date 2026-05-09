@@ -1,32 +1,101 @@
-// src/services/api.ts
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+const TOKEN_STORAGE_KEYS = ["access_token", "ecogreen.access_token"] as const;
 
-export const fetcher = async (endpoint: string, options?: RequestInit) => {
-  // Lấy token từ localStorage (nếu chạy trên client)
-  let token: string | null = null;
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  "http://localhost:3001";
+
+function getApiBaseUrl() {
   if (typeof window !== "undefined") {
-    token = localStorage.getItem("access_token");
+    return (
+      process.env.NEXT_PUBLIC_API_URL ||
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      `http://${window.location.hostname}:3001`
+    );
   }
 
-  const res = await fetch(`${API_URL}${endpoint}`, {
+  return API_URL;
+}
+
+export function getAccessToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const queryToken = new URLSearchParams(window.location.search).get("token");
+  if (queryToken) {
+    for (const key of TOKEN_STORAGE_KEYS) {
+      window.localStorage.setItem(key, queryToken);
+    }
+
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("token");
+    window.history.replaceState(null, "", cleanUrl.toString());
+
+    return queryToken;
+  }
+
+  for (const key of TOKEN_STORAGE_KEYS) {
+    const token = window.localStorage.getItem(key);
+    if (token) {
+      return token;
+    }
+  }
+
+  return null;
+}
+
+export function clearAccessToken() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  for (const key of TOKEN_STORAGE_KEYS) {
+    window.localStorage.removeItem(key);
+  }
+}
+
+export async function requestJson<T>(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<T> {
+  const baseUrl = getApiBaseUrl();
+  const token = getAccessToken();
+  const headers = new Headers(options?.headers);
+
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const res = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({}));
-    const error = new Error(
-      errorBody?.message || "Đã có lỗi xảy ra khi gọi API"
-    );
-    (error as any).status = res.status;
+    const errorBody = await res.json().catch(() => null);
+    const message =
+      errorBody &&
+      typeof errorBody === "object" &&
+      "message" in errorBody &&
+      typeof errorBody.message === "string"
+        ? errorBody.message
+        : "Da co loi xay ra khi goi API";
+    const error = new Error(message) as Error & { status?: number };
+    error.status = res.status;
     throw error;
   }
 
-  return res.json();
-};
+  if (res.status === 204) {
+    return undefined as T;
+  }
 
-export { API_URL };
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+export const fetcher = requestJson;

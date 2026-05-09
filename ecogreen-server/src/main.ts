@@ -6,18 +6,15 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors({ origin: '*' }); 
+  app.enableCors({ origin: '*' });
 
-  // KÍCH HOẠT KIỂM DUYỆT BẢO MẬT TOÀN CỤC
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Tự động vứt bỏ các trường "rác" khách cố tình gửi lên thêm để hack
-      forbidNonWhitelisted: true, // Báo lỗi nếu khách gửi trường lạ
+      whitelist: true,
+      forbidNonWhitelisted: true,
     }),
   );
-  // app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
-  // Ăng-ten bắt sóng MQTT
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.MQTT,
     options: {
@@ -27,7 +24,7 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Ecogreen API')
-    .setDescription('API documentation for PetCare application')
+    .setDescription('API documentation for Ecogreen application')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
@@ -35,9 +32,10 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, document);
 
   await app.startAllMicroservices();
-  // await app.listen(process.env.PORT ?? 3000);
   await app.listen(process.env.PORT ?? 3001, process.env.HOST ?? '0.0.0.0');
 
-  console.log(`🚀 Server đang chạy HTTP (port ${process.env.PORT ?? 3001}) và đã kết nối MQTT!`);
+  console.log(
+    `Server dang chay HTTP (port ${process.env.PORT ?? 3001}) va da ket noi MQTT!`,
+  );
 }
 bootstrap();
