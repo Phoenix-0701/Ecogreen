@@ -8,6 +8,7 @@ import {
   BrainCircuit,
   CalendarClock,
   Cpu,
+  History,
   LayoutDashboard,
   Leaf,
   LineChart,
@@ -56,6 +57,13 @@ const navItems: NavItem[] = [
     label: "CHART",
     title: "Chart",
     icon: <LineChart size={20} />,
+  },
+  {
+    key: "HISTORY",
+    href: "/dashboard/history",
+    label: "HISTORY",
+    title: "Lich su du lieu",
+    icon: <History size={20} />,
   },
   {
     key: "SCHEDULE",
