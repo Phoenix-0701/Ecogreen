@@ -2,11 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { User, LoginPayload, LoginResponse } from "@/types";
-import { fetcher, API_URL } from "@/services/api";
+import { clearAccessToken, fetcher, getAccessToken, API_URL } from "@/services/api";
 
 // ============ GOOGLE CLIENT ID ============
 // Thay bằng Google Client ID thật từ Google Cloud Console
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
 interface AuthContextType {
   user: User | null;
@@ -28,11 +27,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Khởi tạo - đọc token từ localStorage
   useEffect(() => {
-    const savedToken = localStorage.getItem("access_token");
+    const savedToken = getAccessToken();
     const savedUser = localStorage.getItem("user_info");
 
-    if (savedToken && savedUser) {
+    if (savedToken) {
       setToken(savedToken);
+    }
+
+    if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
       } catch {
@@ -57,18 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Đăng nhập bằng Google OAuth 2.0 — redirect sang Google
   const loginWithGoogle = useCallback(() => {
-    const redirectUri = `${window.location.origin}/auth/google/callback`;
-    const scope = "openid email profile";
-    const googleAuthUrl =
-      `https://accounts.google.com/o/oauth2/v2/auth?` +
-      `client_id=${encodeURIComponent(GOOGLE_CLIENT_ID)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&response_type=code` +
-      `&scope=${encodeURIComponent(scope)}` +
-      `&access_type=offline` +
-      `&prompt=consent`;
-
-    window.location.href = googleAuthUrl;
+    window.location.href = `${API_URL}/v1/auth/google`;
   }, []);
 
   // Xử lý callback sau khi Google redirect về
@@ -89,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem("access_token");
+    clearAccessToken();
     localStorage.removeItem("user_info");
     window.location.href = "/login";
   }, []);

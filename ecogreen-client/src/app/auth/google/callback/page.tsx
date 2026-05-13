@@ -13,6 +13,12 @@ function CallbackContent() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
+    if (!searchParams) {
+      setStatus("error");
+      setErrorMsg("Khong the doc tham so callback tu Google.");
+      return;
+    }
+
     const code = searchParams.get("code");
     const error = searchParams.get("error");
 
