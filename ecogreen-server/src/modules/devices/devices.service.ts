@@ -1,6 +1,11 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDeviceDto } from './dto/create-device.dto';
+import { UpdateDeviceDto } from './dto/update-device.dto';
 
 @Injectable()
 export class DevicesService {
@@ -79,6 +84,41 @@ export class DevicesService {
     return this.prisma.dEVICES.findMany({
       where: { User_ID: userId },
       include: { sensors: true, actuators: true },
+    });
+  }
+
+  // 5. Cập nhật tên thiết bị (Chỉ được sửa thiết bị của mình)
+  async update(deviceId: string, userId: string, dto: UpdateDeviceDto) {
+    const device = await this.prisma.dEVICES.findFirst({
+      where: { Device_ID: deviceId, User_ID: userId },
+    });
+
+    if (!device) {
+      throw new NotFoundException(
+        'Không tìm thấy thiết bị hoặc bạn không có quyền sửa!',
+      );
+    }
+
+    return this.prisma.dEVICES.update({
+      where: { Device_ID: deviceId },
+      data: { name: dto.name },
+    });
+  }
+
+  // 6. Xóa thiết bị
+  async remove(deviceId: string, userId: string) {
+    const device = await this.prisma.dEVICES.findFirst({
+      where: { Device_ID: deviceId, User_ID: userId },
+    });
+
+    if (!device) {
+      throw new NotFoundException(
+        'Không tìm thấy thiết bị hoặc bạn không có quyền xóa!',
+      );
+    }
+
+    return this.prisma.dEVICES.delete({
+      where: { Device_ID: deviceId },
     });
   }
 }

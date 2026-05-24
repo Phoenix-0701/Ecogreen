@@ -1,8 +1,17 @@
-import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Patch,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthGuard } from '../auth/auth.guard';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('Users')
 @Controller('v1/users')
@@ -18,6 +27,39 @@ export class UsersController {
     return {
       message: '🎉 Tạo tài khoản thành công!',
       data: newUser,
+    };
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get my profile',
+  })
+  @UseGuards(AuthGuard)
+  @Get('me') // Route: GET /v1/users/me
+  async getMyProfile(@Request() req) {
+    // Tự động lấy User ID từ cục Token gửi lên
+    const userId = req.user.sub;
+    const profile = await this.usersService.getProfile(userId);
+
+    // Chuẩn hóa { message, data }
+    return {
+      message: 'Lấy thông tin cá nhân thành công',
+      data: profile,
+    };
+  }
+
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update name, nickname' })
+  @UseGuards(AuthGuard)
+  @Patch('me') // Route: PATCH /v1/users/me
+  async updateMyProfile(@Request() req, @Body() dto: UpdateUserDto) {
+    const userId = req.user.sub;
+    const updatedProfile = await this.usersService.updateProfile(userId, dto);
+
+    // Chuẩn hóa { message, data }
+    return {
+      message: 'Cập nhật thông tin cá nhân thành công',
+      data: updatedProfile,
     };
   }
 
