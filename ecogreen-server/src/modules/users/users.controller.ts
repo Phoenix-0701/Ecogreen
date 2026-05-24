@@ -13,14 +13,23 @@ export class UsersController {
   @ApiOperation({ summary: 'Register new user' })
   @Post('register')
   async registerUser(@Body() createUserDto: CreateUserDto) {
-    // Gọi đúng hàm "create" có sẵn trong users.service.ts
-    return this.usersService.create(createUserDto);
+    const newUser = await this.usersService.create(createUserDto);
+
+    return {
+      message: '🎉 Tạo tài khoản thành công!',
+      data: newUser,
+    };
   }
 
   @ApiOperation({ summary: 'Get all users' })
   @UseGuards(AuthGuard)
   @Get()
   async findAllUsers() {
-    return this.usersService.findAll();
+    const users = await this.usersService.findAll();
+
+    return {
+      message: 'Lấy danh sách người dùng thành công',
+      data: users,
+    };
   }
 }

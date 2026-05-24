@@ -22,7 +22,7 @@ export class DevicesController {
   async createDevice(@Request() req, @Body() createDeviceDto: CreateDeviceDto) {
     // req.user.sub : User_ID trong Token lúc đăng nhập
     const userId = req.user.sub;
-    return this.devicesService.create(userId, createDeviceDto);
+    return { data: await this.devicesService.create(userId, createDeviceDto) };
   }
 
   @ApiOperation({ summary: 'Get the devices in the connection queue' })

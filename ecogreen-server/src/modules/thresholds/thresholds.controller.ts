@@ -13,15 +13,26 @@ export class ThresholdsController {
 
   @Post('thresholds')
   @ApiOperation({ summary: 'Create or update threshold configuration' })
-  upsert(@Body() dto: UpsertThresholdDto) {
-    return this.thresholdsService.upsertThreshold(dto);
+  async upsert(@Body() dto: UpsertThresholdDto) {
+    const result = await this.thresholdsService.upsertThreshold(dto);
+
+    return {
+      message: 'Cập nhật cấu hình ngưỡng thành công',
+      data: result,
+    };
   }
 
   @Get('devices/:deviceId/thresholds')
   @ApiOperation({
     summary: 'Get the list of thresholds currently configured for the device',
   })
-  getThresholds(@Param('deviceId') deviceId: string) {
-    return this.thresholdsService.getDeviceThresholds(deviceId);
+  async getThresholds(@Param('deviceId') deviceId: string) {
+    const thresholds =
+      await this.thresholdsService.getDeviceThresholds(deviceId);
+
+    return {
+      message: 'Lấy danh sách ngưỡng thành công',
+      data: thresholds,
+    };
   }
 }

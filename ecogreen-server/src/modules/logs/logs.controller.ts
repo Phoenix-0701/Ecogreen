@@ -13,10 +13,18 @@ export class LogsController {
   @ApiOperation({
     summary: 'Get device operation history',
   })
-  getLogs(@Param('deviceId') deviceId: string, @Query('limit') limit: string) {
-    return this.logsService.getLogsByDevice(
+  async getLogs(
+    @Param('deviceId') deviceId: string,
+    @Query('limit') limit: string,
+  ) {
+    const logs = await this.logsService.getLogsByDevice(
       deviceId,
       limit ? parseInt(limit) : 50,
     );
+
+    return {
+      message: 'Lấy lịch sử hoạt động thành công',
+      data: logs,
+    };
   }
 }

@@ -21,10 +21,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Login' })
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+    const tokenData = await this.authService.login(loginDto);
+
+    return {
+      message: 'Đăng nhập thành công!',
+      data: tokenData,
+    };
   }
 
-  //  API MỚI DÀNH CHO GOOGLE
+  //  API CHO GOOGLE
 
   @ApiOperation({ summary: 'Active Oauth2' })
   @Get('google')
@@ -34,11 +39,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Automatic data capture point' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req, @Res() res: Response) {
-    const result = await this.authService.googleLogin(req);
+  async googleAuthRedirect(@Req() req) {
+    const tokenData = await this.authService.googleLogin(req);
 
-    res.redirect(
-      `http://localhost:3000/dashboard?token=${result.access_token}`,
-    );
+    return {
+      message: 'Đăng nhập bằng Google thành công!',
+      data: tokenData,
+    };
   }
 }

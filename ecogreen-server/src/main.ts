@@ -3,19 +3,18 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors({ origin: '*' });
 
-  // KÍCH HOẠT KIỂM DUYỆT BẢO MẬT TOÀN CỤC
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
     }),
   );
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.MQTT,
@@ -32,10 +31,13 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
+  app.useGlobalInterceptors(new TransformInterceptor());
 
   await app.startAllMicroservices();
-  await app.listen(process.env.PORT ?? 3001);
+  await app.listen(process.env.PORT ?? 3001, process.env.HOST ?? '0.0.0.0');
 
-  console.log('🚀 Server đang chạy HTTP (port 3001) và đã kết nối MQTT!');
+  console.log(
+    `Server dang chay HTTP (port ${process.env.PORT ?? 3001}) va da ket noi MQTT!`,
+  );
 }
 bootstrap();

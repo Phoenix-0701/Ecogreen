@@ -28,7 +28,7 @@ export class ActuatorsService {
     const payload = {
       mac: actuator.device.mac_address,
       device: actuator.type,
-      state: state ? 1 : 0, 
+      state: state ? 1 : 0,
     };
     this.mqttClient.emit('ecogreen/command', payload);
 
@@ -40,6 +40,11 @@ export class ActuatorsService {
       },
     });
 
-    return { message: 'Đã gửi lệnh điều khiển thành công!', payload };
+    return {
+      message: state
+        ? 'Đã bật thiết bị thành công!'
+        : 'Đã tắt thiết bị thành công!',
+      data: payload,
+    };
   }
 }

@@ -11,19 +11,29 @@ export class SensorsController {
 
   @ApiOperation({ summary: 'Get all sensors of a device' })
   @Get('devices/:deviceId/sensors')
-  getSensors(@Param('deviceId') deviceId: string) {
-    return this.sensorsService.getSensorsByDevice(deviceId);
+  async getSensors(@Param('deviceId') deviceId: string) {
+    const sensors = await this.sensorsService.getSensorsByDevice(deviceId);
+
+    return {
+      message: 'Lấy danh sách cảm biến thành công',
+      data: sensors,
+    };
   }
 
   @ApiOperation({ summary: 'Get sensor data history' })
   @Get('sensors/:sensorId/readings')
-  getReadings(
+  async getReadings(
     @Param('sensorId') sensorId: string,
     @Query('limit') limit: string,
   ) {
-    return this.sensorsService.getSensorReadings(
+    const readings = await this.sensorsService.getSensorReadings(
       sensorId,
       limit ? parseInt(limit) : 50,
     );
+
+    return {
+      message: 'Lấy lịch sử dữ liệu cảm biến thành công',
+      data: readings,
+    };
   }
 }

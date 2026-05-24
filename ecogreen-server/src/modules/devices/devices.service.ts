@@ -71,10 +71,7 @@ export class DevicesService {
       include: { sensors: true, actuators: true },
     });
 
-    return {
-      message: '🎉 Đã thêm thiết bị thành công!',
-      device: newDevice,
-    };
+    return newDevice;
   }
 
   // 4. Lấy danh sách thiết bị CỦA RIÊNG NGƯỜI ĐÓ
