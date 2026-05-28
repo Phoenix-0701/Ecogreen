@@ -3,9 +3,17 @@
 import React, { useState } from "react";
 import { Droplets, Wind, AlertCircle, Activity, Clock, Filter } from "lucide-react";
 
+interface LogRow {
+  id: string;
+  time: string;
+  eventType: string;
+  description: string;
+  status: string;
+}
+
 export function LogsView() {
   const [filter, setFilter] = useState<string>("all");
-  const [logs, setLogs] = useState<any[]>([]);
+  const logs: LogRow[] = [];
 
   const getStatusStyle = (status: string) => {
     switch (status) {

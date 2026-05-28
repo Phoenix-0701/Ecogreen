@@ -2,10 +2,18 @@ import { fetcher } from "./api";
 import {
   Device,
   CreateDevicePayload,
-  CreateComponentPayload,
 } from "@/types";
 
 type DeviceResponse = Device | { data: Device };
+
+export interface SensorReading {
+  Reading_ID?: string | number;
+  Sensor_ID?: string;
+  value: number | string;
+  recorded_at?: string;
+  recordedAt?: string;
+  created_at?: string;
+}
 
 function unwrapDevice(response: DeviceResponse): Device {
   const device = "data" in response ? response.data : response;
@@ -41,25 +49,21 @@ export const deleteDevice = (deviceId: string): Promise<void> => {
   });
 };
 
-// Thêm sensor / actuator vào thiết bị
-export const addComponent = (
-  deviceId: string,
-  payload: CreateComponentPayload
-): Promise<any> => {
-  return fetcher(`/v1/devices/${deviceId}/components`, {
+export const toggleActuator = (
+  actuatorId: string,
+  state: boolean
+): Promise<unknown> => {
+  return fetcher(`/v1/actuators/${actuatorId}/toggle`, {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ state }),
   });
 };
 
-// Xóa sensor / actuator khỏi thiết bị
-export const removeComponent = (
-  deviceId: string,
-  componentId: string,
-  componentType: "sensor" | "actuator"
-): Promise<void> => {
-  return fetcher(
-    `/v1/devices/${deviceId}/components/${componentId}?type=${componentType}`,
-    { method: "DELETE" }
+export const getSensorReadings = (
+  sensorId: string,
+  limit = 100
+): Promise<SensorReading[]> => {
+  return fetcher<SensorReading[]>(
+    `/v1/sensors/${sensorId}/readings?limit=${limit}`
   );
 };

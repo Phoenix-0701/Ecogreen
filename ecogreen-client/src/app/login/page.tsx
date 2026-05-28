@@ -30,8 +30,8 @@ export default function LoginPage() {
     try {
       await login({ username, password });
       router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Đăng nhập thất bại!");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Đăng nhập thất bại!");
     } finally {
       setIsSubmitting(false);
     }

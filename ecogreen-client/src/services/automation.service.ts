@@ -389,22 +389,6 @@ function mapBackendActuator(
   };
 }
 
-function mapBackendDeviceState(
-  device: BackendDevice,
-  previous: DeviceControlState,
-): DeviceControlState {
-  const previousById = new Map(previous.primaryDevices.map((item) => [item.id, item]));
-  const primaryDevices = (device.actuators ?? []).map((actuator) =>
-    mapBackendActuator(actuator, device, previousById.get(actuator.Actuator_ID)),
-  );
-
-  return {
-    ...previous,
-    zone: device.name || previous.zone,
-    primaryDevices: primaryDevices.length > 0 ? primaryDevices : previous.primaryDevices,
-  };
-}
-
 function mapBackendDevicesControlState(
   devices: BackendDevice[],
   previous: DeviceControlState,

@@ -13,7 +13,6 @@ import {
   Leaf,
   LineChart,
   LogOut,
-  Radio,
   ScrollText,
   Settings2,
   User,
@@ -43,13 +42,6 @@ const navItems: NavItem[] = [
     label: "DEVICE",
     title: "Quan ly thiet bi",
     icon: <Cpu size={20} />,
-  },
-  {
-    key: "CONTROL",
-    href: "/devices",
-    label: "CONTROL",
-    title: "Dieu khien thiet bi",
-    icon: <Radio size={20} />,
   },
   {
     key: "CHART",

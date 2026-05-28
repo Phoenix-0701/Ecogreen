@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import {
   LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -12,17 +11,13 @@ import {
   Legend,
 } from "recharts";
 
+interface HistoryPoint {
+  time: string;
+}
+
 export function HistoryView() {
   const [timeRange, setTimeRange] = useState<"day" | "week" | "month">("day");
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const formatXAxis = (time: string) => {
-    const date = new Date(time);
-    if (timeRange === "day") return date.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
-    if (timeRange === "week") return date.toLocaleDateString("vi-VN", { weekday: "short" });
-    return date.toLocaleDateString("vi-VN", { day: "numeric", month: "short" });
-  };
+  const chartData: HistoryPoint[] = [];
 
   return (
     <div className="space-y-6">

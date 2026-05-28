@@ -9,30 +9,196 @@ import {
   Wifi,
   WifiOff,
   X,
-  ChevronDown,
   Loader2,
   RefreshCw,
   CircuitBoard,
   Zap,
-  Hash,
   Clock,
+  Droplets,
+  Thermometer,
+  Wind,
 } from "lucide-react";
-import { Device, CreateDevicePayload, CreateComponentPayload } from "@/types";
+import { Device, CreateDevicePayload, Sensor } from "@/types";
+import { useRealtimeTelemetry } from "@/features/shared/useRealtimeTelemetry";
+import type { TelemetrySnapshot } from "@/types/automation";
 import {
   getDevices,
   createDevice,
   deleteDevice,
-  addComponent,
+  toggleActuator,
 } from "@/services/device.service";
 
+const ACTUATOR_STATE_STORAGE_KEY = "ecogreen.device.actuator-states";
+
+type ActuatorRuntimeState = {
+  running: boolean;
+  startedAt: string | null;
+  changedAt: string | null;
+  totalMs: number;
+};
+
+function createDefaultActuatorState(): ActuatorRuntimeState {
+  return {
+    running: false,
+    startedAt: null,
+    changedAt: null,
+    totalMs: 0,
+  };
+}
+
+function readActuatorStates() {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const stored = JSON.parse(
+      window.localStorage.getItem(ACTUATOR_STATE_STORAGE_KEY) || "{}",
+    ) as Record<string, boolean | Partial<ActuatorRuntimeState>>;
+
+    return Object.fromEntries(
+      Object.entries(stored).map(([id, value]) => {
+        if (typeof value === "boolean") {
+          return [
+            id,
+            {
+              ...createDefaultActuatorState(),
+              running: value,
+              startedAt: value ? new Date().toISOString() : null,
+              changedAt: null,
+            },
+          ];
+        }
+
+        return [
+          id,
+          {
+            ...createDefaultActuatorState(),
+            ...value,
+            totalMs:
+              typeof value.totalMs === "number" && Number.isFinite(value.totalMs)
+                ? value.totalMs
+                : 0,
+          },
+        ];
+      }),
+    ) as Record<string, ActuatorRuntimeState>;
+  } catch {
+    return {};
+  }
+}
+
+function writeActuatorStates(states: Record<string, ActuatorRuntimeState>) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(ACTUATOR_STATE_STORAGE_KEY, JSON.stringify(states));
+}
+
+function getActuatorRuntimeMs(state: ActuatorRuntimeState, now: number) {
+  if (!state.running || !state.startedAt) {
+    return state.totalMs;
+  }
+
+  const startedAt = new Date(state.startedAt).getTime();
+
+  if (Number.isNaN(startedAt)) {
+    return state.totalMs;
+  }
+
+  return state.totalMs + Math.max(0, now - startedAt);
+}
+
+function formatRuntime(ms: number) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((part) => part.toString().padStart(2, "0"))
+    .join(":");
+}
+
+function formatActuatorTime(value: string | null) {
+  if (!value) {
+    return "Chưa ghi nhận";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Chưa ghi nhận";
+  }
+
+  return date.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function getSensorReading(
+  sensor: Sensor,
+  telemetry?: TelemetrySnapshot,
+): { value: string; stale: boolean } {
+  if (!telemetry) {
+    return { value: "Chưa có dữ liệu", stale: true };
+  }
+
+  const text = `${sensor.type} ${sensor.name}`.toLowerCase();
+
+  if (text.includes("temperature") || text.includes("nhiet") || text.includes("nhiệt")) {
+    return { value: `${telemetry.temp.toFixed(1)}${sensor.unit || "°C"}`, stale: false };
+  }
+
+  if (text.includes("humidity") || text.includes("khong khi") || text.includes("không khí")) {
+    return { value: `${telemetry.humi}%`, stale: false };
+  }
+
+  if (text.includes("soil") || text.includes("dat") || text.includes("đất") || text.includes("moisture")) {
+    return { value: `${telemetry.soil}%`, stale: false };
+  }
+
+  if (text.includes("light") || text.includes("lux") || text.includes("anh sang") || text.includes("ánh sáng")) {
+    return { value: `${telemetry.light}%`, stale: false };
+  }
+
+  return { value: "Chưa map dữ liệu", stale: true };
+}
+
+function getSensorIcon(sensor: Sensor) {
+  const text = `${sensor.type} ${sensor.name}`.toLowerCase();
+
+  if (text.includes("temperature") || text.includes("nhiet") || text.includes("nhiệt")) {
+    return <Thermometer size={18} />;
+  }
+
+  if (text.includes("humidity") || text.includes("soil") || text.includes("moisture") || text.includes("ẩm")) {
+    return <Droplets size={18} />;
+  }
+
+  if (text.includes("air") || text.includes("không khí")) {
+    return <Wind size={18} />;
+  }
+
+  return <CircuitBoard size={18} />;
+}
+
 export function DeviceListView() {
+  const { telemetry, telemetryByMac } = useRealtimeTelemetry();
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showComponentModal, setShowComponentModal] = useState(false);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
-  const [expandedDevice, setExpandedDevice] = useState<string | null>(null);
+  const [actuatorStates, setActuatorStates] = useState<
+    Record<string, ActuatorRuntimeState>
+  >({});
+  const [togglingActuatorId, setTogglingActuatorId] = useState<string | null>(null);
+  const [runtimeNow, setRuntimeNow] = useState(() => Date.now());
 
   const fetchDevices = useCallback(async () => {
     try {
@@ -50,6 +216,43 @@ export function DeviceListView() {
     fetchDevices();
   }, [fetchDevices]);
 
+  useEffect(() => {
+    if (devices.length === 0) {
+      return;
+    }
+
+    setActuatorStates((current) => {
+      const next = { ...readActuatorStates(), ...current };
+
+      devices.forEach((device) => {
+        device.actuators?.forEach((actuator) => {
+          if (next[actuator.Actuator_ID] === undefined) {
+            next[actuator.Actuator_ID] = createDefaultActuatorState();
+          }
+        });
+      });
+
+      writeActuatorStates(next);
+      return next;
+    });
+  }, [devices]);
+
+  useEffect(() => {
+    const hasRunningActuator = Object.values(actuatorStates).some(
+      (state) => state.running,
+    );
+
+    if (!hasRunningActuator) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setRuntimeNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [actuatorStates]);
+
   const handleDeleteDevice = async (id: string) => {
     if (!confirm("Bạn có chắc muốn xóa thiết bị này?")) return;
     try {
@@ -59,6 +262,36 @@ export function DeviceListView() {
       console.error("Lỗi xóa thiết bị:", err);
     }
   };
+  const handleToggleActuator = async (actuatorId: string) => {
+    const currentState =
+      actuatorStates[actuatorId] ?? createDefaultActuatorState();
+    const nextRunning = !currentState.running;
+
+    try {
+      setTogglingActuatorId(actuatorId);
+      await toggleActuator(actuatorId, nextRunning);
+      setActuatorStates((current) => {
+        const now = Date.now();
+        const previous = current[actuatorId] ?? currentState;
+        const nextState: ActuatorRuntimeState = {
+          running: nextRunning,
+          changedAt: new Date(now).toISOString(),
+          startedAt: nextRunning ? new Date(now).toISOString() : null,
+          totalMs: nextRunning
+            ? previous.totalMs
+            : getActuatorRuntimeMs(previous, now),
+        };
+        const next = { ...current, [actuatorId]: nextState };
+        writeActuatorStates(next);
+        return next;
+      });
+    } catch (err) {
+      console.error("Lỗi điều khiển actuator:", err);
+    } finally {
+      setTogglingActuatorId(null);
+    }
+  };
+
   const filteredDevices = devices.filter(
     (d) =>
       d.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -147,7 +380,10 @@ export function DeviceListView() {
             <p>Nhấn &quot;Thêm thiết bị&quot; để đăng ký thiết bị IoT mới</p>
           </div>
         ) : (
-          filteredDevices.map((device) => (
+          filteredDevices.map((device) => {
+            const deviceTelemetry = telemetryByMac[device.mac_address] ?? telemetry;
+
+            return (
             <div key={device.Device_ID} className="device-card">
               {/* Device Header */}
               <div className="device-card-header">
@@ -177,29 +413,6 @@ export function DeviceListView() {
                   </span>
 
                   <button
-                    className="device-btn-icon"
-                    onClick={() =>
-                      setExpandedDevice(
-                        expandedDevice === device.Device_ID
-                          ? null
-                          : device.Device_ID
-                      )
-                    }
-                    title="Chi tiết"
-                  >
-                    <ChevronDown
-                      size={18}
-                      style={{
-                        transform:
-                          expandedDevice === device.Device_ID
-                            ? "rotate(180deg)"
-                            : "rotate(0deg)",
-                        transition: "transform 0.2s",
-                      }}
-                    />
-                  </button>
-
-                  <button
                     className="device-btn-icon device-btn-icon--danger"
                     onClick={() => handleDeleteDevice(device.Device_ID)}
                     title="Xóa"
@@ -209,9 +422,8 @@ export function DeviceListView() {
                 </div>
               </div>
 
-              {/* Device Detail (expanded) */}
-              {expandedDevice === device.Device_ID && (
-                <div className="device-card-detail">
+              {/* Device Detail */}
+              <div className="device-card-detail">
                   <div className="device-detail-row">
                     <Clock size={14} />
                     <span>
@@ -221,13 +433,8 @@ export function DeviceListView() {
                         : "Chưa ghi nhận"}
                     </span>
                   </div>
-                  <div className="device-detail-row">
-                    <Hash size={14} />
-                    <span>ID: {device.Device_ID}</span>
-                  </div>
-
                   {/* Sensors */}
-                  <div className="device-components-section">
+                  <div className="device-components-section device-sensors-panel">
                     <div className="device-components-header">
                       <h5>
                         <CircuitBoard size={14} /> Sensors (
@@ -236,15 +443,25 @@ export function DeviceListView() {
                     </div>
                     {device.sensors && device.sensors.length > 0 ? (
                       <div className="device-components-list">
-                        {device.sensors.map((s) => (
-                          <div key={s.Sensor_ID} className="device-component-chip">
-                            <CircuitBoard size={12} />
+                        {device.sensors.map((s) => {
+                          const reading = getSensorReading(
+                            s,
+                            deviceTelemetry,
+                          );
+
+                          return (
+                          <div key={s.Sensor_ID} className="device-component-chip device-sensor-card">
+                            {getSensorIcon(s)}
                             <span>{s.name}</span>
+                            <strong className={reading.stale ? "device-reading-stale" : ""}>
+                              {reading.value}
+                            </strong>
                             <span className="device-component-meta">
                               Pin {s.pin_connection} · {s.type} · {s.unit}
                             </span>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="device-components-empty">
@@ -254,7 +471,7 @@ export function DeviceListView() {
                   </div>
 
                   {/* Actuators */}
-                  <div className="device-components-section">
+                  <div className="device-components-section device-pump-panel">
                     <div className="device-components-header">
                       <h5>
                         <Zap size={14} /> Actuators (
@@ -263,15 +480,69 @@ export function DeviceListView() {
                     </div>
                     {device.actuators && device.actuators.length > 0 ? (
                       <div className="device-components-list">
-                        {device.actuators.map((a) => (
+                        {device.actuators.map((a) => {
+                          const actuatorState =
+                            actuatorStates[a.Actuator_ID] ??
+                            createDefaultActuatorState();
+                          const running = actuatorState.running;
+                          const toggling = togglingActuatorId === a.Actuator_ID;
+                          const runtimeLabel = formatRuntime(
+                            getActuatorRuntimeMs(actuatorState, runtimeNow),
+                          );
+
+                          return (
                           <div key={a.Actuator_ID} className="device-component-chip">
-                            <Zap size={12} />
-                            <span>{a.name}</span>
-                            <span className="device-component-meta">
+                            <div className="device-pump-title">
+                              <Zap size={16} />
+                              <span>{a.name}</span>
+                              <strong
+                                className={`device-pump-status ${
+                                  running ? "device-pump-status--on" : ""
+                                }`}
+                              >
+                                {running ? "Đang bật" : "Đang tắt"}
+                              </strong>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleActuator(a.Actuator_ID)}
+                              disabled={toggling}
+                              className={`device-inline-toggle ${
+                                running ? "device-inline-toggle--on" : ""
+                              }`}
+                            >
+                              {toggling ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : running ? (
+                                "Tắt"
+                              ) : (
+                                "Bật"
+                              )}
+                            </button>
+                            <div className="device-pump-info-grid">
+                              <div>
+                                <span>Thời gian chạy</span>
+                                <strong>{runtimeLabel}</strong>
+                              </div>
+                              <div>
+                                <span>Lần đổi trạng thái</span>
+                                <strong>
+                                  {formatActuatorTime(actuatorState.changedAt)}
+                                </strong>
+                              </div>
+                              <div>
+                                <span>Cổng pin</span>
+                                <strong>Pin {a.pin_connection}</strong>
+                              </div>
+                              <div>
+                                <span>Kiểu</span>
+                                <strong>{a.type}</strong>
+                              </div>
                               Pin {a.pin_connection} · {a.type}
-                            </span>
+                            </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="device-components-empty">
@@ -280,20 +551,10 @@ export function DeviceListView() {
                     )}
                   </div>
 
-                  {/* Add Component Button */}
-                  <button
-                    className="device-btn device-btn--outline"
-                    onClick={() => {
-                      setSelectedDeviceId(device.Device_ID);
-                      setShowComponentModal(true);
-                    }}
-                  >
-                    <Plus size={14} /> Thêm Sensor / Actuator
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -304,22 +565,6 @@ export function DeviceListView() {
           onSuccess={(newDevice) => {
             setDevices((prev) => [newDevice, ...prev]);
             setShowAddModal(false);
-          }}
-        />
-      )}
-
-      {/* Add Component Modal */}
-      {showComponentModal && selectedDeviceId && (
-        <AddComponentModal
-          deviceId={selectedDeviceId}
-          onClose={() => {
-            setShowComponentModal(false);
-            setSelectedDeviceId(null);
-          }}
-          onSuccess={() => {
-            setShowComponentModal(false);
-            setSelectedDeviceId(null);
-            fetchDevices(); // Reload to get updated components
           }}
         />
       )}
@@ -677,6 +922,59 @@ export function DeviceListView() {
           color: #166534;
         }
 
+        .device-sensor-card {
+          min-width: 190px;
+          justify-content: space-between;
+        }
+
+        .device-sensor-card strong {
+          color: #0f172a;
+          font-size: 0.95rem;
+          margin-left: auto;
+        }
+
+        .device-reading-stale {
+          color: #9ca3af !important;
+          font-size: 0.72rem !important;
+          font-weight: 600;
+        }
+
+        .device-inline-toggle {
+          margin-left: 0.25rem;
+          border: none;
+          border-radius: 999px;
+          background: #e5e7eb;
+          color: #374151;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 44px;
+          padding: 0.25rem 0.65rem;
+          font-size: 0.7rem;
+          font-weight: 800;
+          transition: all 0.2s;
+        }
+
+        .device-inline-toggle:hover:not(:disabled) {
+          background: #d1d5db;
+        }
+
+        .device-inline-toggle--on {
+          background: #16a34a;
+          color: white;
+          box-shadow: 0 4px 12px rgba(22, 163, 74, 0.22);
+        }
+
+        .device-inline-toggle--on:hover:not(:disabled) {
+          background: #15803d;
+        }
+
+        .device-inline-toggle:disabled {
+          cursor: wait;
+          opacity: 0.7;
+        }
+
         .device-component-meta {
           color: #6b7280;
           font-size: 0.65rem;
@@ -686,6 +984,200 @@ export function DeviceListView() {
           font-size: 0.75rem;
           color: #9ca3af;
           font-style: italic;
+        }
+
+        .device-card {
+          border-color: #e5eee8;
+          border-radius: 18px;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+        }
+
+        .device-card:hover {
+          border-color: #b9e7cb;
+          box-shadow: 0 16px 40px rgba(22, 163, 74, 0.08);
+        }
+
+        .device-card-header {
+          background: linear-gradient(135deg, #ffffff 0%, #f4fbf7 100%);
+          border-bottom: 1px solid #e9f3ed;
+          padding: 1.25rem 1.5rem;
+        }
+
+        .device-card-name {
+          font-size: 1.05rem;
+        }
+
+        .device-card-detail {
+          display: grid;
+          grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
+          gap: 1rem;
+          padding: 1.25rem 1.5rem 1.5rem;
+          background: #f8faf9;
+          border-top: none;
+        }
+
+        .device-detail-row {
+          border: 1px solid #edf2ef;
+          border-radius: 12px;
+          background: #ffffff;
+          color: #64748b;
+          padding: 0.75rem 0.9rem;
+        }
+
+        .device-detail-row:nth-child(1) {
+          grid-column: 1;
+        }
+
+        .device-sensors-panel {
+          grid-column: 1;
+          margin-top: 0;
+        }
+
+        .device-pump-panel {
+          grid-column: 2;
+          grid-row: 1 / span 2;
+          margin-top: 0;
+        }
+
+        .device-components-header h5 {
+          margin-bottom: 0.75rem;
+          color: #0f172a;
+          font-size: 0.85rem;
+        }
+
+        .device-sensors-panel .device-components-list {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.75rem;
+        }
+
+        .device-sensor-card {
+          align-items: flex-start;
+          background: white;
+          border-color: #dcefe4;
+          border-radius: 14px;
+          color: #166534;
+          flex-direction: column;
+          gap: 0.45rem;
+          min-height: 126px;
+          min-width: 0;
+          padding: 1rem;
+        }
+
+        .device-sensor-card span:not(.device-component-meta) {
+          color: #334155;
+          font-size: 0.85rem;
+          font-weight: 700;
+        }
+
+        .device-sensor-card strong {
+          color: #020617;
+          font-size: 1.55rem;
+          line-height: 1.1;
+          margin-left: 0;
+        }
+
+        .device-sensor-card .device-component-meta {
+          margin-top: auto;
+        }
+
+        .device-pump-panel .device-components-list {
+          display: block;
+        }
+
+        .device-pump-panel .device-component-chip {
+          align-items: stretch;
+          background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
+          border-color: #bbf7d0;
+          border-radius: 16px;
+          color: #064e3b;
+          display: grid;
+          gap: 0.65rem;
+          grid-template-columns: auto 1fr;
+          padding: 1rem;
+          width: 100%;
+        }
+
+        .device-pump-title {
+          align-items: center;
+          display: flex;
+          gap: 0.5rem;
+          grid-column: 1 / -1;
+          min-width: 0;
+        }
+
+        .device-pump-title span {
+          color: #064e3b;
+          font-size: 1rem;
+          font-weight: 800;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .device-pump-status {
+          border-radius: 999px;
+          background: #e5e7eb;
+          color: #475569;
+          font-size: 0.72rem;
+          font-weight: 800;
+          margin-left: auto;
+          padding: 0.25rem 0.6rem;
+          white-space: nowrap;
+        }
+
+        .device-pump-status--on {
+          background: #dcfce7;
+          color: #15803d;
+        }
+
+        .device-pump-info-grid {
+          display: grid;
+          font-size: 0;
+          gap: 0.65rem;
+          grid-column: 1 / -1;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .device-pump-info-grid > div {
+          background: rgba(255, 255, 255, 0.72);
+          border: 1px solid #d9f7e4;
+          border-radius: 12px;
+          min-width: 0;
+          padding: 0.7rem 0.75rem;
+        }
+
+        .device-pump-info-grid span {
+          color: #64748b;
+          display: block;
+          font-size: 0.68rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          margin-bottom: 0.2rem;
+          text-transform: uppercase;
+        }
+
+        .device-pump-info-grid strong {
+          color: #0f172a;
+          display: block;
+          font-size: 0.86rem;
+          font-weight: 800;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .device-inline-toggle {
+          grid-column: 1 / -1;
+          margin-left: 0;
+          min-width: 100%;
+          padding: 0.75rem 1rem;
+          font-size: 0.9rem;
+        }
+
+        .device-card-detail > .device-btn--outline {
+          display: none;
         }
 
         /* ===== Responsive ===== */
@@ -699,6 +1191,20 @@ export function DeviceListView() {
           }
           .device-search {
             max-width: 100%;
+          }
+          .device-card-detail {
+            grid-template-columns: 1fr;
+          }
+          .device-detail-row,
+          .device-detail-row:nth-child(1),
+          .device-detail-row:nth-child(2),
+          .device-sensors-panel,
+          .device-pump-panel {
+            grid-column: 1;
+            grid-row: auto;
+          }
+          .device-sensors-panel .device-components-list {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
@@ -733,8 +1239,8 @@ function AddDeviceModal({
       };
       const newDevice = await createDevice(payload);
       onSuccess(newDevice);
-    } catch (err: any) {
-      setError(err.message || "Không thể tạo thiết bị!");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Không thể tạo thiết bị!");
     } finally {
       setIsSubmitting(false);
     }
@@ -785,144 +1291,6 @@ function AddDeviceModal({
               <Plus size={16} />
             )}
             Đăng ký
-          </button>
-        </div>
-      </form>
-    </ModalWrapper>
-  );
-}
-
-/* ========================================== */
-/*       ADD COMPONENT MODAL                  */
-/* ========================================== */
-function AddComponentModal({
-  deviceId,
-  onClose,
-  onSuccess,
-}: {
-  deviceId: string;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [componentType, setComponentType] = useState<"sensor" | "actuator">("sensor");
-  const [name, setName] = useState("");
-  const [type, setType] = useState("");
-  const [pinConnection, setPinConnection] = useState("");
-  const [unit, setUnit] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setIsSubmitting(true);
-
-    try {
-      const payload: CreateComponentPayload = {
-        name,
-        type,
-        pin_connection: parseInt(pinConnection),
-        component_type: componentType,
-        ...(componentType === "sensor" ? { unit } : {}),
-      };
-      await addComponent(deviceId, payload);
-      onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Không thể thêm component!");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <ModalWrapper onClose={onClose} title="Thêm Sensor / Actuator">
-      <form onSubmit={handleSubmit} className="modal-form">
-        {error && <div className="modal-error">{error}</div>}
-
-        <div className="modal-field">
-          <label>Loại</label>
-          <div className="modal-toggle-group">
-            <button
-              type="button"
-              className={`modal-toggle ${componentType === "sensor" ? "modal-toggle--active" : ""}`}
-              onClick={() => setComponentType("sensor")}
-            >
-              <CircuitBoard size={14} /> Sensor
-            </button>
-            <button
-              type="button"
-              className={`modal-toggle ${componentType === "actuator" ? "modal-toggle--active" : ""}`}
-              onClick={() => setComponentType("actuator")}
-            >
-              <Zap size={14} /> Actuator
-            </button>
-          </div>
-        </div>
-
-        <div className="modal-field">
-          <label>Tên *</label>
-          <input
-            type="text"
-            placeholder={componentType === "sensor" ? "VD: DHT22 Temperature" : "VD: Water Pump"}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="modal-field">
-          <label>Kiểu *</label>
-          <input
-            type="text"
-            placeholder={componentType === "sensor" ? "VD: temperature, humidity, soil_moisture" : "VD: pump, fan, led"}
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className="modal-row">
-          <div className="modal-field">
-            <label>Cổng Pin *</label>
-            <input
-              type="number"
-              placeholder="VD: 4"
-              value={pinConnection}
-              onChange={(e) => setPinConnection(e.target.value)}
-              required
-              min={0}
-            />
-          </div>
-
-          {componentType === "sensor" && (
-            <div className="modal-field">
-              <label>Đơn vị *</label>
-              <input
-                type="text"
-                placeholder="VD: °C, %, lux"
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                required
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="modal-actions">
-          <button type="button" className="modal-btn-cancel" onClick={onClose}>
-            Hủy
-          </button>
-          <button
-            type="submit"
-            className="modal-btn-submit"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Plus size={16} />
-            )}
-            Thêm
           </button>
         </div>
       </form>

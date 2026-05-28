@@ -1,10 +1,10 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { DeviceControlView } from "@/features/devices/components/DeviceControlView";
+import { DeviceListView } from "@/features/devices/components/DeviceListView";
 
 export default function DevicesPage() {
   return (
-    <DashboardLayout>
-      <DeviceControlView />
+    <DashboardLayout activeMenu="DEVICE" pageTitle="Quản lý thiết bị">
+      <DeviceListView />
     </DashboardLayout>
   );
 }

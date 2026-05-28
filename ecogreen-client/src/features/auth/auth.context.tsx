@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import { User, LoginPayload, LoginResponse } from "@/types";
 import { clearAccessToken, fetcher, getAccessToken, API_URL } from "@/services/api";
 
@@ -20,30 +20,31 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function getStoredUser() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const savedUser = localStorage.getItem("user_info");
+
+  if (!savedUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(savedUser) as User;
+  } catch {
+    localStorage.removeItem("user_info");
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(() => getStoredUser());
+  const [token, setToken] = useState<string | null>(() => getAccessToken());
+  const [isLoading] = useState(false);
 
   // Khởi tạo - đọc token từ localStorage
-  useEffect(() => {
-    const savedToken = getAccessToken();
-    const savedUser = localStorage.getItem("user_info");
-
-    if (savedToken) {
-      setToken(savedToken);
-    }
-
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem("user_info");
-      }
-    }
-    setIsLoading(false);
-  }, []);
-
   // Đăng nhập bằng username/password truyền thống
   const persistSession = useCallback((data: LoginResponse) => {
     setToken(data.access_token);

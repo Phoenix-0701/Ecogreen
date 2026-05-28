@@ -42,6 +42,12 @@ function parseRealtimeTelemetry(payload: unknown): TelemetrySnapshot | null {
     }
 
     const candidate = source as Record<string, unknown>;
+    const macAddress =
+      typeof candidate.mac === "string"
+        ? candidate.mac
+        : typeof candidate.mac_address === "string"
+          ? candidate.mac_address
+          : undefined;
     const toNumber = (...keys: string[]) => {
       for (const key of keys) {
         const value = candidate[key];
@@ -53,6 +59,7 @@ function parseRealtimeTelemetry(payload: unknown): TelemetrySnapshot | null {
     };
 
     return {
+      macAddress,
       temp: toNumber("temp", "temperature") ?? 0,
       humi: toNumber("humi", "humidity", "hum") ?? 0,
       soil: toNumber("soil", "soil_moisture", "soilMoisture") ?? 0,
@@ -69,6 +76,7 @@ export function useRealtimeTelemetry() {
   const [telemetry, setTelemetry] = useState<TelemetrySnapshot>(() =>
     getStoredTelemetry(),
   );
+  const [telemetryByMac, setTelemetryByMac] = useState<Record<string, TelemetrySnapshot>>({});
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -94,6 +102,12 @@ export function useRealtimeTelemetry() {
       }
 
       setTelemetry(nextTelemetry);
+      if (nextTelemetry.macAddress) {
+        setTelemetryByMac((current) => ({
+          ...current,
+          [nextTelemetry.macAddress as string]: nextTelemetry,
+        }));
+      }
       persistTelemetry(nextTelemetry);
     });
 
@@ -102,5 +116,5 @@ export function useRealtimeTelemetry() {
     };
   }, []);
 
-  return { telemetry, connected };
+  return { telemetry, telemetryByMac, connected };
 }

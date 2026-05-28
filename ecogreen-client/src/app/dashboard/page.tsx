@@ -3,7 +3,7 @@ import { DashboardView } from "@/features/dashboard/components/DashboardView";
 
 export default function DashboardPage() {
   return (
-    <DashboardLayout activeMenu="Bảng điều khiển" pageTitle="Lab Overview">
+    <DashboardLayout activeMenu="DASHBOARD" pageTitle="Tổng quan">
       <DashboardView />
     </DashboardLayout>
   );

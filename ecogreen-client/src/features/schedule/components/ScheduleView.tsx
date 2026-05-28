@@ -662,7 +662,7 @@ function ScheduleRuleModal({
           <div className="flex items-center justify-between rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3">
             <div>
               <span className="text-sm font-semibold text-[#18241c]">Kích hoạt</span>
-              <p className="mt-1 text-xs text-[#66756b]">Lịch có hiệu lực khi Control ở chế độ tự động.</p>
+              <p className="mt-1 text-xs text-[#66756b]">Lịch có hiệu lực khi hệ thống ở chế độ tự động.</p>
             </div>
             <ToggleSwitch
               checked={form.enabled}

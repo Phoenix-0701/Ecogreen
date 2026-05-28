@@ -99,8 +99,10 @@ export function NotificationConfigView() {
     try {
       const result = await testNotification("telegram");
       alert(result.message || "Đã gửi tin nhắn test qua Telegram!");
-    } catch (err: any) {
-      alert(err.message || "Gửi test Telegram thất bại!");
+    } catch (err: unknown) {
+      alert(
+        err instanceof Error ? err.message : "Gửi test Telegram thất bại!"
+      );
     } finally {
       setTestingTg(false);
     }
@@ -111,8 +113,8 @@ export function NotificationConfigView() {
     try {
       const result = await testNotification("email");
       alert(result.message || "Đã gửi email test!");
-    } catch (err: any) {
-      alert(err.message || "Gửi test Email thất bại!");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Gửi test Email thất bại!");
     } finally {
       setTestingEmail(false);
     }

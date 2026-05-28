@@ -11,6 +11,7 @@ export type AccessoryIcon =
   | "thermo";
 
 export interface TelemetrySnapshot {
+  macAddress?: string;
   temp: number;
   humi: number;
   soil: number;
