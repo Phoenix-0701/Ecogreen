@@ -39,12 +39,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Automatic data capture point' })
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req) {
-    const tokenData = await this.authService.googleLogin(req);
+  async googleAuthRedirect(@Req() req, @Res() res: Response) {
+    const result = await this.authService.googleLogin(req);
 
-    return {
-      message: 'Đăng nhập bằng Google thành công!',
-      data: tokenData,
-    };
+    res.redirect(
+      `http://localhost:3000/dashboard?token=${result.access_token}`,
+    );
   }
 }

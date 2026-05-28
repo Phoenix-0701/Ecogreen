@@ -17,6 +17,21 @@ function getApiBaseUrl() {
   return API_URL;
 }
 
+type ApiResponseEnvelope<T> = {
+  statusCode?: number;
+  message?: string;
+  data: T;
+};
+
+function isApiResponseEnvelope<T>(value: unknown): value is ApiResponseEnvelope<T> {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "statusCode" in value &&
+      "data" in value,
+  );
+}
+
 export function getAccessToken() {
   if (typeof window === "undefined") {
     return null;
@@ -95,7 +110,13 @@ export async function requestJson<T>(
   }
 
   const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  const body = text ? (JSON.parse(text) as unknown) : undefined;
+
+  if (isApiResponseEnvelope<T>(body)) {
+    return body.data;
+  }
+
+  return body as T;
 }
 
 export const fetcher = requestJson;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 import {
   Clock3,
   Loader2,
@@ -12,6 +13,7 @@ import {
   TimerReset,
   Trash2,
   Waves,
+  X,
 } from "lucide-react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import {
@@ -19,10 +21,17 @@ import {
   loadScheduleState,
   saveScheduleState,
 } from "@/services/automation.service";
+import { getDevices } from "@/services/device.service";
+import type { Device } from "@/types";
 import type { ScheduleRule, ScheduleState } from "@/types/automation";
 
 const DAY_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 const CHART_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+
+type ScheduleModalState = {
+  mode: "create" | "edit";
+  rule: ScheduleRule;
+};
 
 function buildProjectedConsumption(schedules: ScheduleRule[]) {
   const series = Array.from({ length: 7 }, () => 0);
@@ -48,14 +57,15 @@ function sortSchedules(schedules: ScheduleRule[]) {
 export function ScheduleView() {
   const [draft, setDraft] = useState<ScheduleState | null>(null);
   const [saved, setSaved] = useState<ScheduleState | null>(null);
+  const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [scheduleModal, setScheduleModal] = useState<ScheduleModalState | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    loadScheduleState().then((result) => {
+    Promise.all([loadScheduleState(), getDevices().catch(() => [])]).then(([result, deviceData]) => {
       if (!mounted) {
         return;
       }
@@ -67,6 +77,7 @@ export function ScheduleView() {
 
       setDraft(normalized);
       setSaved(normalized);
+      setDevices(deviceData);
       setLoading(false);
     });
 
@@ -79,6 +90,12 @@ export function ScheduleView() {
     () => JSON.stringify(draft) !== JSON.stringify(saved),
     [draft, saved],
   );
+
+  const zoneOptions = useMemo(() => {
+    const deviceNames = devices.map((device) => device.name).filter(Boolean);
+    const scheduleZones = draft?.schedules.map((schedule) => schedule.zone).filter(Boolean) ?? [];
+    return Array.from(new Set([...deviceNames, ...scheduleZones]));
+  }, [devices, draft?.schedules]);
 
   if (loading || !draft || !saved) {
     return (
@@ -103,6 +120,28 @@ export function ScheduleView() {
       schedules: nextSchedules,
       dailyConsumptionLiters: buildProjectedConsumption(nextSchedules),
     });
+  };
+
+  const openCreateScheduleModal = () => {
+    const nextRule = createEmptyScheduleRule();
+    setScheduleModal({
+      mode: "create",
+      rule: {
+        ...nextRule,
+        zone: zoneOptions[0] ?? nextRule.zone,
+      },
+    });
+  };
+
+  const handleSubmitSchedule = (rule: ScheduleRule) => {
+    updateSchedules((current) => {
+      if (scheduleModal?.mode === "edit") {
+        return current.map((item) => (item.id === rule.id ? rule : item));
+      }
+
+      return [...current, rule];
+    });
+    setScheduleModal(null);
   };
 
   const handleSave = async () => {
@@ -159,10 +198,10 @@ export function ScheduleView() {
             <div className="flex items-center justify-between gap-6">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#33423a]">
-                  Bật lịch tưới tự động
+                  Kích hoạt lịch tưới
                 </p>
                 <p className="mt-1 text-2xl font-semibold text-[#0b7a50]">
-                  {draft.enabled ? "Hệ thống đang hoạt động" : "Tạm dừng"}
+                  {draft.enabled ? "Lịch đang bật" : "Lịch đang tạm dừng"}
                 </p>
               </div>
               <ToggleSwitch
@@ -195,11 +234,7 @@ export function ScheduleView() {
             </h2>
             <button
               type="button"
-              onClick={() => {
-                const nextRule = createEmptyScheduleRule();
-                updateSchedules((current) => [...current, nextRule]);
-                setExpandedId(nextRule.id);
-              }}
+              onClick={openCreateScheduleModal}
               className="inline-flex items-center gap-2 rounded-full bg-[#18b973] px-5 py-3 font-semibold text-white shadow-[0_14px_28px_rgba(24,185,115,0.22)] transition hover:translate-y-[-1px]"
             >
               <Plus className="size-4" />
@@ -208,7 +243,6 @@ export function ScheduleView() {
           </div>
 
           {draft.schedules.map((schedule) => {
-            const editing = expandedId === schedule.id;
             const Icon = schedule.icon === "sprout" ? Sprout : Waves;
 
             return (
@@ -266,7 +300,7 @@ export function ScheduleView() {
                     />
                     <button
                       type="button"
-                      onClick={() => setExpandedId(editing ? null : schedule.id)}
+                      onClick={() => setScheduleModal({ mode: "edit", rule: schedule })}
                       className="rounded-full p-3 text-[#33423a] transition hover:bg-[#eff4f1]"
                     >
                       <PenLine className="size-5" />
@@ -281,7 +315,7 @@ export function ScheduleView() {
                   </div>
                 </div>
 
-                {editing ? (
+                {false ? (
                   <div className="mt-6 grid gap-4 border-t border-[#eef2ef] pt-6 md:grid-cols-2">
                     <EditField
                       label="Tên lịch"
@@ -468,6 +502,214 @@ export function ScheduleView() {
           </div>
         </section>
       </div>
+
+      {scheduleModal ? (
+        <ScheduleRuleModal
+          mode={scheduleModal.mode}
+          rule={scheduleModal.rule}
+          zoneOptions={zoneOptions}
+          onClose={() => setScheduleModal(null)}
+          onSubmit={handleSubmitSchedule}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ScheduleRuleModal({
+  mode,
+  rule,
+  zoneOptions,
+  onClose,
+  onSubmit,
+}: {
+  mode: "create" | "edit";
+  rule: ScheduleRule;
+  zoneOptions: string[];
+  onClose: () => void;
+  onSubmit: (rule: ScheduleRule) => void;
+}) {
+  const [form, setForm] = useState<ScheduleRule>(rule);
+  const resolvedZoneOptions = Array.from(
+    new Set([form.zone, ...zoneOptions].filter(Boolean)),
+  );
+
+  const updateField = <K extends keyof ScheduleRule>(
+    key: K,
+    value: ScheduleRule[K],
+  ) => {
+    setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const toggleDay = (dayIndex: number) => {
+    setForm((current) => {
+      const active = current.days.includes(dayIndex);
+      return {
+        ...current,
+        days: active
+          ? current.days.filter((value) => value !== dayIndex)
+          : [...current.days, dayIndex].sort((left, right) => left - right),
+      };
+    });
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    onSubmit({
+      ...form,
+      title: form.title.trim() || "Chu kỳ tưới mới",
+      zone: form.zone || resolvedZoneOptions[0] || "Khu canh tác",
+      durationMinutes: Math.max(5, Math.min(180, form.durationMinutes)),
+      days: form.days.length > 0 ? form.days : [1],
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-[0_30px_80px_rgba(0,0,0,0.18)]"
+      >
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h3
+              className="text-3xl text-[#1d2420]"
+              style={{ fontFamily: "var(--font-fraunces)" }}
+            >
+              {mode === "create" ? "Thêm lịch tưới" : "Cập nhật lịch tưới"}
+            </h3>
+            <p className="mt-2 text-sm text-[#66756b]">
+              Khu vực được lấy theo tên thiết bị đã đăng ký.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-3 text-[#617168] transition hover:bg-[#eff4f1] hover:text-[#18241c]"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="block">
+            <span className="text-sm font-semibold text-[#18241c]">Tên lịch</span>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(event) => updateField("title", event.target.value)}
+              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+              required
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-[#18241c]">Khu vực</span>
+            <select
+              value={form.zone}
+              onChange={(event) => updateField("zone", event.target.value)}
+              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+            >
+              {resolvedZoneOptions.map((zone) => (
+                <option key={zone} value={zone}>
+                  {zone}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-[#18241c]">Giờ bắt đầu</span>
+            <input
+              type="time"
+              value={form.time}
+              onChange={(event) => updateField("time", event.target.value)}
+              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+              required
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-[#18241c]">Thời lượng (phút)</span>
+            <input
+              type="number"
+              min={5}
+              max={180}
+              value={form.durationMinutes}
+              onChange={(event) =>
+                updateField("durationMinutes", Number(event.target.value) || 5)
+              }
+              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+              required
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-semibold text-[#18241c]">Loại lịch</span>
+            <select
+              value={form.icon}
+              onChange={(event) =>
+                updateField("icon", event.target.value as ScheduleRule["icon"])
+              }
+              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+            >
+              <option value="sprout">Tưới cây</option>
+              <option value="waves">Tưới nước</option>
+            </select>
+          </label>
+
+          <div className="flex items-center justify-between rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3">
+            <div>
+              <span className="text-sm font-semibold text-[#18241c]">Kích hoạt</span>
+              <p className="mt-1 text-xs text-[#66756b]">Lịch có hiệu lực khi Control ở chế độ tự động.</p>
+            </div>
+            <ToggleSwitch
+              checked={form.enabled}
+              onChange={(value) => updateField("enabled", value)}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <span className="text-sm font-semibold text-[#18241c]">Ngày tưới</span>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {DAY_LABELS.map((day, index) => {
+                const active = form.days.includes(index);
+                return (
+                  <button
+                    key={`modal-${day}`}
+                    type="button"
+                    onClick={() => toggleDay(index)}
+                    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                      active
+                        ? "bg-[#18b973] text-white"
+                        : "bg-[#eef2ef] text-[#617168] hover:bg-[#dff0e8]"
+                    }`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-[#d7ded9] px-6 py-3 font-semibold text-[#617168] transition hover:bg-[#eff4f1]"
+          >
+            Hủy
+          </button>
+          <button
+            type="submit"
+            className="rounded-full bg-[#0b7a50] px-7 py-3 font-semibold text-white shadow-[0_14px_28px_rgba(11,122,80,0.22)] transition hover:translate-y-[-1px]"
+          >
+            {mode === "create" ? "Thêm lịch" : "Lưu thay đổi"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

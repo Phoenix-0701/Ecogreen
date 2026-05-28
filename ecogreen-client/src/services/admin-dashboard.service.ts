@@ -22,7 +22,7 @@ function withIcons(stats: DashboardStat[]) {
 
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   try {
-    const data = await fetcher("/admin/dashboard");
+    const data = await fetcher<AdminDashboardData>("/admin/dashboard");
     return {
       ...data,
       stats: withIcons(data.stats),

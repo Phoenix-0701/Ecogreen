@@ -59,7 +59,6 @@ export function DeviceListView() {
       console.error("Lỗi xóa thiết bị:", err);
     }
   };
-  console.log("Devices:", devices);
   const filteredDevices = devices.filter(
     (d) =>
       d.name.toLowerCase().includes(search.toLowerCase()) ||

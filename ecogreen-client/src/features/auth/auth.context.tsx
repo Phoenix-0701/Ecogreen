@@ -45,17 +45,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Đăng nhập bằng username/password truyền thống
+  const persistSession = useCallback((data: LoginResponse) => {
+    setToken(data.access_token);
+    setUser(data.user);
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("user_info", JSON.stringify(data.user));
+  }, []);
+
   const login = useCallback(async (payload: LoginPayload) => {
     const data: LoginResponse = await fetcher("/v1/auth/login", {
       method: "POST",
       body: JSON.stringify(payload),
     });
 
-    setToken(data.access_token);
-    setUser(data.user);
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("user_info", JSON.stringify(data.user));
-  }, []);
+    persistSession(data);
+  }, [persistSession]);
 
   // Đăng nhập bằng Google OAuth 2.0 — redirect sang Google
   const loginWithGoogle = useCallback(() => {
@@ -70,11 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ code, redirect_uri: redirectUri }),
     });
 
-    setToken(data.access_token);
-    setUser(data.user);
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("user_info", JSON.stringify(data.user));
-  }, []);
+    persistSession(data);
+  }, [persistSession]);
 
   // Đăng xuất
   const logout = useCallback(() => {

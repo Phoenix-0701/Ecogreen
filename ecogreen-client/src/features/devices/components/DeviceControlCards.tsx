@@ -126,26 +126,22 @@ export function PrimaryDeviceCard({
           <p className="text-xs uppercase tracking-[0.18em] text-[var(--emerald-on-surface-variant)]">
             Tự động hóa theo cảm biến
           </p>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InsightMetric label="Ưu tiên khu vực" value={device.zone} />
             <InsightMetric
               label={isPump ? "Độ ẩm đất" : "Nhiệt độ hiện tại"}
               value={isPump ? `${telemetry.soil}%` : `${telemetry.temp.toFixed(1)}°C`}
             />
-            <InsightMetric
-              label={isPump ? "Gợi ý điều khiển" : "Ẩm không khí"}
-              value={isPump ? device.automationHint : `${telemetry.humi}%`}
-            />
           </div>
         </div>
       </div>
 
-      <div className="relative z-10 mt-8 flex gap-4">
-        <ActionButton variant="ghost" onClick={onToggleRunning}>
-          {device.running ? "Tắt" : "Giữ tắt"}
-        </ActionButton>
-        <ActionButton variant={isPump ? "primary" : "secondary"} onClick={onToggleRunning}>
-          {device.running ? "Đang bật" : "Bật"}
+      <div className="relative z-10 mt-8">
+        <ActionButton
+          variant={device.running ? "ghost" : isPump ? "primary" : "secondary"}
+          onClick={onToggleRunning}
+        >
+          {device.running ? "Tắt" : "Bật"}
         </ActionButton>
       </div>
     </section>
@@ -304,7 +300,7 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded-2xl py-4 font-bold transition-all active:scale-95 ${classes}`}
+      className={`w-full rounded-2xl py-4 font-bold transition-all active:scale-95 ${classes}`}
     >
       {children}
     </button>

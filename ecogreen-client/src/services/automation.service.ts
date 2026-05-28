@@ -405,6 +405,24 @@ function mapBackendDeviceState(
   };
 }
 
+function mapBackendDevicesControlState(
+  devices: BackendDevice[],
+  previous: DeviceControlState,
+): DeviceControlState {
+  const previousById = new Map(previous.primaryDevices.map((item) => [item.id, item]));
+  const primaryDevices = devices.flatMap((device) =>
+    (device.actuators ?? []).map((actuator) =>
+      mapBackendActuator(actuator, device, previousById.get(actuator.Actuator_ID)),
+    ),
+  );
+
+  return {
+    ...previous,
+    zone: devices[0]?.name || previous.zone,
+    primaryDevices: primaryDevices.length > 0 ? primaryDevices : previous.primaryDevices,
+  };
+}
+
 function findThresholdTargets(device: BackendDevice) {
   const soilSensor =
     device.sensors?.find(isSoilSensor) ?? device.sensors?.[0] ?? null;
@@ -475,10 +493,15 @@ export function persistTelemetry(nextTelemetry: TelemetrySnapshot) {
 export async function loadDeviceControlState() {
   const fallback = readStorage(STORAGE_KEYS.device, DEFAULT_DEVICE_STATE);
   const devices = await loadBackendDevices();
-  const selectedDevice = selectDevice(devices);
 
-  if (selectedDevice) {
-    const resolved = mapBackendDeviceState(selectedDevice, fallback);
+  if (devices.length > 0) {
+    const selectedDevice = selectDevice(devices);
+    const resolved = mapBackendDevicesControlState(devices, fallback);
+
+    if (selectedDevice) {
+      resolved.zone = selectedDevice.name || resolved.zone;
+    }
+
     writeStorage(STORAGE_KEYS.device, resolved);
     return resolved;
   }

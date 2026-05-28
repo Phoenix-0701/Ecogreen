@@ -5,17 +5,33 @@ import {
   CreateComponentPayload,
 } from "@/types";
 
+type DeviceResponse = Device | { data: Device };
+
+function unwrapDevice(response: DeviceResponse): Device {
+  const device = "data" in response ? response.data : response;
+
+  return {
+    ...device,
+    status: device.status ?? "offline",
+    last_seen_at: device.last_seen_at ?? null,
+    sensors: device.sensors ?? [],
+    actuators: device.actuators ?? [],
+  };
+}
+
 // Lấy danh sách tất cả thiết bị của user
 export const getDevices = (): Promise<Device[]> => {
-  return fetcher("/v1/devices");
+  return fetcher<DeviceResponse[]>("/v1/devices").then((devices) =>
+    devices.map(unwrapDevice)
+  );
 };
 
 // Tạo thiết bị mới
 export const createDevice = (payload: CreateDevicePayload): Promise<Device> => {
-  return fetcher("/v1/devices", {
+  return fetcher<DeviceResponse>("/v1/devices", {
     method: "POST",
     body: JSON.stringify(payload),
-  });
+  }).then(unwrapDevice);
 };
 
 // Xóa thiết bị
