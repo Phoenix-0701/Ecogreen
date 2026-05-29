@@ -42,7 +42,7 @@ PORT=3001
 HOST=0.0.0.0
 
 # Database (PostgreSQL + Prisma)
-DATABASE_URL="postgresql://postgres:password@localhost:5432/ecogreen_db"
+DATABASE_URL="postgresql://postgres:password@localhost:5433/ecogreendb"
 
 # JWT
 JWT_SECRET=ecogreen_super_secret_key_change_me_in_production_2026
@@ -104,7 +104,14 @@ if ($content -match '"192\.168\.[^"]*"') {
     $content = $content -replace '(allowedDevOrigins:\s*\[)', "`$1`n    `"$ip`",  // current WiFi"
 }
 
-Set-Content $nextConfig $content -Encoding UTF8 -NoNewline
+try {
+    Set-Content $nextConfig $content -Encoding UTF8 -NoNewline -ErrorAction Stop
+} catch {
+    # File bị lock bởi Next.js dev server — ghi qua temp file rồi move
+    $tmp = "$nextConfig.tmp"
+    Set-Content $tmp $content -Encoding UTF8 -NoNewline
+    Move-Item $tmp $nextConfig -Force
+}
 Write-Host "    Updated: $nextConfig" -ForegroundColor Cyan
 
 # ── 5. Summary ───────────────────────────────────────────────────
