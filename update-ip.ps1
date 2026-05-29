@@ -42,7 +42,7 @@ PORT=3001
 HOST=0.0.0.0
 
 # Database (PostgreSQL + Prisma)
-DATABASE_URL="postgresql://postgres:password@localhost:5433/ecogreendb"
+DATABASE_URL="postgresql://admin:admin123@localhost:5433/ecogreendb"
 
 # JWT
 JWT_SECRET=ecogreen_super_secret_key_change_me_in_production_2026

@@ -71,10 +71,12 @@ Write-Host "[4/5] Running Prisma migrate..." -ForegroundColor Cyan
 Set-Location ".\ecogreen-server"
 npx prisma generate | Out-Null
 
-$migrateJob = Start-Job {
-    Set-Location "C:\Users\ASUS\Desktop\Ecogreen\ecogreen-server"
+$rootDir = $PSScriptRoot
+$migrateJob = Start-Job -ScriptBlock {
+    param($dir)
+    Set-Location "$dir"
     npx prisma migrate deploy 2>&1
-}
+} -ArgumentList "$rootDir\ecogreen-server"
 $done = Wait-Job $migrateJob -Timeout 30
 if (-not $done) {
     Remove-Job $migrateJob -Force
@@ -93,16 +95,16 @@ Write-Host "[5/5] Starting Backend and Frontend..." -ForegroundColor Cyan
 Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
-    "Write-Host 'BACKEND - NestJS (port 3001)' -ForegroundColor Green; Set-Location 'C:\Users\ASUS\Desktop\Ecogreen\ecogreen-server'; npm run start:dev"
-)
+    "Write-Host 'BACKEND - NestJS (port 3001)' -ForegroundColor Green; npm run start:dev"
+) -WorkingDirectory "$rootDir\ecogreen-server"
 
 Start-Sleep -Seconds 2
 
 Start-Process powershell -ArgumentList @(
     "-NoExit",
     "-Command",
-    "Write-Host 'FRONTEND - Next.js (port 3000)' -ForegroundColor Cyan; Set-Location 'C:\Users\ASUS\Desktop\Ecogreen\ecogreen-client'; npm run dev"
-)
+    "Write-Host 'FRONTEND - Next.js (port 3000)' -ForegroundColor Cyan; npm run dev"
+) -WorkingDirectory "$rootDir\ecogreen-client"
 
 # -- Done --
 Write-Host ""

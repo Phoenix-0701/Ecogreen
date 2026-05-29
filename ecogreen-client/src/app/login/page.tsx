@@ -124,7 +124,6 @@ export default function LoginPage() {
               Tên đăng nhập
             </label>
             <div className="login-input-wrapper">
-              <Mail size={18} className="login-input-icon" />
               <input
                 id="username"
                 type="text"
@@ -135,6 +134,9 @@ export default function LoginPage() {
                 required
                 autoComplete="username"
               />
+              <span className="login-input-icon">
+                <Mail size={18} />
+              </span>
             </div>
           </div>
 
@@ -143,7 +145,6 @@ export default function LoginPage() {
               Mật khẩu
             </label>
             <div className="login-input-wrapper">
-              <Lock size={18} className="login-input-icon" />
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -154,6 +155,9 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
               />
+              <span className="login-input-icon">
+                <Lock size={18} />
+              </span>
               <button
                 type="button"
                 className="login-eye-btn"
@@ -464,6 +468,9 @@ export default function LoginPage() {
           color: rgba(255, 255, 255, 0.25);
           pointer-events: none;
           transition: color 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .login-input {
