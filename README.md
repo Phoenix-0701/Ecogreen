@@ -14,9 +14,8 @@ ESP32 ──> broker.emqx.io (internet) ──> NestJS Backend (Port 3001)
 * **ESP32 chỉ cần có internet** là có thể gửi dữ liệu telemetry.
 * **Trình duyệt (Browser) và máy chạy Backend** phải cùng kết nối mạng LAN để truy cập được dashboard.
 
----
 
-## ⚡ PHƯƠNG ÁN 1: KHỞI CHẠY TỰ ĐỘNG BẰNG SCRIPT (KHUYÊN DÙNG)
+##  PHƯƠNG ÁN 1: KHỞI CHẠY TỰ ĐỘNG BẰNG SCRIPT (KHUYÊN DÙNG)
 
 Dự án đã tích hợp sẵn script PowerShell để tự động hóa toàn bộ: dò IP mạng LAN, tạo file cấu hình môi trường, khởi chạy Docker, cài đặt dependencies, migrate cơ sở dữ liệu và khởi động các ứng dụng.
 
@@ -33,11 +32,10 @@ Mở PowerShell tại thư mục gốc của dự án (`Ecogreen`) và chạy:
 4. **Prisma Migrate**: Đồng bộ cấu trúc bảng và migrate cơ sở dữ liệu.
 5. **Khởi chạy ứng dụng**: Tự động mở 2 cửa sổ terminal mới chạy NestJS Backend và Next.js Frontend.
 
-> 💡 **Mỗi khi đổi mạng WiFi hoặc IP thay đổi:** Bạn chỉ cần tắt các terminal cũ đi và chạy lại `.\start.ps1` (hoặc chạy lẻ `.\update-ip.ps1`) để tự động cập nhật IP mới mà không cần chỉnh sửa tay.
+> **Mỗi khi đổi mạng WiFi hoặc IP thay đổi:** Bạn chỉ cần tắt các terminal cũ đi và chạy lại `.\start.ps1` (hoặc chạy lẻ `.\update-ip.ps1`) để tự động cập nhật IP mới mà không cần chỉnh sửa tay.
 
----
 
-## 🛠️ PHƯƠNG ÁN 2: KHỞI CHẠY THỦ CÔNG (TỪNG BƯỚC)
+## PHƯƠNG ÁN 2: KHỞI CHẠY THỦ CÔNG (TỪNG BƯỚC)
 
 Nếu muốn tự chạy từng bước thủ công, bạn thực hiện theo quy trình sau:
 
@@ -84,9 +82,8 @@ Nếu muốn tự chạy từng bước thủ công, bạn thực hiện theo qu
    npm run dev
    ```
 
-> ⚠️ **Backend và ESP32 không cần sửa gì khi đổi mạng.** ESP32 kết nối đến broker công cộng (`broker.emqx.io`), hoàn toàn độc lập với IP LAN của máy tính.
+> **Backend và ESP32 không cần sửa gì khi đổi mạng.** ESP32 kết nối đến broker công cộng (`broker.emqx.io`), hoàn toàn độc lập với IP LAN của máy tính.
 
----
 
 ### BƯỚC 1 — Khởi động Docker (PostgreSQL + MQTT)
 ```bash
@@ -95,7 +92,6 @@ docker compose up -d
 ```
 *Kiểm tra trạng thái bằng lệnh `docker ps`. Cả hai container `ecogreen-postgres` và `ecogreen-mqtt` phải có trạng thái **Up**.*
 
----
 
 ### BƯỚC 2 — Setup CSDL & Prisma (Chỉ làm lần đầu)
 ```bash
@@ -105,7 +101,6 @@ npx prisma generate
 npx prisma migrate deploy
 ```
 
----
 
 ### BƯỚC 3 — Chạy Backend (NestJS)
 ```bash
@@ -114,7 +109,6 @@ npm run start:dev
 ```
 *Đảm bảo log terminal in ra thông báo đã khởi tạo microservice, HTTP server và kết nối thành công tới Database qua Prisma.*
 
----
 
 ### BƯỚC 4 — Chạy Frontend (Next.js)
 Mở cửa sổ terminal mới:
@@ -126,8 +120,6 @@ npm run dev
 Truy cập qua trình duyệt:
 * **Tại máy chạy backend:** `http://localhost:3000`
 * **Tại các thiết bị khác trong mạng LAN:** `http://<IP_MÁY_TÍNH>:3000`
-
----
 
 ### BƯỚC 5 — Flash ESP32 & Kiểm tra kết nối
 
@@ -142,7 +134,6 @@ Truy cập qua trình duyệt:
    [MQTT-LOCAL] connected=1
    ```
 
----
 
 ### BƯỚC 6 — Kiểm tra luồng dữ liệu MQTT
 
@@ -157,9 +148,8 @@ Truy cập qua trình duyệt:
    📬 Telemetry từ ESP32: { temperature: ..., humidity: ..., ... }
    ```
 
----
 
-## 📌 KIỂM TRA NHANH KHI CÓ LỖI
+## KIỂM TRA NHANH KHI CÓ LỖI
 
 | Vấn đề | Cách khắc phục & Kiểm tra |
 | :--- | :--- |
@@ -171,7 +161,6 @@ Truy cập qua trình duyệt:
 | **Không hiển thị biểu đồ telemetry** | Kiểm tra ESP32 đã có internet để truyền dữ liệu lên broker MQTT chưa. |
 | **Cách tắt toàn bộ nhanh** | Chạy file `.\stop.ps1` ở thư mục gốc của dự án. |
 
----
 
 ## LƯU Ý QUAN TRỌNG
 * Trình duyệt và máy chạy Backend phải **ở cùng mạng LAN**.
