@@ -9,6 +9,12 @@ import {
   Thermometer,
   Wifi,
   WifiOff,
+  Wind,
+  Waves,
+  CalendarClock,
+  Cpu,
+  Clock,
+  Database
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -48,9 +54,9 @@ const metricConfig: Record<
   { label: string; unit: string; color: string }
 > = {
   temp: { label: "Nhiệt độ", unit: "°C", color: "#ef4444" },
-  humi: { label: "Độ ẩm không khí", unit: "%", color: "#2563eb" },
-  soil: { label: "Độ ẩm đất", unit: "%", color: "#059669" },
-  light: { label: "Ánh sáng", unit: "lux", color: "#d97706" },
+  humi: { label: "Độ ẩm không khí", unit: "%", color: "#0ea5e9" }, // consistent sky blue
+  soil: { label: "Độ ẩm đất", unit: "%", color: "#10b981" }, // consistent green
+  light: { label: "Ánh sáng", unit: "lux", color: "#f59e0b" }, // consistent amber
 };
 
 const limitOptions = [50, 100, 200, 300];
@@ -149,7 +155,11 @@ function toChartPoint(snapshot: TelemetrySnapshot): ChartPoint {
   };
 }
 
-function mergePoints(points: ChartPoint[], nextPoint: ChartPoint, limit: number) {
+function mergePoints(
+  points: ChartPoint[],
+  nextPoint: ChartPoint,
+  limit: number,
+) {
   const byTime = new Map(points.map((point) => [point.recordedAt, point]));
   byTime.set(nextPoint.recordedAt, {
     ...byTime.get(nextPoint.recordedAt),
@@ -159,13 +169,14 @@ function mergePoints(points: ChartPoint[], nextPoint: ChartPoint, limit: number)
   return Array.from(byTime.values())
     .sort(
       (left, right) =>
-        new Date(left.recordedAt).getTime() - new Date(right.recordedAt).getTime()
+        new Date(left.recordedAt).getTime() -
+        new Date(right.recordedAt).getTime(),
     )
     .slice(-limit);
 }
 
 function buildHistoryPoints(
-  readingsByMetric: Partial<Record<MetricKey, ReadingLike[]>>
+  readingsByMetric: Partial<Record<MetricKey, ReadingLike[]>>,
 ) {
   const byTime = new Map<string, ChartPoint>();
 
@@ -192,7 +203,8 @@ function buildHistoryPoints(
 
   return Array.from(byTime.values()).sort(
     (left, right) =>
-      new Date(left.recordedAt).getTime() - new Date(right.recordedAt).getTime()
+      new Date(left.recordedAt).getTime() -
+      new Date(right.recordedAt).getTime(),
   );
 }
 
@@ -208,7 +220,37 @@ function getLatestValue(points: ChartPoint[], metric: MetricKey) {
   return undefined;
 }
 
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="ch-tooltip">
+        <div className="ch-tooltip-header">
+          <Clock size={12} />
+          <span>{formatFullTime(payload[0].payload.recordedAt)}</span>
+        </div>
+        <div className="ch-tooltip-divider" />
+        <div className="ch-tooltip-body">
+          {payload.map((entry: any) => {
+            const config = metricConfig[entry.dataKey as MetricKey];
+            return (
+              <div key={entry.dataKey} className="ch-tooltip-row">
+                <span className="ch-tooltip-dot" style={{ backgroundColor: entry.stroke || config?.color }} />
+                <span className="ch-tooltip-label">{config?.label || entry.name}:</span>
+                <span className="ch-tooltip-val">
+                  {entry.value} {config?.unit}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export function ChartView() {
+  const [isMounted, setIsMounted] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
   const [limit, setLimit] = useState(100);
@@ -217,6 +259,11 @@ export function ChartView() {
   const [error, setError] = useState<string | null>(null);
   const lastRealtimeKeyRef = useRef<string | null>(null);
   const { telemetry, connected } = useRealtimeTelemetry();
+  const [activeTab, setActiveTab] = useState<"all" | MetricKey>("all");
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -228,11 +275,15 @@ export function ChartView() {
         }
 
         setDevices(nextDevices);
-        setSelectedDeviceId((current) => current || nextDevices[0]?.Device_ID || "");
+        setSelectedDeviceId(
+          (current) => current || nextDevices[0]?.Device_ID || "",
+        );
       })
       .catch((err) => {
         if (mounted) {
-          setError(err instanceof Error ? err.message : "Không tải được thiết bị");
+          setError(
+            err instanceof Error ? err.message : "Không tải được thiết bị",
+          );
         }
       });
 
@@ -243,7 +294,7 @@ export function ChartView() {
 
   const selectedDevice = useMemo(
     () => devices.find((device) => device.Device_ID === selectedDeviceId),
-    [devices, selectedDeviceId]
+    [devices, selectedDeviceId],
   );
 
   const metricSensors = useMemo(() => {
@@ -280,8 +331,8 @@ export function ChartView() {
             async ([metric, sensor]) => {
               const readings = await getSensorReadings(sensor.Sensor_ID, limit);
               return [metric, readings] as const;
-            }
-          )
+            },
+          ),
         );
 
         if (!mounted) {
@@ -289,14 +340,14 @@ export function ChartView() {
         }
 
         setPoints(
-          buildHistoryPoints(Object.fromEntries(entries)).slice(-limit)
+          buildHistoryPoints(Object.fromEntries(entries)).slice(-limit),
         );
       } catch (err) {
         if (mounted) {
           setError(
             err instanceof Error
               ? err.message
-              : "Không tải được dữ liệu biểu đồ"
+              : "Không tải được dữ liệu biểu đồ",
           );
           setPoints([]);
         }
@@ -334,7 +385,7 @@ export function ChartView() {
 
     lastRealtimeKeyRef.current = realtimeKey;
     setPoints((current) =>
-      mergePoints(current, toChartPoint(telemetry), Math.max(limit, 100))
+      mergePoints(current, toChartPoint(telemetry), Math.max(limit, 100)),
     );
   }, [limit, selectedDevice, telemetry]);
 
@@ -344,127 +395,170 @@ export function ChartView() {
       metric,
       value: getLatestValue(points, metric),
       ...metricConfig[metric],
-    })
+    }),
   );
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">
-              Telemetry realtime
-            </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">
-              Biểu đồ cảm biến theo ESP
-            </h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Dữ liệu lịch sử lấy từ readings API, điểm mới được cập nhật từ
-              socket realtime-data.
-            </p>
+    <div className="ch-container">
+      {/* Top Banner */}
+      <section className="ch-header">
+        <div className="ch-header-left">
+          <span className="ch-badge-pill">
+            Telemetry realtime
+          </span>
+          <h1 className="ch-title">
+            Biểu đồ cảm biến theo ESP
+          </h1>
+          <p className="ch-subtitle">
+            Dữ liệu lịch sử lấy từ readings API, điểm mới được cập nhật từ socket realtime-data.
+          </p>
+        </div>
+
+        <div className="ch-header-actions">
+          <div className="ch-action-group">
+            <span className="ch-action-label">Thiết bị ESP</span>
+            <select
+              value={selectedDeviceId}
+              onChange={(event) => setSelectedDeviceId(event.target.value)}
+              className="ch-select ch-select--esp"
+            >
+              {devices.map((device) => (
+                <option key={device.Device_ID} value={device.Device_ID}>
+                  {device.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <label className="flex flex-col gap-1 text-sm font-medium text-slate-600">
-              ESP
-              <select
-                value={selectedDeviceId}
-                onChange={(event) => setSelectedDeviceId(event.target.value)}
-                className="h-11 min-w-56 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              >
-                {devices.map((device) => (
-                  <option key={device.Device_ID} value={device.Device_ID}>
-                    {device.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm font-medium text-slate-600">
-              Số điểm
-              <select
-                value={limit}
-                onChange={(event) => setLimit(Number(event.target.value))}
-                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              >
-                {limitOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="ch-action-group">
+            <span className="ch-action-label">Số điểm dữ liệu</span>
+            <select
+              value={limit}
+              onChange={(event) => setLimit(Number(event.target.value))}
+              className="ch-select"
+            >
+              {limitOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option} điểm
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {latestValues.map(({ metric, label, unit, color, value }) => (
-          <div
-            key={metric}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-slate-500">
-                {label}
-              </span>
-              <span
-                className="h-3 w-3 rounded-full"
-                style={{ backgroundColor: color }}
-              />
+      {/* Latest Values Cards */}
+      <section className="ch-metric-grid">
+        {latestValues.map(({ metric, label, unit, color, value }) => {
+          const icon = metric === "temp" ? <Thermometer size={20} /> :
+                       metric === "humi" ? <Wind size={20} /> :
+                       metric === "soil" ? <Droplets size={20} /> :
+                       <Waves size={20} />;
+          return (
+            <div
+              key={metric}
+              className={`ch-metric-card ch-metric-card--${metric}`}
+            >
+              <div className="ch-metric-left">
+                <span className="ch-metric-label">{label}</span>
+                <div className="ch-metric-value-row">
+                  <span className="ch-metric-val">{value ?? "--"}</span>
+                  <span className="ch-metric-unit">{unit}</span>
+                </div>
+              </div>
+              <div className={`ch-metric-icon-wrap ch-metric-icon-wrap--${metric}`}>
+                {icon}
+              </div>
             </div>
-            <div className="mt-4 flex items-end gap-2">
-              <span className="text-3xl font-bold text-slate-900">
-                {value ?? "--"}
-              </span>
-              <span className="pb-1 text-sm font-semibold text-slate-500">
-                {unit}
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">
+      {/* Charts & Details Panel */}
+      <section className="ch-main-grid">
+        {/* Main Chart Panel */}
+        <div className="ch-panel">
+          <div className="ch-panel-header">
+            <div className="ch-panel-title-area">
+              <h2 className="ch-panel-title">
+                <Activity size={18} style={{ color: "#10b981" }} />
                 Diễn biến cảm biến
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="ch-panel-subtitle">
                 Cập nhật gần nhất: {formatFullTime(latestAt)}
               </p>
             </div>
 
             <div
-              className={`inline-flex w-fit items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold ${
-                connected
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "bg-slate-100 text-slate-500"
+              className={`ch-status-pill ${
+                connected ? "ch-status-pill--online" : "ch-status-pill--offline"
               }`}
             >
-              {connected ? <Wifi size={16} /> : <WifiOff size={16} />}
+              {connected ? <Wifi size={14} /> : <WifiOff size={14} />}
               {connected ? "Realtime online" : "Realtime offline"}
             </div>
           </div>
 
-          <div className="h-[430px] min-w-0">
+          {/* Tab Selector */}
+          <div className="ch-tabs">
+            <button
+              type="button"
+              onClick={() => setActiveTab("all")}
+              className={`ch-tab-btn ${
+                activeTab === "all" ? "ch-tab-btn--all-active" : "ch-tab-btn--all"
+              }`}
+            >
+              Tất cả cảm biến
+            </button>
+            {(Object.keys(metricConfig) as MetricKey[]).map((metric) => {
+              const active = activeTab === metric;
+              return (
+                <button
+                  key={metric}
+                  type="button"
+                  onClick={() => setActiveTab(metric)}
+                  className={`ch-tab-btn ${
+                    active ? "ch-tab-btn--metric-active text-white" : "ch-tab-btn--metric"
+                  }`}
+                  style={{
+                    backgroundColor: active ? metricConfig[metric].color : undefined,
+                  }}
+                >
+                  <span
+                    className="ch-tab-dot"
+                    style={{
+                      backgroundColor: active ? "white" : metricConfig[metric].color,
+                    }}
+                  />
+                  {metricConfig[metric].label} ({metricConfig[metric].unit})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Chart Drawing Area */}
+          <div className="h-[430px] min-w-0" style={{ marginTop: "0.5rem" }}>
             {loading ? (
-              <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-500">
+              <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400 gap-2">
+                <RefreshCcw size={16} className="animate-spin" />
                 Đang tải biểu đồ...
               </div>
             ) : error ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-                <RefreshCcw size={28} className="text-slate-400" />
-                <p className="max-w-md text-sm font-semibold text-slate-600">
+                <RefreshCcw size={28} className="text-red-400" />
+                <p className="max-w-md text-sm font-semibold text-red-500">
                   {error}
                 </p>
               </div>
+            ) : !isMounted ? (
+              <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400 gap-2">
+                <RefreshCcw size={16} className="animate-spin" />
+                Đang khởi tạo biểu đồ...
+              </div>
             ) : points.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-                <Activity size={30} className="text-slate-400" />
-                <p className="text-sm font-semibold text-slate-600">
+                <Activity size={30} className="text-slate-300" />
+                <p className="text-sm font-semibold text-slate-500">
                   Chưa có dữ liệu readings cho ESP này.
                 </p>
               </div>
@@ -472,105 +566,682 @@ export function ChartView() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={points}
-                  margin={{ left: 4, right: 16, top: 12, bottom: 8 }}
+                  margin={{ left: 5, right: 10, top: 12, bottom: 8 }}
                 >
-                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" />
+                  <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" vertical={true} horizontal={true} />
                   <XAxis
                     dataKey="time"
-                    tick={{ fill: "#64748b", fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={{ stroke: "#cbd5e1" }}
-                    minTickGap={24}
+                    tick={{ fill: "#64748b", fontSize: 11, fontWeight: 600 }}
+                    tickLine={{ stroke: "#cbd5e1" }}
+                    axisLine={{ stroke: "#cbd5e1", strokeWidth: 1.5 }}
+                    minTickGap={32}
+                    dy={8}
                   />
                   <YAxis
-                    tick={{ fill: "#64748b", fontSize: 12 }}
-                    tickLine={false}
-                    axisLine={{ stroke: "#cbd5e1" }}
-                    width={40}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: 12,
-                      border: "1px solid #e2e8f0",
-                      boxShadow: "0 12px 30px rgba(15, 23, 42, 0.12)",
-                    }}
-                    labelFormatter={(_, payload) =>
-                      formatFullTime(payload?.[0]?.payload?.recordedAt)
+                    yAxisId="left"
+                    orientation="left"
+                    domain={
+                      activeTab === "temp"
+                        ? [0, 45]
+                        : activeTab === "all" || activeTab === "humi" || activeTab === "soil"
+                          ? [0, 100]
+                          : ["auto", "auto"]
                     }
+                    tick={{ fill: "#64748b", fontSize: 11, fontWeight: 600 }}
+                    tickLine={{ stroke: "#cbd5e1" }}
+                    axisLine={{ stroke: "#cbd5e1", strokeWidth: 1.5 }}
+                    tickFormatter={(value) => {
+                      if (activeTab === "temp") return `${value}°C`;
+                      if (activeTab === "humi" || activeTab === "soil") return `${value}%`;
+                      if (activeTab === "light") return `${value} lux`;
+                      return `${value}`;
+                    }}
+                    width={activeTab === "light" ? 60 : 45}
                   />
-                  <Legend />
-                  {(Object.keys(metricConfig) as MetricKey[]).map((metric) => (
-                    <Line
-                      key={metric}
-                      type="monotone"
-                      dataKey={metric}
-                      name={`${metricConfig[metric].label} (${metricConfig[metric].unit})`}
-                      stroke={metricConfig[metric].color}
-                      strokeWidth={2.5}
-                      dot={false}
-                      activeDot={{ r: 5 }}
-                      connectNulls
-                      isAnimationActive={false}
+                  {activeTab === "all" && (
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fill: "#64748b", fontSize: 11, fontWeight: 600 }}
+                      tickLine={{ stroke: "#cbd5e1" }}
+                      axisLine={{ stroke: "#cbd5e1", strokeWidth: 1.5 }}
+                      tickFormatter={(value) => `${value} lux`}
+                      width={60}
                     />
-                  ))}
+                  )}
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend 
+                    verticalAlign="top" 
+                    height={36} 
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: 12, fontWeight: 700, paddingBottom: 15 }} 
+                  />
+                  {(Object.keys(metricConfig) as MetricKey[])
+                    .filter((m) => activeTab === "all" || activeTab === m)
+                    .map((metric) => (
+                      <Line
+                        key={metric}
+                        type="monotone"
+                        dataKey={metric}
+                        yAxisId={activeTab === "all" ? (metric === "light" ? "right" : "left") : "left"}
+                        name={`${metricConfig[metric].label} (${metricConfig[metric].unit})`}
+                        stroke={metricConfig[metric].color}
+                        strokeWidth={3}
+                        dot={false}
+                        activeDot={{ r: 6, stroke: "#ffffff", strokeWidth: 2, fill: metricConfig[metric].color }}
+                        connectNulls
+                        isAnimationActive={false}
+                      />
+                    ))}
                 </LineChart>
               </ResponsiveContainer>
             )}
           </div>
         </div>
 
-        <aside className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-bold text-slate-900">Nguồn dữ liệu</h3>
-            <div className="mt-4 space-y-3 text-sm">
-              <InfoRow label="ESP" value={selectedDevice?.name ?? "--"} />
-              <InfoRow
-                label="MAC"
-                value={selectedDevice?.mac_address ?? "--"}
-              />
-              <InfoRow label="Điểm chart" value={`${points.length}`} />
-              <InfoRow label="Sensor map" value={`${Object.keys(metricSensors).length}/4`} />
+        {/* Sidebar details */}
+        <aside className="ch-sidebar">
+          <div className="ch-side-card">
+            <h3 className="ch-side-title">
+              <Database size={16} style={{ display: "inline-block", marginRight: 6, verticalAlign: "middle", color: "#64748b" }} />
+              Nguồn dữ liệu
+            </h3>
+            <div className="ch-info-list">
+              <InfoRow label="Thiết bị" value={selectedDevice?.name ?? "--"} />
+              <InfoRow label="Địa chỉ MAC" value={selectedDevice?.mac_address ?? "--"} />
+              <InfoRow label="Tổng số điểm" value={`${points.length} điểm`} />
+              <InfoRow label="Cảm biến map" value={`${Object.keys(metricSensors).length}/4`} />
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-base font-bold text-slate-900">
-              Sensor đang dùng
+          <div className="ch-side-card">
+            <h3 className="ch-side-title">
+              <Cpu size={16} style={{ display: "inline-block", marginRight: 6, verticalAlign: "middle", color: "#64748b" }} />
+              Cảm biến vật lý
             </h3>
-            <div className="mt-4 space-y-3">
+            <div className="ch-sensor-list">
               <SensorMapRow
                 icon={<Thermometer size={16} />}
                 label="Nhiệt độ"
                 sensor={metricSensors.temp}
+                metric="temp"
+              />
+              <SensorMapRow
+                icon={<Wind size={16} />}
+                label="Độ ẩm không khí"
+                sensor={metricSensors.humi}
+                metric="humi"
               />
               <SensorMapRow
                 icon={<Droplets size={16} />}
-                label="Độ ẩm không khí"
-                sensor={metricSensors.humi}
-              />
-              <SensorMapRow
-                icon={<Leaf size={16} />}
                 label="Độ ẩm đất"
                 sensor={metricSensors.soil}
+                metric="soil"
               />
               <SensorMapRow
-                icon={<Activity size={16} />}
+                icon={<Waves size={16} />}
                 label="Ánh sáng"
                 sensor={metricSensors.light}
+                metric="light"
               />
             </div>
           </div>
         </aside>
       </section>
+
+      {/* Styled JSX block */}
+      <style jsx global>{`
+        .ch-container {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+          font-family: inherit;
+        }
+
+        /* ===== Header / Welcome Banner ===== */
+        .ch-header {
+          background: white;
+          border-radius: 24px;
+          border: 1.5px solid #e2e8f0;
+          padding: 1.75rem 2rem;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+        }
+
+        @media (min-width: 1024px) {
+          .ch-header {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+          }
+        }
+
+        .ch-header-left {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .ch-badge-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.25rem 0.75rem;
+          border-radius: 100px;
+          font-size: 0.72rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border: 1px solid rgba(34, 197, 94, 0.15);
+          background: rgba(34, 197, 94, 0.08);
+          color: #16a34a;
+          width: fit-content;
+        }
+
+        .ch-title {
+          font-size: 1.875rem;
+          font-weight: 850;
+          color: #0f172a;
+          letter-spacing: -0.02em;
+          margin: 0;
+        }
+
+        .ch-subtitle {
+          font-size: 0.875rem;
+          color: #64748b;
+          margin: 0;
+        }
+
+        .ch-header-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+
+        .ch-action-group {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .ch-action-label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .ch-select {
+          padding: 0.65rem 2.25rem 0.65rem 1rem;
+          border-radius: 12px;
+          border: 1.5px solid #e2e8f0;
+          background-color: #f8fafc;
+          font-size: 0.875rem;
+          font-weight: 700;
+          outline: none;
+          color: #334155;
+          cursor: pointer;
+          transition: all 0.2s;
+          appearance: none;
+          background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+          background-position: right 0.75rem center;
+          background-repeat: no-repeat;
+          background-size: 1.1rem;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+          min-width: 140px;
+        }
+
+        .ch-select--esp {
+          min-width: 220px;
+        }
+
+        .ch-select:focus {
+          border-color: #10b981;
+          box-shadow: 0 0 0 3.5px rgba(16, 185, 129, 0.12);
+          background-color: white;
+        }
+
+        .ch-select:hover {
+          border-color: #cbd5e1;
+          background-color: #f1f5f9;
+        }
+
+        /* ===== Metrics Grid (Latest Values) ===== */
+        .ch-metric-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+
+        @media (min-width: 640px) {
+          .ch-metric-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (min-width: 1280px) {
+          .ch-metric-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+
+        .ch-metric-card {
+          background: white;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 24px;
+          padding: 1.25rem 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.01);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .ch-metric-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 24px rgba(0,0,0,0.05);
+        }
+
+        .ch-metric-card--temp:hover { border-color: #fecaca; }
+        .ch-metric-card--humi:hover { border-color: #7dd3fc; }
+        .ch-metric-card--soil:hover { border-color: #86efac; }
+        .ch-metric-card--light:hover { border-color: #fde047; }
+
+        .ch-metric-left {
+          display: flex;
+          flex-direction: column;
+          gap: 0.15rem;
+          min-width: 0;
+          flex: 1;
+        }
+
+        .ch-metric-label {
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .ch-metric-value-row {
+          display: flex;
+          align-items: flex-end;
+          gap: 0.25rem;
+          margin-top: 0.25rem;
+        }
+
+        .ch-metric-val {
+          font-size: 1.875rem;
+          font-weight: 900;
+          color: #0f172a;
+          line-height: 1;
+        }
+
+        .ch-metric-unit {
+          font-size: 0.85rem;
+          font-weight: 750;
+          color: #64748b;
+          align-self: flex-end;
+          padding-bottom: 2px;
+        }
+
+        .ch-metric-icon-wrap {
+          width: 44px;
+          height: 44px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: transform 0.3s;
+        }
+
+        .ch-metric-card:hover .ch-metric-icon-wrap {
+          transform: scale(1.08) rotate(3deg);
+        }
+
+        .ch-metric-icon-wrap--temp { background: rgba(239, 68, 68, 0.08); color: #ef4444; }
+        .ch-metric-icon-wrap--humi { background: rgba(14, 165, 233, 0.08); color: #0ea5e9; }
+        .ch-metric-icon-wrap--soil { background: rgba(16, 185, 129, 0.08); color: #10b981; }
+        .ch-metric-icon-wrap--light { background: rgba(245, 158, 11, 0.08); color: #f59e0b; }
+
+        /* ===== Main Grid ===== */
+        .ch-main-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+
+        @media (min-width: 1280px) {
+          .ch-main-grid {
+            grid-template-columns: 1fr 320px;
+          }
+        }
+
+        .ch-panel {
+          background: white;
+          border-radius: 28px;
+          border: 1.5px solid #e2e8f0;
+          padding: 1.75rem;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+          display: flex;
+          flex-direction: column;
+        }
+
+        .ch-panel-header {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          margin-bottom: 1.5rem;
+        }
+
+        @media (min-width: 640px) {
+          .ch-panel-header {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+          }
+        }
+
+        .ch-panel-title-area {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .ch-panel-title {
+          font-size: 1.25rem;
+          font-weight: 850;
+          color: #0f172a;
+          margin: 0;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .ch-panel-subtitle {
+          font-size: 0.85rem;
+          color: #64748b;
+          margin: 0;
+        }
+
+        .ch-status-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.35rem 0.85rem;
+          border-radius: 100px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          border: 1px solid transparent;
+          width: fit-content;
+        }
+
+        .ch-status-pill--online {
+          background: rgba(34, 197, 94, 0.08);
+          color: #16a34a;
+          border-color: rgba(34, 197, 94, 0.15);
+        }
+
+        .ch-status-pill--offline {
+          background: #f1f5f9;
+          color: #64748b;
+          border-color: #e2e8f0;
+        }
+
+        /* Tab Selectors */
+        .ch-tabs {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          border-bottom: 1.5px solid #f1f5f9;
+          padding-bottom: 1.25rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .ch-tab-btn {
+          border: none;
+          padding: 0.6rem 1.1rem;
+          border-radius: 12px;
+          font-size: 0.78rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+        }
+
+        .ch-tab-btn--all {
+          background: #f8fafc;
+          color: #475569;
+          border: 1.5px solid #e2e8f0;
+        }
+
+        .ch-tab-btn--all:hover {
+          background: #f1f5f9;
+          border-color: #cbd5e1;
+        }
+
+        .ch-tab-btn--all-active {
+          background: #0f172a;
+          color: white;
+          border: 1.5px solid #0f172a;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+        }
+
+        .ch-tab-btn--metric {
+          background: #f8fafc;
+          color: #475569;
+          border: 1.5px solid #e2e8f0;
+        }
+
+        .ch-tab-btn--metric:hover {
+          background: #f1f5f9;
+          border-color: #cbd5e1;
+        }
+
+        .ch-tab-btn--metric-active {
+          color: white;
+          border-color: transparent;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .ch-tab-dot {
+          width: 7.5px;
+          height: 7.5px;
+          border-radius: 50%;
+        }
+
+        /* ===== Recharts Tooltip Custom styling ===== */
+        .ch-tooltip {
+          background: rgba(255, 255, 255, 0.96);
+          border: 1.5px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 0.9rem 1rem;
+          box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+          backdrop-filter: blur(8px);
+          font-family: inherit;
+        }
+
+        .ch-tooltip-header {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-size: 0.72rem;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .ch-tooltip-divider {
+          height: 1.5px;
+          background: #f1f5f9;
+          margin: 0.5rem 0;
+        }
+
+        .ch-tooltip-body {
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+        }
+
+        .ch-tooltip-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.82rem;
+        }
+
+        .ch-tooltip-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .ch-tooltip-label {
+          color: #475569;
+          font-weight: 600;
+        }
+
+        .ch-tooltip-val {
+          color: #0f172a;
+          font-weight: 800;
+          margin-left: auto;
+        }
+
+        /* ===== Sidebar (Aside) Panels ===== */
+        .ch-sidebar {
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+        }
+
+        .ch-side-card {
+          background: white;
+          border-radius: 24px;
+          border: 1.5px solid #e2e8f0;
+          padding: 1.5rem;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+        }
+
+        .ch-side-title {
+          font-size: 1rem;
+          font-weight: 850;
+          color: #0f172a;
+          margin: 0 0 1.25rem 0;
+          display: flex;
+          align-items: center;
+        }
+
+        .ch-info-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.65rem;
+        }
+
+        .ch-info-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          padding: 0.75rem 1rem;
+          background: #f8fafc;
+          border: 1.5px solid #f1f5f9;
+          border-radius: 14px;
+          font-size: 0.8rem;
+          font-weight: 650;
+          min-width: 0;
+        }
+
+        .ch-info-label {
+          color: #64748b;
+        }
+
+        .ch-info-value {
+          color: #334155;
+          font-weight: 750;
+          text-overflow: ellipsis;
+          overflow: hidden;
+          white-space: nowrap;
+        }
+
+        .ch-sensor-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .ch-sensor-row {
+          display: flex;
+          align-items: center;
+          gap: 0.875rem;
+          padding: 0.875rem 1rem;
+          background: #f8fafc;
+          border: 1.5px solid #f1f5f9;
+          border-radius: 18px;
+          transition: all 0.2s ease;
+        }
+
+        .ch-sensor-row:hover {
+          background: white;
+          border-color: #cbd5e1;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+          transform: translateX(1.5px);
+        }
+
+        .ch-sensor-icon-box {
+          width: 36px;
+          height: 36px;
+          border-radius: 11px;
+          background: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #10b981;
+          flex-shrink: 0;
+          border: 1px solid #f1f5f9;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .ch-sensor-details {
+          display: flex;
+          flex-direction: column;
+          gap: 0.15rem;
+          min-width: 0;
+        }
+
+        .ch-sensor-name-lbl {
+          font-size: 0.85rem;
+          font-weight: 800;
+          color: #0f172a;
+        }
+
+        .ch-sensor-meta-lbl {
+          font-size: 0.72rem;
+          color: #64748b;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      `}</style>
     </div>
   );
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
-      <span className="text-slate-500">{label}</span>
-      <span className="truncate text-right font-semibold text-slate-800">
+    <div className="ch-info-row">
+      <span className="ch-info-label">{label}</span>
+      <span className="ch-info-value" title={value}>
         {value}
       </span>
     </div>
@@ -581,21 +1252,23 @@ function SensorMapRow({
   icon,
   label,
   sensor,
+  metric,
 }: {
   icon: React.ReactNode;
   label: string;
   sensor?: Sensor;
+  metric: MetricKey;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-emerald-700">
+    <div className="ch-sensor-row">
+      <div className={`ch-sensor-icon-box ch-metric-icon-wrap--${metric}`}>
         {icon}
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-900">{label}</p>
-        <p className="truncate text-xs text-slate-500">
+      <div className="ch-sensor-details">
+        <p className="ch-sensor-name-lbl">{label}</p>
+        <p className="ch-sensor-meta-lbl" title={sensor ? `${sensor.name} (Pin ${sensor.pin_connection})` : "Chưa map được sensor"}>
           {sensor
-            ? `${sensor.name} - Pin ${sensor.pin_connection}`
+            ? `${sensor.name} · Pin ${sensor.pin_connection}`
             : "Chưa map được sensor"}
         </p>
       </div>

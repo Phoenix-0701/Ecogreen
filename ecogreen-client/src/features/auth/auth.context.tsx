@@ -16,6 +16,7 @@ interface AuthContextType {
   loginWithGoogle: () => void;
   handleGoogleCallback: (code: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updatedUser: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,6 +88,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = "/login";
   }, []);
 
+  const updateUser = useCallback((updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem("user_info", JSON.stringify(updatedUser));
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -98,6 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithGoogle,
         handleGoogleCallback,
         logout,
+        updateUser,
       }}
     >
       {children}

@@ -10,6 +10,7 @@ import { ThresholdsModule } from './modules/thresholds/thresholds.module';
 import { LogsModule } from './modules/logs/logs.module';
 import { ActuatorsModule } from './modules/actuators/actuators.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { SchedulesModule } from './modules/schedules/schedules.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     LogsModule,
     ActuatorsModule,
     AnalyticsModule,
+    SchedulesModule,
   ],
   controllers: [AppController],
   providers: [EventsGateway],

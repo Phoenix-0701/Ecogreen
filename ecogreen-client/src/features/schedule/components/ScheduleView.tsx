@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
   Clock3,
   Loader2,
   PenLine,
@@ -57,6 +60,25 @@ function sortSchedules(schedules: ScheduleRule[]) {
 export function ScheduleView() {
   const [draft, setDraft] = useState<ScheduleState | null>(null);
   const [saved, setSaved] = useState<ScheduleState | null>(null);
+  const [toast, setToast] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const showNotification = (type: "success" | "error", title: string, message: string) => {
+    setToast({ show: true, type, title, message });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -133,7 +155,26 @@ export function ScheduleView() {
     });
   };
 
+  const checkOverlap = (rule: ScheduleRule, currentRules: ScheduleRule[]) => {
+    return currentRules.some((item) => {
+      if (item.id === rule.id) return false;
+      const sameTime = item.time === rule.time;
+      const shareDays = item.days.some((day) => rule.days.includes(day));
+      return sameTime && shareDays;
+    });
+  };
+
   const handleSubmitSchedule = (rule: ScheduleRule) => {
+    const hasOverlap = checkOverlap(rule, draft.schedules);
+    if (hasOverlap) {
+      showNotification(
+        "error",
+        "Lịch trùng thời gian",
+        `Không thể ${scheduleModal?.mode === "edit" ? "cập nhật" : "thêm"} vì đã có lịch trùng giờ (${formatTime(rule.time)}) vào ngày được chọn.`
+      );
+      return;
+    }
+
     updateSchedules((current) => {
       if (scheduleModal?.mode === "edit") {
         return current.map((item) => (item.id === rule.id ? rule : item));
@@ -141,22 +182,45 @@ export function ScheduleView() {
 
       return [...current, rule];
     });
+    
+    showNotification(
+      "success",
+      scheduleModal?.mode === "edit" ? "Cập nhật thành công" : "Thêm lịch thành công",
+      scheduleModal?.mode === "edit"
+        ? `Lịch trình "${rule.title}" đã được cập nhật nháp.`
+        : `Lịch trình "${rule.title}" đã được thêm nháp thành công.`
+    );
+    
     setScheduleModal(null);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    const result = await saveScheduleState({
-      ...draft,
-      dailyConsumptionLiters: buildProjectedConsumption(draft.schedules),
-    });
-    const normalized = {
-      ...result,
-      schedules: sortSchedules(result.schedules),
-    };
-    setDraft(normalized);
-    setSaved(normalized);
-    setSaving(false);
+    try {
+      const result = await saveScheduleState({
+        ...draft,
+        dailyConsumptionLiters: buildProjectedConsumption(draft.schedules),
+      });
+      const normalized = {
+        ...result,
+        schedules: sortSchedules(result.schedules),
+      };
+      setDraft(normalized);
+      setSaved(normalized);
+      showNotification(
+        "success",
+        "Lưu lịch trình thành công",
+        "Cấu hình lịch tưới tự động đã được lưu lại hệ thống."
+      );
+    } catch (error) {
+      showNotification(
+        "error",
+        "Lỗi lưu lịch trình",
+        "Không thể lưu lịch trình tới máy chủ. Vui lòng kiểm tra lại kết nối."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const applySkipSuggestion = () => {
@@ -176,66 +240,53 @@ export function ScheduleView() {
   };
 
   return (
-    <div className="space-y-8 rounded-[2rem] bg-[#f7f9fb] p-4 shadow-[0_24px_60px_rgba(20,57,43,0.05)] sm:p-6 lg:p-8">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-        <div>
-          <p
-            className="text-4xl italic text-[#0b7a50] md:text-5xl"
-            style={{ fontFamily: "var(--font-fraunces)" }}
-          >
-            Quản lý lịch tưới
+    <div className="sc-container">
+      {/* ===== Header Banner ===== */}
+      <section className="sc-header">
+        <div className="sc-header-left">
+          <span className="sc-badge-pill">
+            <CalendarClock size={13} /> Lịch tưới tự động
+          </span>
+          <h1 className="sc-title">Quản lý lịch tưới</h1>
+          <p className="sc-subtitle">
+            Thiết lập chu kỳ tưới tiêu tự động cho các khu vực canh tác.
           </p>
-          <h1
-            className="mt-10 text-4xl text-[#1d2420] md:text-5xl"
-            style={{ fontFamily: "var(--font-fraunces)" }}
-          >
-            Kiểm soát tưới tiêu
-          </h1>
         </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-[1.6rem] bg-white px-5 py-5 shadow-sm">
-            <div className="flex items-center justify-between gap-6">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#33423a]">
-                  Kích hoạt lịch tưới
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-[#0b7a50]">
-                  {draft.enabled ? "Lịch đang bật" : "Lịch đang tạm dừng"}
-                </p>
-              </div>
-              <ToggleSwitch
-                checked={draft.enabled}
-                onChange={(value) => setDraft({ ...draft, enabled: value })}
-              />
+        <div className="sc-header-actions">
+          <div className="sc-toggle-card">
+            <div>
+              <span className="sc-toggle-label">Kích hoạt lịch tưới</span>
+              <p className="sc-toggle-status">
+                {draft.enabled ? "Đang hoạt động" : "Tạm dừng"}
+              </p>
             </div>
+            <ToggleSwitch
+              checked={draft.enabled}
+              onChange={(value) => setDraft({ ...draft, enabled: value })}
+            />
           </div>
-
           <button
             type="button"
             onClick={handleSave}
             disabled={!dirty || saving}
-            className="inline-flex items-center justify-center gap-2 rounded-[1.6rem] bg-[#0b7a50] px-5 py-5 font-semibold text-white shadow-[0_14px_28px_rgba(11,122,80,0.24)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60"
+            className="sc-save-btn"
           >
             {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            Lưu lịch
+            Lưu thay đổi
           </button>
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        <section className="space-y-6 xl:col-span-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2
-              className="text-3xl text-[#1d2420]"
-              style={{ fontFamily: "var(--font-fraunces)" }}
-            >
-              Chu kỳ sắp tới
-            </h2>
+      {/* ===== Main Content Grid ===== */}
+      <div className="sc-grid">
+        {/* Left: Schedule List */}
+        <section className="sc-left">
+          <div className="sc-section-header">
+            <h2 className="sc-section-title">Chu kỳ sắp tới</h2>
             <button
               type="button"
               onClick={openCreateScheduleModal}
-              className="inline-flex items-center gap-2 rounded-full bg-[#18b973] px-5 py-3 font-semibold text-white shadow-[0_14px_28px_rgba(24,185,115,0.22)] transition hover:translate-y-[-1px]"
+              className="sc-add-btn"
             >
               <Plus className="size-4" />
               Thêm lịch mới
@@ -246,38 +297,31 @@ export function ScheduleView() {
             const Icon = schedule.icon === "sprout" ? Sprout : Waves;
 
             return (
-              <article
-                key={schedule.id}
-                className="rounded-[2rem] bg-white p-6 shadow-sm transition hover:shadow-md"
-              >
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="flex items-start gap-4">
-                    <div className="flex size-14 items-center justify-center rounded-[1.25rem] bg-[#eef4f0] text-[#0b7a50]">
-                      <Icon className="size-7" />
+              <article key={schedule.id} className="sc-card">
+                <div className="sc-card-body">
+                  <div className="sc-card-info">
+                    <div className="sc-card-icon">
+                      <Icon className="size-6" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-semibold text-[#18241c]">
-                        {schedule.title}
-                      </h3>
-                      <p className="mt-1 text-sm text-[#66756b]">{schedule.zone}</p>
-                      <div className="mt-3 flex flex-wrap gap-4 text-sm text-[#33423a]">
-                        <span className="inline-flex items-center gap-2">
-                          <Clock3 className="size-4 text-[#516258]" />
+                      <h3 className="sc-card-title">{schedule.title}</h3>
+                      <p className="sc-card-zone">{schedule.zone}</p>
+                      <div className="sc-card-meta">
+                        <span className="sc-meta-item">
+                          <Clock3 className="size-3.5" />
                           {formatTime(schedule.time)}
                         </span>
-                        <span className="inline-flex items-center gap-2">
-                          <TimerReset className="size-4 text-[#516258]" />
+                        <span className="sc-meta-item">
+                          <TimerReset className="size-3.5" />
                           {schedule.durationMinutes} phút
                         </span>
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="sc-day-pills">
                         {DAY_LABELS.map((day, index) => (
                           <span
                             key={`${schedule.id}-${day}`}
-                            className={`rounded-xl px-3 py-1 text-xs font-semibold ${
-                              schedule.days.includes(index)
-                                ? "bg-[#ddf5e7] text-[#0b7a50]"
-                                : "bg-[#eef2ef] text-[#91a097]"
+                            className={`sc-day-pill ${
+                              schedule.days.includes(index) ? "sc-day-pill--active" : ""
                             }`}
                           >
                             {day}
@@ -287,7 +331,7 @@ export function ScheduleView() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="sc-card-actions">
                     <ToggleSwitch
                       checked={schedule.enabled}
                       onChange={(value) =>
@@ -301,202 +345,79 @@ export function ScheduleView() {
                     <button
                       type="button"
                       onClick={() => setScheduleModal({ mode: "edit", rule: schedule })}
-                      className="rounded-full p-3 text-[#33423a] transition hover:bg-[#eff4f1]"
+                      className="sc-icon-btn"
                     >
-                      <PenLine className="size-5" />
+                      <PenLine className="size-4" />
                     </button>
                     <button
                       type="button"
                       onClick={() => updateSchedules((current) => current.filter((item) => item.id !== schedule.id))}
-                      className="rounded-full p-3 text-[#33423a] transition hover:bg-[#fff1f1] hover:text-[#dc2626]"
+                      className="sc-icon-btn sc-icon-btn--danger"
                     >
-                      <Trash2 className="size-5" />
+                      <Trash2 className="size-4" />
                     </button>
                   </div>
                 </div>
-
-                {false ? (
-                  <div className="mt-6 grid gap-4 border-t border-[#eef2ef] pt-6 md:grid-cols-2">
-                    <EditField
-                      label="Tên lịch"
-                      value={schedule.title}
-                      onChange={(value) =>
-                        updateSchedules((current) =>
-                          current.map((item) =>
-                            item.id === schedule.id ? { ...item, title: value } : item,
-                          ),
-                        )
-                      }
-                    />
-                    <EditField
-                      label="Khu vực"
-                      value={schedule.zone}
-                      onChange={(value) =>
-                        updateSchedules((current) =>
-                          current.map((item) =>
-                            item.id === schedule.id ? { ...item, zone: value } : item,
-                          ),
-                        )
-                      }
-                    />
-                    <label className="block">
-                      <span className="text-sm font-semibold text-[#18241c]">Giờ bắt đầu</span>
-                      <input
-                        type="time"
-                        value={schedule.time}
-                        onChange={(event) =>
-                          updateSchedules((current) =>
-                            current.map((item) =>
-                              item.id === schedule.id
-                                ? { ...item, time: event.target.value }
-                                : item,
-                            ),
-                          )
-                        }
-                        className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="text-sm font-semibold text-[#18241c]">Thời lượng (phút)</span>
-                      <input
-                        type="number"
-                        min={5}
-                        max={180}
-                        value={schedule.durationMinutes}
-                        onChange={(event) =>
-                          updateSchedules((current) =>
-                            current.map((item) =>
-                              item.id === schedule.id
-                                ? {
-                                    ...item,
-                                    durationMinutes: Math.max(
-                                      5,
-                                      Math.min(180, Number(event.target.value) || 5),
-                                    ),
-                                  }
-                                : item,
-                            ),
-                          )
-                        }
-                        className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
-                      />
-                    </label>
-                    <div className="md:col-span-2">
-                      <span className="text-sm font-semibold text-[#18241c]">Ngày tưới</span>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {DAY_LABELS.map((day, index) => {
-                          const active = schedule.days.includes(index);
-                          return (
-                            <button
-                              key={`${schedule.id}-edit-${day}`}
-                              type="button"
-                              onClick={() =>
-                                updateSchedules((current) =>
-                                  current.map((item) => {
-                                    if (item.id !== schedule.id) {
-                                      return item;
-                                    }
-
-                                    return {
-                                      ...item,
-                                      days: active
-                                        ? item.days.filter((value) => value !== index)
-                                        : [...item.days, index].sort((left, right) => left - right),
-                                    };
-                                  }),
-                                )
-                              }
-                              className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                                active
-                                  ? "bg-[#18b973] text-white"
-                                  : "bg-[#eef2ef] text-[#617168] hover:bg-[#dff0e8]"
-                              }`}
-                            >
-                              {day}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
               </article>
             );
           })}
 
-          <div className="rounded-[2rem] border border-dashed border-[#d7ded9] bg-[#fbfcfb] px-6 py-6 text-[#55635a]">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <p className="text-base italic">
-                Tối ưu hóa lịch trình dựa trên thông tin AI về khí hậu địa phương.
-              </p>
-              <button
-                type="button"
-                onClick={applySkipSuggestion}
-                className="inline-flex items-center gap-2 font-semibold text-[#0b7a50]"
-              >
-                <Sparkles className="size-4" />
-                Áp dụng bỏ qua gợi ý
-              </button>
-            </div>
+          <div className="sc-ai-banner">
+            <p className="sc-ai-text">
+              <Sparkles className="size-4 text-emerald-500" />
+              Tối ưu hóa lịch trình dựa trên thông tin AI về khí hậu địa phương.
+            </p>
+            <button
+              type="button"
+              onClick={applySkipSuggestion}
+              className="sc-ai-btn"
+            >
+              Áp dụng gợi ý
+            </button>
           </div>
         </section>
 
-        <section className="space-y-6 xl:col-span-4">
-          <div className="rounded-[2rem] bg-white p-6 shadow-sm">
-            <h2
-              className="text-3xl text-[#1d2420]"
-              style={{ fontFamily: "var(--font-fraunces)" }}
-            >
-              Dự báo tiêu thụ
-            </h2>
-            <p className="mt-2 text-sm text-[#66756b]">
-              Lít nước mỗi giờ theo lịch hiện tại trong 7 ngày gần nhất.
-            </p>
+        {/* Right: Forecast + Advisory */}
+        <section className="sc-right">
+          <div className="sc-panel">
+            <div className="sc-panel-header">
+              <h2 className="sc-panel-title">Dự báo tiêu thụ</h2>
+              <p className="sc-panel-subtitle">
+                Lít nước mỗi giờ theo lịch hiện tại trong 7 ngày gần nhất.
+              </p>
+            </div>
 
-            <div className="mt-8 flex h-56 items-end gap-3">
+            <div className="sc-bar-chart">
               {consumption.map((value, index) => {
                 const isPeak = value === peakValue;
                 return (
-                  <div key={`${value}-${index}`} className="flex flex-1 flex-col items-center justify-end">
-                    <span
-                      className={`mb-2 text-xs font-semibold ${
-                        isPeak ? "text-[#0b7a50]" : "text-[#94a29a]"
-                      }`}
-                    >
+                  <div key={`${value}-${index}`} className="sc-bar-col">
+                    <span className={`sc-bar-value ${isPeak ? "sc-bar-value--peak" : ""}`}>
                       {isPeak ? `${value}L` : ""}
                     </span>
                     <div
-                      className={`w-full rounded-t-2xl ${
-                        isPeak ? "bg-[#1f8a5a]" : "bg-[#dde3df]"
-                      }`}
-                      style={{ height: `${Math.max(42, value * 2)}px` }}
+                      className={`sc-bar ${isPeak ? "sc-bar--peak" : ""}`}
+                      style={{ height: `${peakValue > 0 ? Math.max(12, (value / peakValue) * 110) : 12}px` }}
                     />
-                    <span className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#8c9a91]">
-                      {CHART_LABELS[index]}
-                    </span>
+                    <span className="sc-bar-label">{CHART_LABELS[index]}</span>
                   </div>
                 );
               })}
             </div>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <div className="sc-summary-row">
               <SummaryCard label="Tổng thể tích" value={`${totalConsumption}L`} tone="green" />
               <SummaryCard label="Tiết kiệm" value={`${draft.projectedSavingsPercent}%`} tone="violet" />
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-[2rem] bg-[linear-gradient(145deg,#d9e6ff,#d7e5ff_60%,#cfe1ff)] p-6 shadow-sm">
-            <div className="flex size-12 items-center justify-center rounded-full bg-white/80 text-[#5b45d0]">
+          <div className="sc-advisory">
+            <div className="sc-advisory-icon">
               <Sparkles className="size-5" />
             </div>
-            <h3
-              className="mt-6 text-3xl text-[#35218d]"
-              style={{ fontFamily: "var(--font-fraunces)" }}
-            >
-              Cảnh báo độ ẩm
-            </h3>
-            <p className="mt-4 text-base leading-7 text-[#514c84]">{draft.advisory}</p>
-            <div className="mt-6 rounded-[1.3rem] bg-white/70 px-4 py-3 text-sm font-semibold text-[#5b45d0]">
+            <h3 className="sc-advisory-title">Cảnh báo độ ẩm</h3>
+            <p className="sc-advisory-text">{draft.advisory}</p>
+            <div className="sc-advisory-tag">
               Đỉnh tiêu thụ tuần này: {CHART_LABELS[peakIndex]}
             </div>
           </div>
@@ -512,6 +433,418 @@ export function ScheduleView() {
           onSubmit={handleSubmitSchedule}
         />
       ) : null}
+
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-[100] flex max-w-sm items-start gap-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-[0_10px_30px_rgba(16,185,129,0.08),0_2px_8px_rgba(0,0,0,0.04)] animate-slide-in-up">
+          {toast.type === "success" ? (
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+              <CheckCircle2 className="size-5" />
+            </div>
+          ) : (
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
+              <AlertTriangle className="size-5" />
+            </div>
+          )}
+          <div className="flex-1 pt-0.5">
+            <h4 className={`text-sm font-extrabold tracking-tight ${toast.type === "success" ? "text-emerald-900" : "text-red-950"}`}>
+              {toast.title}
+            </h4>
+            <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+              {toast.message}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="ml-2 flex size-6 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* ===== Scoped Styles ===== */}
+      <style jsx global>{`
+        @keyframes slideInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        .animate-slide-in-up {
+          animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .sc-container {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+          font-family: inherit;
+        }
+
+        /* ===== Header ===== */
+        .sc-header {
+          background: white;
+          border-radius: 24px;
+          border: 1.5px solid #e2e8f0;
+          padding: 1.75rem 2rem;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+        }
+        @media (min-width: 1024px) {
+          .sc-header {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+          }
+        }
+        .sc-header-left {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .sc-badge-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.25rem 0.75rem;
+          border-radius: 100px;
+          font-size: 0.72rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border: 1px solid rgba(16, 185, 129, 0.15);
+          background: rgba(16, 185, 129, 0.08);
+          color: #10b981;
+          width: fit-content;
+        }
+        .sc-title {
+          font-size: 1.875rem;
+          font-weight: 850;
+          color: #0f172a;
+          letter-spacing: -0.02em;
+          margin: 0;
+        }
+        .sc-subtitle {
+          font-size: 0.875rem;
+          color: #64748b;
+          margin: 0;
+        }
+        .sc-header-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+          align-items: stretch;
+        }
+        .sc-toggle-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1.5rem;
+          background: #f8fafc;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 0.875rem 1.25rem;
+        }
+        .sc-toggle-label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #64748b;
+        }
+        .sc-toggle-status {
+          margin-top: 0.125rem;
+          font-size: 0.9375rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+        .sc-save-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          border-radius: 16px;
+          background: #0b7a50;
+          color: white;
+          font-size: 0.875rem;
+          font-weight: 700;
+          padding: 0.875rem 1.5rem;
+          border: none;
+          cursor: pointer;
+          box-shadow: 0 8px 20px rgba(11, 122, 80, 0.22);
+          transition: all 0.2s;
+        }
+        .sc-save-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(11,122,80,0.28); }
+        .sc-save-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+        /* ===== Grid ===== */
+        .sc-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 1.5rem;
+        }
+        @media (min-width: 1280px) {
+          .sc-grid {
+            grid-template-columns: 2fr 1fr;
+          }
+        }
+        .sc-left, .sc-right {
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+        }
+
+        /* ===== Section Header ===== */
+        .sc-section-header {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+        .sc-section-title {
+          font-size: 1.25rem;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: -0.01em;
+          margin: 0;
+        }
+        .sc-add-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.375rem;
+          border-radius: 12px;
+          background: #10b981;
+          color: white;
+          font-size: 0.8125rem;
+          font-weight: 700;
+          padding: 0.625rem 1.125rem;
+          border: none;
+          cursor: pointer;
+          box-shadow: 0 6px 16px rgba(16,185,129,0.2);
+          transition: all 0.2s;
+        }
+        .sc-add-btn:hover { transform: translateY(-1px); }
+
+        /* ===== Schedule Card ===== */
+        .sc-card {
+          background: white;
+          border-radius: 20px;
+          border: 1.5px solid #e2e8f0;
+          padding: 1.25rem 1.5rem;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+          transition: all 0.2s;
+        }
+        .sc-card:hover { border-color: #cbd5e1; box-shadow: 0 8px 24px rgba(0,0,0,0.04); }
+        .sc-card-body {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+        .sc-card-info { display: flex; align-items: flex-start; gap: 1rem; }
+        .sc-card-icon {
+          flex-shrink: 0;
+          width: 48px;
+          height: 48px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 14px;
+          background: rgba(16, 185, 129, 0.08);
+          color: #10b981;
+        }
+        .sc-card-title {
+          font-size: 1rem;
+          font-weight: 750;
+          color: #0f172a;
+          margin: 0;
+        }
+        .sc-card-zone {
+          font-size: 0.8125rem;
+          color: #64748b;
+          margin: 0.125rem 0 0;
+        }
+        .sc-card-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+          margin-top: 0.625rem;
+        }
+        .sc-meta-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+          font-size: 0.8125rem;
+          font-weight: 600;
+          color: #475569;
+        }
+        .sc-day-pills { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-top: 0.625rem; }
+        .sc-day-pill {
+          padding: 0.2rem 0.5rem;
+          border-radius: 8px;
+          font-size: 0.6875rem;
+          font-weight: 700;
+          background: #f1f5f9;
+          color: #94a3b8;
+          letter-spacing: 0.02em;
+        }
+        .sc-day-pill--active {
+          background: rgba(16, 185, 129, 0.12);
+          color: #059669;
+        }
+        .sc-card-actions { display: flex; align-items: center; gap: 0.375rem; }
+        .sc-icon-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px; height: 36px;
+          border-radius: 10px;
+          border: 1.5px solid #e2e8f0;
+          background: white;
+          color: #64748b;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .sc-icon-btn:hover { background: #f8fafc; color: #0f172a; border-color: #cbd5e1; }
+        .sc-icon-btn--danger:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+
+        /* ===== AI Banner ===== */
+        .sc-ai-banner {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          background: #f8fafc;
+          border: 1.5px dashed #cbd5e1;
+          border-radius: 16px;
+          padding: 1rem 1.25rem;
+        }
+        .sc-ai-text {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.8125rem;
+          color: #475569;
+          margin: 0;
+        }
+        .sc-ai-btn {
+          font-size: 0.8125rem;
+          font-weight: 700;
+          color: #10b981;
+          background: none;
+          border: none;
+          cursor: pointer;
+          transition: color 0.15s;
+        }
+        .sc-ai-btn:hover { color: #059669; }
+
+        /* ===== Right Panel ===== */
+        .sc-panel {
+          background: white;
+          border-radius: 24px;
+          border: 1.5px solid #e2e8f0;
+          padding: 1.5rem;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+        }
+        .sc-panel-header { margin-bottom: 1.5rem; }
+        .sc-panel-title {
+          font-size: 1.125rem;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: -0.01em;
+          margin: 0;
+        }
+        .sc-panel-subtitle {
+          font-size: 0.8125rem;
+          color: #64748b;
+          margin: 0.375rem 0 0;
+        }
+
+        /* ===== Bar Chart ===== */
+        .sc-bar-chart { display: flex; align-items: flex-end; gap: 0.5rem; height: 200px; }
+        .sc-bar-col {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: flex-end;
+        }
+        .sc-bar-value {
+          margin-bottom: 0.375rem;
+          font-size: 0.6875rem;
+          font-weight: 700;
+          color: transparent;
+        }
+        .sc-bar-value--peak { color: #059669; }
+        .sc-bar {
+          width: 100%;
+          border-radius: 10px 10px 0 0;
+          background: #e2e8f0;
+          transition: all 0.3s;
+        }
+        .sc-bar--peak { background: linear-gradient(180deg, #10b981, #059669); }
+        .sc-bar-label {
+          margin-top: 0.5rem;
+          font-size: 0.6875rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #94a3b8;
+        }
+
+        /* ===== Summary Row ===== */
+        .sc-summary-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1.5rem; }
+
+        /* ===== Advisory Card ===== */
+        .sc-advisory {
+          background: linear-gradient(145deg, #ede9fe, #e0e7ff 60%, #dbeafe);
+          border-radius: 24px;
+          padding: 1.5rem;
+          border: 1.5px solid rgba(139, 92, 246, 0.1);
+        }
+        .sc-advisory-icon {
+          width: 44px; height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: white;
+          color: #7c3aed;
+          box-shadow: 0 2px 8px rgba(124,58,237,0.1);
+        }
+        .sc-advisory-title {
+          margin: 1rem 0 0;
+          font-size: 1.125rem;
+          font-weight: 800;
+          color: #3b0764;
+          letter-spacing: -0.01em;
+        }
+        .sc-advisory-text {
+          margin: 0.75rem 0 0;
+          font-size: 0.875rem;
+          line-height: 1.7;
+          color: #5b21b6;
+        }
+        .sc-advisory-tag {
+          margin-top: 1rem;
+          background: rgba(255,255,255,0.7);
+          border-radius: 12px;
+          padding: 0.625rem 1rem;
+          font-size: 0.8125rem;
+          font-weight: 700;
+          color: #7c3aed;
+        }
+      `}</style>
     </div>
   );
 }
@@ -566,50 +899,53 @@ function ScheduleRuleModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-2xl rounded-[2rem] bg-white p-6 shadow-[0_30px_80px_rgba(0,0,0,0.18)]"
+        className="w-full max-w-2xl overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_80px_rgba(0,0,0,0.18)]"
       >
-        <div className="mb-6 flex items-start justify-between gap-4">
+        {/* Modal Header */}
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-7 py-5">
           <div>
-            <h3
-              className="text-3xl text-[#1d2420]"
-              style={{ fontFamily: "var(--font-fraunces)" }}
-            >
+            <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">
+              {mode === "create" ? "Tạo mới" : "Chỉnh sửa"}
+            </p>
+            <h3 className="mt-1 text-xl font-extrabold tracking-tight text-slate-900">
               {mode === "create" ? "Thêm lịch tưới" : "Cập nhật lịch tưới"}
             </h3>
-            <p className="mt-2 text-sm text-[#66756b]">
+            <p className="mt-1 text-sm text-slate-400">
               Khu vực được lấy theo tên thiết bị đã đăng ký.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-3 text-[#617168] transition hover:bg-[#eff4f1] hover:text-[#18241c]"
+            className="flex size-9 items-center justify-center rounded-xl border border-slate-200 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
           >
-            <X className="size-5" />
+            <X className="size-4" />
           </button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        {/* Form Body */}
+        <div className="grid gap-5 px-7 py-6 md:grid-cols-2">
           <label className="block">
-            <span className="text-sm font-semibold text-[#18241c]">Tên lịch</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Tên lịch</span>
             <input
               type="text"
               value={form.title}
               onChange={(event) => updateField("title", event.target.value)}
-              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+              placeholder="VD: Tưới sáng sớm"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-300 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
               required
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-semibold text-[#18241c]">Khu vực</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Khu vực</span>
             <select
               value={form.zone}
               onChange={(event) => updateField("zone", event.target.value)}
-              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
             >
               {resolvedZoneOptions.map((zone) => (
                 <option key={zone} value={zone}>
@@ -620,18 +956,18 @@ function ScheduleRuleModal({
           </label>
 
           <label className="block">
-            <span className="text-sm font-semibold text-[#18241c]">Giờ bắt đầu</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Giờ bắt đầu</span>
             <input
               type="time"
               value={form.time}
               onChange={(event) => updateField("time", event.target.value)}
-              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
               required
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-semibold text-[#18241c]">Thời lượng (phút)</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Thời lượng (phút)</span>
             <input
               type="number"
               min={5}
@@ -640,29 +976,29 @@ function ScheduleRuleModal({
               onChange={(event) =>
                 updateField("durationMinutes", Number(event.target.value) || 5)
               }
-              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
               required
             />
           </label>
 
           <label className="block">
-            <span className="text-sm font-semibold text-[#18241c]">Loại lịch</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Loại lịch</span>
             <select
               value={form.icon}
               onChange={(event) =>
                 updateField("icon", event.target.value as ScheduleRule["icon"])
               }
-              className="mt-2 w-full rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3 outline-none transition focus:border-[#0b7a50] focus:bg-white"
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
             >
-              <option value="sprout">Tưới cây</option>
-              <option value="waves">Tưới nước</option>
+              <option value="sprout">🌱  Tưới cây</option>
+              <option value="waves">💧  Tưới nước</option>
             </select>
           </label>
 
-          <div className="flex items-center justify-between rounded-[1.1rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-3">
+          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
-              <span className="text-sm font-semibold text-[#18241c]">Kích hoạt</span>
-              <p className="mt-1 text-xs text-[#66756b]">Lịch có hiệu lực khi hệ thống ở chế độ tự động.</p>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Kích hoạt lịch</span>
+              <p className="mt-0.5 text-xs text-slate-400">Có hiệu lực khi ở chế độ tự động.</p>
             </div>
             <ToggleSwitch
               checked={form.enabled}
@@ -671,7 +1007,7 @@ function ScheduleRuleModal({
           </div>
 
           <div className="md:col-span-2">
-            <span className="text-sm font-semibold text-[#18241c]">Ngày tưới</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Ngày tưới trong tuần</span>
             <div className="mt-3 flex flex-wrap gap-2">
               {DAY_LABELS.map((day, index) => {
                 const active = form.days.includes(index);
@@ -680,10 +1016,10 @@ function ScheduleRuleModal({
                     key={`modal-${day}`}
                     type="button"
                     onClick={() => toggleDay(index)}
-                    className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+                    className={`rounded-xl px-4 py-2 text-xs font-bold tracking-wide transition ${
                       active
-                        ? "bg-[#18b973] text-white"
-                        : "bg-[#eef2ef] text-[#617168] hover:bg-[#dff0e8]"
+                        ? "bg-emerald-500 text-white shadow-sm"
+                        : "border border-slate-200 bg-white text-slate-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600"
                     }`}
                   >
                     {day}
@@ -694,19 +1030,20 @@ function ScheduleRuleModal({
           </div>
         </div>
 
-        <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+        {/* Modal Footer */}
+        <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-7 py-5 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-[#d7ded9] px-6 py-3 font-semibold text-[#617168] transition hover:bg-[#eff4f1]"
+            className="rounded-xl border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
           >
-            Hủy
+            Hủy bỏ
           </button>
           <button
             type="submit"
-            className="rounded-full bg-[#0b7a50] px-7 py-3 font-semibold text-white shadow-[0_14px_28px_rgba(11,122,80,0.22)] transition hover:translate-y-[-1px]"
+            className="rounded-xl bg-[#0b7a50] px-7 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(11,122,80,0.22)] transition hover:translate-y-[-1px] hover:shadow-[0_12px_24px_rgba(11,122,80,0.28)]"
           >
-            {mode === "create" ? "Thêm lịch" : "Lưu thay đổi"}
+            {mode === "create" ? "✓  Thêm lịch" : "✓  Lưu thay đổi"}
           </button>
         </div>
       </form>

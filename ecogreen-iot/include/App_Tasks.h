@@ -20,7 +20,7 @@
 #define TASK_ALERT_CHECK_DELAY_MS 1000      // Kiểm tra cảnh báo mỗi 1 giây
 #define TASK_HEARTBEAT_DELAY_MS 5000        // Heartbeat Serial mỗi 5 giây
 #define TASK_PUMP_WATCHDOG_DELAY_MS 1000    // Giám sát bơm mỗi 1 giây
-#define BTN_DEBOUNCE_MS 50                  // Debounce mỗi 50ms
+#define BTN_DEBOUNCE_MS 50                 // Tăng lên 150ms để chống nhiễu (EMI) từ Relay bơm
 
 // Timing cho các task liên quan đến IoT và lịch tưới
 #define TASK_TELEMETRY_DELAY_MS 2000      // Gửi telemetry lên cloud mỗi 2 giây

@@ -89,9 +89,11 @@ void iotBridge_processRpcCommands()
         return;
 
     RpcPacket_t pkt;
+    bool processedAny = false;
     // Đọc hết tất cả lệnh pending (non-blocking)
     while (xQueueReceive(xRpcCommandQueue, &pkt, 0) == pdTRUE)
     {
+        processedAny = true;
         switch (pkt.command)
         {
         case RPC_PUMP_ON:
@@ -139,6 +141,7 @@ void iotBridge_processRpcCommands()
 
         case RPC_MODE_AUTO:
             g_autoMode = true;
+            g_pumpManual = false; // Đảm bảo reset cờ manual khi vào chế độ AUTO
             Serial.println("[BRIDGE] RPC: Mode -> AUTO");
             break;
 
@@ -150,5 +153,10 @@ void iotBridge_processRpcCommands()
         default:
             break;
         }
+    }
+
+    if (processedAny) {
+        // Gửi telemetry ngay lập tức để cập nhật UI mượt mà không phải đợi chu kỳ 5 giây
+        iotBridge_sendTelemetry();
     }
 }

@@ -14,7 +14,10 @@ import type {
   TelemetrySnapshot,
 } from "@/types/automation";
 
-const toneClasses: Record<DeviceAccessory["tone"], { icon: string; surface: string }> = {
+const toneClasses: Record<
+  DeviceAccessory["tone"],
+  { icon: string; surface: string }
+> = {
   violet: {
     icon: "text-[var(--emerald-tertiary)]",
     surface: "bg-[color:rgba(103,75,181,0.12)]",
@@ -44,7 +47,9 @@ export function PrimaryDeviceCard({
   const badgeClass = isPump
     ? "bg-[color:rgba(0,108,73,0.1)] text-[var(--emerald-primary)]"
     : "bg-[color:rgba(0,102,138,0.1)] text-[var(--emerald-secondary)]";
-  const iconClass = isPump ? "text-[var(--emerald-primary)]" : "text-[var(--emerald-secondary)]";
+  const iconClass = isPump
+    ? "text-[var(--emerald-primary)]"
+    : "text-[var(--emerald-secondary)]";
   const Icon = isPump ? Waves : Fan;
 
   return (
@@ -60,7 +65,9 @@ export function PrimaryDeviceCard({
       <div className="relative z-10">
         <div className="mb-8 flex items-start justify-between gap-6">
           <div>
-            <span className={`rounded-full px-3 py-1 text-xs font-bold tracking-[0.18em] ${badgeClass}`}>
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-bold tracking-[0.18em] ${badgeClass}`}
+            >
               {device.badge}
             </span>
             <h3
@@ -90,7 +97,11 @@ export function PrimaryDeviceCard({
                     : "bg-[color:rgba(60,74,66,0.35)]"
                 }`}
               />
-              <span className="text-xl font-bold">{device.statusLabel}</span>
+              <span className="text-xl font-bold">
+                {isPump && !device.running && telemetry.cooldownRemain && telemetry.cooldownRemain > 0
+                  ? `Chờ ${Math.floor(telemetry.cooldownRemain / 60)}p ${telemetry.cooldownRemain % 60}s`
+                  : device.statusLabel}
+              </span>
             </div>
           </MetricBlock>
           <MetricBlock label="Thời gian chạy">
@@ -98,7 +109,9 @@ export function PrimaryDeviceCard({
           </MetricBlock>
           <MetricBlock label={isPump ? "Tốc độ dòng chảy" : "Tốc độ quạt"}>
             <span className="text-xl font-bold">
-              {isPump ? `${device.flowRate?.toFixed(1)} L/phút` : `${device.speedPercent ?? 0}%`}
+              {isPump
+                ? `${device.flowRate?.toFixed(1)} L/phút`
+                : `${device.speedPercent ?? 0}%`}
             </span>
           </MetricBlock>
           <MetricBlock label="Điện năng tiêu thụ">
@@ -130,7 +143,11 @@ export function PrimaryDeviceCard({
             <InsightMetric label="Ưu tiên khu vực" value={device.zone} />
             <InsightMetric
               label={isPump ? "Độ ẩm đất" : "Nhiệt độ hiện tại"}
-              value={isPump ? `${telemetry.soil}%` : `${telemetry.temp.toFixed(1)}°C`}
+              value={
+                isPump
+                  ? `${telemetry.soil.toFixed(0)}%`
+                  : `${telemetry.temp.toFixed(1)}°C`
+              }
             />
           </div>
         </div>
@@ -138,7 +155,7 @@ export function PrimaryDeviceCard({
 
       <div className="relative z-10 mt-8">
         <ActionButton
-          variant={device.running ? "ghost" : isPump ? "primary" : "secondary"}
+          variant={device.running ? "ghost" : "primary"}
           onClick={onToggleRunning}
         >
           {device.running ? "Tắt" : "Bật"}
@@ -187,7 +204,9 @@ export function StatusPill({
         {icon}
         {label}
       </div>
-      <div className="text-lg font-bold text-[var(--emerald-on-surface)]">{value}</div>
+      <div className="text-lg font-bold text-[var(--emerald-on-surface)]">
+        {value}
+      </div>
     </div>
   );
 }
@@ -216,7 +235,9 @@ export function SecondaryControlCard({
   return (
     <section className="flex items-center justify-between rounded-[2rem] bg-[var(--emerald-surface)] p-6 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-center gap-4">
-        <div className={`flex size-12 items-center justify-center rounded-[1rem] ${tone.surface}`}>
+        <div
+          className={`flex size-12 items-center justify-center rounded-[1rem] ${tone.surface}`}
+        >
           <Icon className={`size-6 ${tone.icon}`} />
         </div>
         <div>
@@ -231,7 +252,9 @@ export function SecondaryControlCard({
         type="button"
         onClick={onToggle}
         className={`relative h-6 w-12 overflow-hidden rounded-full transition-colors ${
-          control.enabled ? "bg-[var(--emerald-primary)]" : "bg-[var(--emerald-surface-low)]"
+          control.enabled
+            ? "bg-[var(--emerald-primary)]"
+            : "bg-[var(--emerald-surface-low)]"
         }`}
         aria-pressed={control.enabled}
         aria-label={control.title}
@@ -263,19 +286,15 @@ function MetricBlock({
   );
 }
 
-function InsightMetric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function InsightMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[1rem] bg-white/75 p-3">
       <div className="text-[11px] uppercase tracking-[0.18em] text-[var(--emerald-on-surface-variant)]">
         {label}
       </div>
-      <div className="mt-1 font-semibold text-[var(--emerald-on-surface)]">{value}</div>
+      <div className="mt-1 font-semibold text-[var(--emerald-on-surface)]">
+        {value}
+      </div>
     </div>
   );
 }

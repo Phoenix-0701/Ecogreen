@@ -63,7 +63,11 @@ function parseRealtimeTelemetry(payload: unknown): TelemetrySnapshot | null {
       temp: toNumber("temp", "temperature") ?? 0,
       humi: toNumber("humi", "humidity", "hum") ?? 0,
       soil: toNumber("soil", "soil_moisture", "soilMoisture") ?? 0,
-      light: toNumber("light", "lux", "brightness") ?? 0,
+      light: toNumber("light", "lux", "brightness", "lightLux", "light_lux") ?? 0,
+      autoMode: typeof candidate.autoMode === "boolean" ? candidate.autoMode : true,
+      cooldownRemain: typeof candidate.cooldownRemain === "number" ? candidate.cooldownRemain : 0,
+      pumpState: typeof candidate.pumpState === "boolean" ? candidate.pumpState : undefined,
+      fanState: typeof candidate.fanState === "boolean" ? candidate.fanState : undefined,
       updatedAt: new Date().toISOString(),
       source: "socket",
     };

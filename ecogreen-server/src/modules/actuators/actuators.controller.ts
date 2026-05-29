@@ -8,7 +8,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { ActuatorsService } from './actuators.service';
-import { ToggleActuatorDto } from './dto/toggle-actuator.dto';
+import { ToggleActuatorDto, SetModeDto } from './dto/toggle-actuator.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
@@ -36,5 +36,16 @@ export class ActuatorsController {
   ) {
     const userTrigger = `USER: ${req.user.username}`;
     return this.actuatorsService.toggle(actuatorId, dto.state, userTrigger);
+  }
+
+  @Post('devices/:deviceId/mode')
+  @ApiOperation({ summary: 'Change auto/manual mode of a device' })
+  setMode(
+    @Param('deviceId') deviceId: string,
+    @Body() dto: SetModeDto,
+    @Request() req,
+  ) {
+    const userTrigger = req.user.username;
+    return this.actuatorsService.setDeviceMode(deviceId, dto.autoMode, userTrigger);
   }
 }

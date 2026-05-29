@@ -13,6 +13,7 @@
 // pio run #build firmware
 // pio run -t upload #upload firmware lên ESP32
 // pio run -t uploadfs #upload LittleFS(web files) - uploadfs cái file trong mục data/ (nếu có) lên ESP32, sẽ mount vào LittleFS để webserver đọc
+// pio device monitor     
 // ============================================================================
 #include <Arduino.h>
 #include "config.h"

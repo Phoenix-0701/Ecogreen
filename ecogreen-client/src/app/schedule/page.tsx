@@ -3,7 +3,7 @@ import { ScheduleView } from "@/features/schedule/components/ScheduleView";
 
 export default function SchedulePage() {
   return (
-    <DashboardLayout>
+    <DashboardLayout activeMenu="SCHEDULE" pageTitle="Lịch trình tưới">
       <ScheduleView />
     </DashboardLayout>
   );

@@ -57,7 +57,12 @@ static bool debounce(Button_t &btn)
 
         // FALLING edge: HIGH -> LOW = nhấn nút
         if (prevStable == HIGH && currentRaw == LOW)
+        {
+            static unsigned long s_lastButtonPressMs = 0;
+            if (millis() - s_lastButtonPressMs < 500) return false; // Ignore if pressed within last 500ms
+            s_lastButtonPressMs = millis();
             return true;
+        }
     }
 
     return false;

@@ -217,11 +217,12 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
         float soilDry = doc["params"]["soilDry"] | g_soilDryThreshold;
         float soilWet = doc["params"]["soilWet"] | g_soilWetThreshold;
         float tempHigh = doc["params"]["tempHigh"] | g_tempHighThreshold;
+        float tempLow = doc["params"]["tempLow"] | g_tempLowThreshold;
         int pumpMax = doc["params"]["pumpMax"] | (int)(g_pumpMaxOnMs / 1000UL);
         int pumpCool = doc["params"]["pumpCool"] | (int)(g_pumpCooldownMs / 1000UL);
 
         // Validate trước khi ghi
-        if (soilDry >= soilWet || tempHigh <= 0.0f)
+        if (soilDry >= soilWet || tempHigh <= tempLow)
         {
             Serial.println("[MQTT-LOCAL] setThreshold: invalid values - rejected");
             return;
@@ -231,7 +232,7 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
         g_soilDryThreshold = soilDry;
         g_soilWetThreshold = soilWet;
         g_tempHighThreshold = tempHigh;
-        g_tempLowThreshold = tempHigh - 1.0f; // hysteresis cố định 1°C
+        g_tempLowThreshold = tempLow;
         g_pumpMaxOnMs = (unsigned long)pumpMax * 1000UL;
         g_pumpCooldownMs = (unsigned long)pumpCool * 1000UL;
         SENSOR_UNLOCK();
@@ -366,9 +367,19 @@ static void publishTelemetry(const TelemetryPacket_t &pkt)
     tele["humidity"] = pkt.humidity;
     tele["soilMoisture"] = pkt.soilMoisture;
     tele["lightLux"] = pkt.lightLux;
-    tele["pump"] = pkt.pumpState;
-    tele["fan"] = pkt.fanState;
+    tele["pumpState"] = pkt.pumpState;
+    tele["fanState"] = pkt.fanState;
     tele["autoMode"] = pkt.autoMode;
+
+    int cooldownRemain = 0;
+    if (g_pumpCooldown) {
+        unsigned long elapsed = millis() - g_pumpLastOffTime;
+        if (elapsed < g_pumpCooldownMs) {
+            cooldownRemain = (g_pumpCooldownMs - elapsed) / 1000;
+        }
+    }
+    tele["cooldownRemain"] = cooldownRemain;
+
     tele["dhtError"] = pkt.dhtError;
     tele["alertTemp"] = pkt.alertTemp;
     tele["alertHumidity"] = pkt.alertHumidity;

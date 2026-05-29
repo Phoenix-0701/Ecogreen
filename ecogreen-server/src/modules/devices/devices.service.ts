@@ -44,7 +44,7 @@ export class DevicesService {
         User_ID: userId,
         status: 'online',
 
-        // Tự động tạo 3 Cảm biến
+        // Tự động tạo 4 Cảm biến
         sensors: {
           create: [
             {
@@ -65,12 +65,21 @@ export class DevicesService {
               unit: '%',
               pin_connection: 34,
             },
+            {
+              name: 'Ánh sáng',
+              type: 'light',
+              unit: 'lux',
+              pin_connection: 35,
+            },
           ],
         },
 
-        // Tự động tạo 1 Máy bơm
+        // Tự động tạo 1 Máy bơm và 1 Quạt
         actuators: {
-          create: [{ name: 'Máy bơm nước', type: 'pump', pin_connection: 5 }],
+          create: [
+            { name: 'Máy bơm nước', type: 'pump', pin_connection: 5 },
+            { name: 'Quạt thông gió', type: 'fan', pin_connection: 25 },
+          ],
         },
       },
       include: { sensors: true, actuators: true },

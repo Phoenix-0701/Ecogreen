@@ -9,9 +9,9 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { GoogleGuard } from './google.guard';
 
 @ApiTags('Authentication')
 @Controller('v1/auth')
@@ -29,21 +29,20 @@ export class AuthController {
     };
   }
 
-  //  API CHO GOOGLE
-
+  // Google OAuth routes — only active when credentials are configured
   @ApiOperation({ summary: 'Active Oauth2' })
   @Get('google')
-  @UseGuards(AuthGuard('google'))
-  async googleAuth(@Req() req) {}
+  @UseGuards(GoogleGuard)
+  async googleAuth() {
+    // GoogleGuard will handle the redirection automatically
+  }
 
   @ApiOperation({ summary: 'Automatic data capture point' })
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleGuard)
   async googleAuthRedirect(@Req() req, @Res() res: Response) {
     const result = await this.authService.googleLogin(req);
-
-    res.redirect(
-      `http://localhost:3000/dashboard?token=${result.access_token}`,
-    );
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+    res.redirect(`${clientUrl}/dashboard?token=${result.access_token}`);
   }
 }

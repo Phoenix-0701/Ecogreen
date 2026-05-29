@@ -308,7 +308,7 @@ static void handleBrowserMessage(const String &json)
         float soilDry = doc["soilDry"] | g_soilDryThreshold;
         float soilWet = doc["soilWet"] | g_soilWetThreshold;
         float tempHigh = doc["tempHigh"] | g_tempHighThreshold;
-        float tempLow = tempHigh - 1.0f; // hysteresis cố định 1°C
+        float tempLow = doc["tempLow"] | g_tempLowThreshold;
         int pumpMax = doc["pumpMax"] | (int)(g_pumpMaxOnMs / 1000UL);
         int pumpCool = doc["pumpCool"] | (int)(g_pumpCooldownMs / 1000UL);
 
@@ -515,6 +515,7 @@ void greenhouse_webserver_task(void *pvParameters)
                 cfgSoilDry = g_soilDryThreshold;
                 cfgSoilWet = g_soilWetThreshold;
                 cfgTempHigh = g_tempHighThreshold;
+                float cfgTempLow = g_tempLowThreshold;
                 cfgPumpMax = (int)(g_pumpMaxOnMs / 1000UL);
                 cfgPumpCool = (int)(g_pumpCooldownMs / 1000UL);
                 SENSOR_UNLOCK();
@@ -531,6 +532,7 @@ void greenhouse_webserver_task(void *pvParameters)
                 doc["cfg_soilDry"] = cfgSoilDry;
                 doc["cfg_soilWet"] = cfgSoilWet;
                 doc["cfg_tempHigh"] = cfgTempHigh;
+                doc["cfg_tempLow"] = cfgTempLow;
                 doc["cfg_pumpMax"] = cfgPumpMax;
                 doc["cfg_pumpCool"] = cfgPumpCool;
 

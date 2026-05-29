@@ -3,7 +3,7 @@ import { SmartLogicView } from "@/features/smart-logic/components/SmartLogicView
 
 export default function SmartLogicPage() {
   return (
-    <DashboardLayout>
+    <DashboardLayout activeMenu="SMART LOGIC" pageTitle="Logic thông minh">
       <SmartLogicView />
     </DashboardLayout>
   );

@@ -178,12 +178,12 @@ export function DeviceControlView() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatusPill
               label="Đất"
-              value={`${telemetry.soil}%`}
+              value={`${telemetry.soil.toFixed(0)}%`}
               icon={<Droplets className="size-4 text-[var(--emerald-primary)]" />}
             />
             <StatusPill
               label="Không khí"
-              value={`${telemetry.humi}%`}
+              value={`${telemetry.humi.toFixed(0)}%`}
               icon={<Wind className="size-4 text-[var(--emerald-secondary)]" />}
             />
             <StatusPill
@@ -193,7 +193,7 @@ export function DeviceControlView() {
             />
             <StatusPill
               label="Ánh sáng"
-              value={`${telemetry.light}%`}
+              value={`${telemetry.light.toFixed(0)} lux`}
               icon={<SunMedium className="size-4 text-[var(--emerald-tertiary)]" />}
             />
           </div>

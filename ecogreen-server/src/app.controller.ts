@@ -21,6 +21,8 @@ export class AppController {
         payload = JSON.parse(payload);
       }
 
+      console.log('📡 [MQTT-LOCAL] Nhận gói tin telemetry từ ESP32:', payload);
+
       const mac = payload?.mac ?? payload?.mac_address;
       if (mac) {
         const isSaved = await this.sensorsService.saveSensorData(mac, payload);

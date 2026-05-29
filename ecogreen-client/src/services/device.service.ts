@@ -67,3 +67,13 @@ export const getSensorReadings = (
     `/v1/sensors/${sensorId}/readings?limit=${limit}`
   );
 };
+
+export const setDeviceMode = (
+  deviceId: string,
+  autoMode: boolean
+): Promise<unknown> => {
+  return fetcher(`/v1/devices/${deviceId}/mode`, {
+    method: "POST",
+    body: JSON.stringify({ autoMode }),
+  });
+};

@@ -42,6 +42,7 @@ model DEVICES {
   mac_address  String    @unique
   status       String    @default("offline")
   last_seen_at DateTime?
+  schedule_enabled Boolean @default(true)
   created_at   DateTime  @default(now())
 
   // Quan hệ
@@ -118,6 +119,10 @@ model THRESHOLDS {
   Actuator_ID  String
   min_value    Float
   max_value    Float
+  max_pump_sec Int       @default(60)
+  cooldown_sec Int       @default(300)
+  temp_high    Float     @default(35)
+  temp_low     Float     @default(33)
   is_enabled   Boolean   @default(true)
   sync_status  String    @default("pending")
   sync_at      DateTime?
@@ -131,6 +136,9 @@ model THRESHOLDS {
 model SCHEDULES {
   Schedule_ID  String    @id @default(uuid())
   Actuator_ID  String
+  title        String    @default("Chu kỳ tưới")
+  zone         String    @default("Khu vực")
+  icon         String    @default("sprout")
   start_time   DateTime
   duration_min Int
   days_of_week String

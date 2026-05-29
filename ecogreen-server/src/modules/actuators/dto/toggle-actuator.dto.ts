@@ -9,3 +9,13 @@ export class ToggleActuatorDto {
   @IsBoolean()
   state: boolean;
 }
+
+export class SetModeDto {
+  @ApiProperty({
+    example: true,
+    description: 'Chế độ hoạt động: true (Tự động), false (Thủ công)',
+  })
+  @IsBoolean()
+  autoMode: boolean;
+}
+

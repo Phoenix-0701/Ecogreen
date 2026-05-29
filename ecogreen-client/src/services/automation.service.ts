@@ -5,6 +5,7 @@ import type {
   DeviceControlState,
   PrimaryDevice,
   PrimaryDeviceKind,
+  ScheduleRule,
   ScheduleState,
   SmartLogicLog,
   SmartLogicState,
@@ -148,8 +149,9 @@ const DEFAULT_THRESHOLD_STATE: ThresholdState = {
   dryThreshold: 32,
   wetThreshold: 68,
   maxPumpSeconds: 45,
-  cooldownHours: 2.5,
+  cooldownMinutes: 5,
   highTempC: 34,
+  lowTempC: 33,
   soilBands: [28, 34, 41, 52, 61, 73, 70, 57, 44, 39, 42, 49],
   recommendation:
     "Trầu bà lá xẻ đang ở giai đoạn phát triển mạnh. Có thể giữ ngưỡng khô quanh 32% để rễ thông khí tốt hơn vào buổi trưa.",
@@ -258,6 +260,10 @@ interface BackendThreshold {
   min_value: number;
   max_value: number;
   is_enabled: boolean;
+  max_pump_sec?: number;
+  cooldown_sec?: number;
+  temp_high?: number;
+  temp_low?: number;
   sensor?: BackendSensor;
   actuator?: BackendActuator;
 }
@@ -433,6 +439,10 @@ function mapBackendThresholdState(
     zone: device.name || previous.zone,
     dryThreshold: Math.round(threshold.min_value),
     wetThreshold: Math.round(threshold.max_value),
+    maxPumpSeconds: threshold.max_pump_sec ?? previous.maxPumpSeconds,
+    cooldownMinutes: threshold.cooldown_sec ? Math.round(threshold.cooldown_sec / 60) : previous.cooldownMinutes,
+    highTempC: threshold.temp_high ?? previous.highTempC,
+    lowTempC: threshold.temp_low ?? previous.lowTempC,
   };
 }
 
@@ -551,6 +561,10 @@ export async function saveThresholdState(nextState: ThresholdState) {
           Actuator_ID: pumpActuator.Actuator_ID,
           min_value: nextState.dryThreshold,
           max_value: nextState.wetThreshold,
+          max_pump_sec: nextState.maxPumpSeconds,
+          cooldown_sec: Math.round(nextState.cooldownMinutes * 60),
+          temp_high: nextState.highTempC,
+          temp_low: nextState.lowTempC,
           is_enabled: true,
         }),
       });
@@ -620,10 +634,50 @@ export async function evaluateSmartLogic(
 }
 
 export async function loadScheduleState() {
-  return readStorage(STORAGE_KEYS.schedule, DEFAULT_SCHEDULE_STATE);
+  const fallback = readStorage(STORAGE_KEYS.schedule, DEFAULT_SCHEDULE_STATE);
+  const devices = await loadBackendDevices();
+  const selectedDevice = selectDevice(devices);
+
+  if (selectedDevice) {
+    try {
+      const apiData = await requestJson<{ enabled: boolean; schedules: ScheduleRule[] }>(
+        `/v1/devices/${selectedDevice.Device_ID}/schedules`,
+      );
+      if (apiData && Array.isArray(apiData.schedules)) {
+        const resolved = {
+          ...fallback,
+          enabled: apiData.enabled,
+          schedules: apiData.schedules,
+        };
+        writeStorage(STORAGE_KEYS.schedule, resolved);
+        return resolved;
+      }
+    } catch (error) {
+      console.error("Failed to load schedules from backend, falling back to storage", error);
+    }
+  }
+
+  return fallback;
 }
 
 export async function saveScheduleState(nextState: ScheduleState) {
+  const devices = await loadBackendDevices();
+  const selectedDevice = selectDevice(devices);
+
+  if (selectedDevice) {
+    try {
+      await requestJson(`/v1/devices/${selectedDevice.Device_ID}/schedules`, {
+        method: "POST",
+        body: JSON.stringify({
+          enabled: nextState.enabled,
+          schedules: nextState.schedules,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to save schedules to backend", error);
+    }
+  }
+
   writeStorage(STORAGE_KEYS.schedule, nextState);
   return nextState;
 }

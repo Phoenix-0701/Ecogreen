@@ -3,7 +3,7 @@ import { ThresholdsView } from "@/features/thresholds/components/ThresholdsView"
 
 export default function ThresholdsPage() {
   return (
-    <DashboardLayout>
+    <DashboardLayout activeMenu="THRESHOLDS" pageTitle="Ngưỡng tưới & Logic">
       <ThresholdsView />
     </DashboardLayout>
   );

@@ -78,10 +78,10 @@ void Task_PumpWatchdog(void)
         }
 
         // Ưu tiên 2: force OFF theo PUMP_MAX_ON_TIME_MS
-        // Chỉ áp dụng khi KHÔNG có lịch đang chạy
-        if (g_scheduleOffTime == 0 && elapsed >= g_pumpMaxOnMs)
+        // Chỉ áp dụng khi ở chế độ AUTO, KHÔNG phải bật thủ công, và KHÔNG có lịch đang chạy
+        if (g_autoMode && !g_pumpManual && g_scheduleOffTime == 0 && elapsed >= g_pumpMaxOnMs)
         {
-            Serial.printf("[WATCHDOG] Pump ran %lus >= max %lus -> force OFF\n",
+            Serial.printf("[WATCHDOG] Pump ran %lus >= max %lus (AUTO) -> force OFF\n",
                           elapsed / 1000,
                           (unsigned long)(g_pumpMaxOnMs / 1000));
             g_scheduleOffTime = 0;
@@ -149,7 +149,7 @@ void Task_CheckSchedule(void)
     memcpy(tmp, g_schedules, sizeof(ScheduleEntry_t) * count);
     SENSOR_UNLOCK();
 
-    if (!enabled || count == 0 || g_pumpState || g_rtcError)
+    if (!enabled || count == 0 || g_pumpState || g_rtcError || !g_autoMode)
         return;
 
     // Lấy thời gian thực từ DS3231

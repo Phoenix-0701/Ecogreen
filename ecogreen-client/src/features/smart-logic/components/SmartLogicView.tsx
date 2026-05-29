@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bot,
+  BrainCircuit,
   CloudRain,
   Loader2,
   Save,
@@ -81,40 +82,40 @@ export function SmartLogicView() {
   };
 
   return (
-    <div className="space-y-8 rounded-[2rem] bg-[#f7f9fb] p-4 shadow-[0_24px_60px_rgba(20,57,43,0.05)] sm:p-6 lg:p-8">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-        <div>
-          <h1
-            className="text-4xl text-[#1d2420] md:text-5xl"
-            style={{ fontFamily: "var(--font-fraunces)" }}
-          >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <section style={{ background: 'white', borderRadius: '24px', border: '1.5px solid #e2e8f0', padding: '1.75rem 2rem', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.75rem', borderRadius: '100px', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.05em', border: '1px solid rgba(16,185,129,0.15)', background: 'rgba(16,185,129,0.08)', color: '#10b981', width: 'fit-content' }}>
+            <BrainCircuit size={13} /> Tưới thông minh
+          </span>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 850, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
             Smart Logic - Tưới thông minh
           </h1>
+          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
+            Cho phép AI đánh chặn lịch tưới khi dự báo thời tiết đủ điều kiện.
+          </p>
         </div>
 
-        <div className="rounded-[1.5rem] border border-[#d6ddd8] bg-white px-5 py-4 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#0b7a50]">
+        <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '0.875rem 1.25rem' }}>
+          <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.05em', color: '#10b981', margin: 0 }}>
             Trạng thái hệ thống
           </p>
-          <p className="mt-1 text-lg font-semibold text-[#18241c]">
+          <p style={{ marginTop: '0.125rem', fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
             {draft.enabled ? "Đang tối ưu" : "Tạm dừng"}
-            <span className="px-2 text-[#97a69e]">•</span>
+            <span style={{ padding: '0 0.5rem', color: '#94a3b8' }}>•</span>
             {connected ? "Realtime online" : "Đang chờ dữ liệu"}
           </p>
         </div>
-      </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        <section className="rounded-[2rem] bg-white p-6 shadow-sm xl:col-span-5">
+        <section style={{ background: 'white', borderRadius: '24px', border: '1.5px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }} className="xl:col-span-5">
           <div className="mb-8 flex items-start justify-between gap-6">
             <div>
-              <h2
-                className="text-3xl text-[#1d2420]"
-                style={{ fontFamily: "var(--font-fraunces)" }}
-              >
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', margin: 0 }}>
                 Hệ thống tự chủ
               </h2>
-              <p className="mt-2 text-sm text-[#66756b]">
+              <p style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.375rem' }}>
                 Cho phép AI ghi đè lịch trình khi dự báo mưa đủ lớn.
               </p>
             </div>
@@ -202,7 +203,7 @@ export function SmartLogicView() {
               </span>
             </div>
             <p className="text-base leading-7 text-[#484969]">
-              Với ngưỡng mưa {draft.rainThreshold}% và độ ẩm đất hiện tại {telemetry.soil}%,
+              Với ngưỡng mưa {draft.rainThreshold}% và độ ẩm đất hiện tại {telemetry.soil.toFixed(0)}%,
               hệ thống đang ước tính có thể giảm khoảng{" "}
               <span className="font-semibold text-[#3821a7]">
                 {draft.projectedSavingsPercent}%
@@ -212,16 +213,13 @@ export function SmartLogicView() {
           </div>
         </section>
 
-        <section className="rounded-[2rem] bg-[linear-gradient(180deg,#f2f7f5,#eef4f2)] p-6 shadow-sm xl:col-span-7">
+        <section style={{ borderRadius: '24px', border: '1.5px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', background: 'linear-gradient(180deg,#f8fafc,#f1f5f9)' }} className="xl:col-span-7">
           <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h2
-                className="text-3xl text-[#1d2420]"
-                style={{ fontFamily: "var(--font-fraunces)" }}
-              >
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', margin: 0 }}>
                 Luồng đánh chặn
               </h2>
-              <p className="mt-2 text-sm text-[#66756b]">
+              <p style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.375rem' }}>
                 Mô tả trực quan quyết định thời gian thực từ cảm biến và nguồn dự báo.
               </p>
             </div>
@@ -230,7 +228,7 @@ export function SmartLogicView() {
                 Đầu vào A1
               </div>
               <div className="mt-1 text-2xl font-semibold text-[#1d2420]">
-                Đất {telemetry.soil}%
+                Đất {telemetry.soil.toFixed(0)}%
               </div>
             </div>
           </div>
@@ -240,10 +238,7 @@ export function SmartLogicView() {
               <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-white/12">
                 <CloudRain className="size-7" />
               </div>
-              <h3
-                className="mt-8 text-center text-3xl"
-                style={{ fontFamily: "var(--font-fraunces)" }}
-              >
+              <h3 style={{ marginTop: '2rem', textAlign: 'center', fontSize: '1.125rem', fontWeight: 800, color: 'white' }}>
                 Đánh chặn thời tiết
               </h3>
               <p className="mt-3 text-center text-sm leading-6 text-white/80">
@@ -275,12 +270,9 @@ export function SmartLogicView() {
           </div>
         </section>
 
-        <section className="rounded-[2rem] bg-white p-6 shadow-sm xl:col-span-12">
+        <section style={{ background: 'white', borderRadius: '24px', border: '1.5px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }} className="xl:col-span-12">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h2
-              className="text-3xl text-[#1d2420]"
-              style={{ fontFamily: "var(--font-fraunces)" }}
-            >
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', margin: 0 }}>
               Nhật ký thực thi trực tiếp
             </h2>
             <div className="rounded-full bg-[#eef7f1] px-4 py-2 text-sm font-semibold text-[#0b7a50]">
@@ -355,10 +347,9 @@ function DecisionCard({
         {title}
       </p>
       <p
-        className={`mt-3 text-3xl ${
-          tone === "green" ? "text-[#18241c]" : "text-[#5f6c64]"
+        className={`mt-3 text-xl font-bold ${
+          tone === "green" ? "text-[#0f172a]" : "text-[#64748b]"
         }`}
-        style={{ fontFamily: "var(--font-fraunces)" }}
       >
         {label}
       </p>

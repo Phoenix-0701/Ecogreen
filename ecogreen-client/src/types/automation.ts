@@ -16,6 +16,10 @@ export interface TelemetrySnapshot {
   humi: number;
   soil: number;
   light: number;
+  autoMode?: boolean;
+  cooldownRemain?: number;
+  pumpState?: boolean;
+  fanState?: boolean;
   updatedAt: string;
   source: "mock" | "socket";
 }
@@ -60,8 +64,9 @@ export interface ThresholdState {
   dryThreshold: number;
   wetThreshold: number;
   maxPumpSeconds: number;
-  cooldownHours: number;
+  cooldownMinutes: number;
   highTempC: number;
+  lowTempC: number;
   soilBands: number[];
   recommendation: string;
 }
