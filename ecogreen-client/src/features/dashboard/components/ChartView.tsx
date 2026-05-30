@@ -30,6 +30,7 @@ import { getDevices, getSensorReadings } from "@/services/device.service";
 import type { Device, Sensor } from "@/types";
 import { useRealtimeTelemetry } from "@/features/shared/useRealtimeTelemetry";
 import type { TelemetrySnapshot } from "@/types/automation";
+import { useLanguage } from "@/context/LanguageContext";
 
 type MetricKey = "temp" | "humi" | "soil" | "light";
 
@@ -95,31 +96,31 @@ function getSensorMetric(sensor: Sensor): MetricKey | null {
   return null;
 }
 
-function formatTime(value: string) {
+function formatTime(value: string, locale: string = "vi-VN") {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
     return "--:--";
   }
 
-  return date.toLocaleTimeString("vi-VN", {
+  return date.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-function formatFullTime(value?: string) {
+function formatFullTime(value?: string, locale: string = "vi-VN") {
   if (!value) {
-    return "Chưa có dữ liệu";
+    return locale === "vi-VN" ? "Chưa có dữ liệu" : "No data";
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Chưa có dữ liệu";
+    return locale === "vi-VN" ? "Chưa có dữ liệu" : "No data";
   }
 
-  return date.toLocaleString("vi-VN", {
+  return date.toLocaleString(locale, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -144,11 +145,12 @@ function getReadingTime(reading: ReadingLike) {
   );
 }
 
-function toChartPoint(snapshot: TelemetrySnapshot): ChartPoint {
+function toChartPoint(snapshot: TelemetrySnapshot, locale: string = "vi-VN", convertTemp?: (val: number) => number): ChartPoint {
+  const tempVal = toNumber(snapshot.temp);
   return {
     recordedAt: snapshot.updatedAt,
-    time: formatTime(snapshot.updatedAt),
-    temp: toNumber(snapshot.temp),
+    time: formatTime(snapshot.updatedAt, locale),
+    temp: tempVal !== undefined && convertTemp ? Number(convertTemp(tempVal).toFixed(1)) : tempVal,
     humi: toNumber(snapshot.humi),
     soil: toNumber(snapshot.soil),
     light: toNumber(snapshot.light),
@@ -177,21 +179,26 @@ function mergePoints(
 
 function buildHistoryPoints(
   readingsByMetric: Partial<Record<MetricKey, ReadingLike[]>>,
+  locale: string = "vi-VN",
+  convertTemp?: (val: number) => number
 ) {
   const byTime = new Map<string, ChartPoint>();
 
   Object.entries(readingsByMetric).forEach(([metric, readings]) => {
     readings?.forEach((reading) => {
-      const value = toNumber(reading.value);
+      let value = toNumber(reading.value);
 
       if (value === undefined) {
         return;
+      }
+      if (metric === "temp" && convertTemp) {
+        value = Number(convertTemp(value).toFixed(1));
       }
 
       const recordedAt = getReadingTime(reading);
       const current = byTime.get(recordedAt) ?? {
         recordedAt,
-        time: formatTime(recordedAt),
+        time: formatTime(recordedAt, locale),
       };
 
       byTime.set(recordedAt, {
@@ -221,12 +228,14 @@ function getLatestValue(points: ChartPoint[], metric: MetricKey) {
 }
 
 const CustomTooltip = ({ active, payload }: any) => {
+  const { language, t, tempUnit } = useLanguage();
+  const locale = language === "vi" ? "vi-VN" : "en-US";
   if (active && payload && payload.length) {
     return (
       <div className="ch-tooltip">
         <div className="ch-tooltip-header">
           <Clock size={12} />
-          <span>{formatFullTime(payload[0].payload.recordedAt)}</span>
+          <span>{formatFullTime(payload[0].payload.recordedAt, locale)}</span>
         </div>
         <div className="ch-tooltip-divider" />
         <div className="ch-tooltip-body">
@@ -235,9 +244,11 @@ const CustomTooltip = ({ active, payload }: any) => {
             return (
               <div key={entry.dataKey} className="ch-tooltip-row">
                 <span className="ch-tooltip-dot" style={{ backgroundColor: entry.stroke || config?.color }} />
-                <span className="ch-tooltip-label">{config?.label || entry.name}:</span>
+                <span className="ch-tooltip-label">
+                  {config ? t("history.metrics." + (entry.dataKey as MetricKey), config.label) : entry.name}:
+                </span>
                 <span className="ch-tooltip-val">
-                  {entry.value} {config?.unit}
+                  {entry.value} {entry.dataKey === "temp" ? `°${tempUnit}` : config?.unit}
                 </span>
               </div>
             );
@@ -250,6 +261,8 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 export function ChartView() {
+  const { language, t, tempUnit, convertTemp } = useLanguage();
+  const locale = language === "vi" ? "vi-VN" : "en-US";
   const [isMounted, setIsMounted] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
@@ -258,7 +271,7 @@ export function ChartView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastRealtimeKeyRef = useRef<string | null>(null);
-  const { telemetry, connected } = useRealtimeTelemetry();
+  const { telemetry, telemetryByMac, connected } = useRealtimeTelemetry();
   const [activeTab, setActiveTab] = useState<"all" | MetricKey>("all");
 
   useEffect(() => {
@@ -282,7 +295,7 @@ export function ChartView() {
       .catch((err) => {
         if (mounted) {
           setError(
-            err instanceof Error ? err.message : "Không tải được thiết bị",
+            err instanceof Error ? err.message : t("charts.failedDevices", "Không tải được thiết bị"),
           );
         }
       });
@@ -340,14 +353,14 @@ export function ChartView() {
         }
 
         setPoints(
-          buildHistoryPoints(Object.fromEntries(entries)).slice(-limit),
+          buildHistoryPoints(Object.fromEntries(entries), locale, convertTemp).slice(-limit),
         );
       } catch (err) {
         if (mounted) {
           setError(
             err instanceof Error
               ? err.message
-              : "Không tải được dữ liệu biểu đồ",
+              : t("charts.failedChart", "Không tải được dữ liệu biểu đồ"),
           );
           setPoints([]);
         }
@@ -385,18 +398,151 @@ export function ChartView() {
 
     lastRealtimeKeyRef.current = realtimeKey;
     setPoints((current) =>
-      mergePoints(current, toChartPoint(telemetry), Math.max(limit, 100)),
+      mergePoints(current, toChartPoint(telemetry, locale, convertTemp), Math.max(limit, 100)),
     );
-  }, [limit, selectedDevice, telemetry]);
+  }, [limit, selectedDevice, telemetry, locale]);
 
   const latestAt = points.at(-1)?.recordedAt;
   const latestValues = (Object.keys(metricConfig) as MetricKey[]).map(
     (metric) => ({
+      ...metricConfig[metric],
       metric,
       value: getLatestValue(points, metric),
-      ...metricConfig[metric],
+      unit: metric === "temp" ? `°${tempUnit}` : metricConfig[metric].unit,
     }),
   );
+
+  const getSystemStatus = () => {
+    const tempVal = getLatestValue(points, "temp");
+    const humiVal = getLatestValue(points, "humi");
+    const soilVal = getLatestValue(points, "soil");
+    const lightVal = getLatestValue(points, "light");
+
+    const deviceTelemetry = selectedDevice
+      ? (telemetryByMac[selectedDevice.mac_address] ??
+         (telemetry.macAddress === selectedDevice.mac_address ? telemetry : null))
+      : null;
+
+    const pumpOn = deviceTelemetry?.pumpState === true;
+    const fanOn = deviceTelemetry?.fanState === true;
+    const isAuto = deviceTelemetry?.autoMode !== false;
+
+    if (tempVal === undefined) {
+      return {
+        code: "NORMAL",
+        label: t("charts.status.normal", "Hệ thống bình thường"),
+        desc: t("charts.status.normalDesc", "Đang chờ kết nối dữ liệu để phân tích môi trường..."),
+        color: "#10b981",
+        bg: "rgba(16, 185, 129, 0.05)",
+        border: "rgba(16, 185, 129, 0.15)",
+        ledColor: "Xanh lá (Green)"
+      };
+    }
+
+    const isTempCritical = tempUnit === "F" ? tempVal > 95 : tempVal > 35;
+    const isTempHighWarning = tempUnit === "F" ? tempVal > 86 : tempVal > 30;
+    const isHumiLowWarning = humiVal !== undefined && humiVal < 40;
+    const isSoilDryWarning = soilVal !== undefined && soilVal < 30;
+
+    const hasMinorWarning = isTempHighWarning || isHumiLowWarning || isSoilDryWarning;
+    const isLightLow = lightVal !== undefined && lightVal < 150;
+
+    // 1. CRITICAL
+    if (isTempCritical) {
+      return {
+        code: "CRITICAL",
+        label: t("charts.status.critical", "CẢNH BÁO: Nhiệt độ cực cao!"),
+        desc: t("charts.status.criticalDesc", "Nhiệt độ hiện tại đã vượt quá 35°C ({temp}). Đây là mức cực kỳ nguy hiểm cho sự phát triển của cây trồng. Vui lòng kích hoạt quạt thông gió và kiểm tra hệ thống che nắng ngay lập tức!").replace("{temp}", `${tempVal.toFixed(1)}°${tempUnit}`),
+        color: "#ef4444",
+        bg: "rgba(239, 68, 68, 0.05)",
+        border: "rgba(239, 68, 68, 0.15)",
+        ledColor: "Đỏ (Red)"
+      };
+    }
+
+    // 2. Pump + Fan together
+    if (pumpOn && fanOn) {
+      return {
+        code: "PUMP_FAN",
+        label: t("charts.status.pumpFan", "Đang tưới nước & Làm mát tích cực"),
+        desc: t("charts.status.pumpFanDesc", "Hệ thống đang đồng thời bật máy bơm nước để cân bằng độ ẩm đất và bật quạt thông gió để giải nhiệt cho nhà kính."),
+        color: "#06b6d4",
+        bg: "rgba(6, 182, 212, 0.05)",
+        border: "rgba(6, 182, 212, 0.15)",
+        ledColor: "Xanh ngọc (Cyan)"
+      };
+    }
+
+    // 3. Only pump
+    if (pumpOn) {
+      return {
+        code: "PUMPING",
+        label: t("charts.status.pumping", "Đang trong chu kỳ tưới nước"),
+        desc: t("charts.status.pumpingDesc", "Máy bơm nước đang hoạt động để cung cấp độ ẩm cần thiết cho đất. Hệ thống thông minh tự động giám sát độ bão hòa."),
+        color: "#3b82f6",
+        bg: "rgba(59, 130, 246, 0.05)",
+        border: "rgba(59, 130, 246, 0.15)",
+        ledColor: "Xanh dương (Blue)"
+      };
+    }
+
+    // 4. Only fan manual
+    if (fanOn && !isAuto) {
+      return {
+        code: "FAN_MANUAL",
+        label: t("charts.status.fanManual", "Quạt làm mát bật thủ công"),
+        desc: t("charts.status.fanManualDesc", "Quạt thông gió đang được vận hành thủ công bởi quản trị viên. Hệ thống tạm ngắt tự động hóa điều hòa nhiệt độ."),
+        color: "#8b5cf6",
+        bg: "rgba(139, 92, 246, 0.05)",
+        border: "rgba(139, 92, 246, 0.15)",
+        ledColor: "Tím (Purple)"
+      };
+    }
+
+    // 5. Low light
+    if (isLightLow) {
+      return {
+        code: "LOW_LIGHT",
+        label: t("charts.status.lowLight", "Thiếu ánh sáng tự nhiên"),
+        desc: t("charts.status.lowLightDesc", "Cường độ ánh sáng giảm xuống dưới ngưỡng tối thiểu ({light} lux). Grow light (đèn quang hợp) đã được tự động bật để bổ sung bức xạ quang hợp cho cây trồng.").replace("{light}", (lightVal || 0).toFixed(0)),
+        color: "#6b7280",
+        bg: "rgba(107, 114, 128, 0.05)",
+        border: "rgba(107, 114, 128, 0.15)",
+        ledColor: "Trắng / Grow Light (White)"
+      };
+    }
+
+    // 6. Minor warning
+    if (hasMinorWarning) {
+      let warningReason = [];
+      if (isTempHighWarning) warningReason.push(t("charts.status.warnTemp", "Nhiệt độ ấm lên ({temp})").replace("{temp}", `${tempVal.toFixed(1)}°${tempUnit}`));
+      if (isHumiLowWarning && humiVal !== undefined) warningReason.push(t("charts.status.warnHumi", "Độ ẩm không khí thấp ({humi}%)").replace("{humi}", humiVal.toFixed(0)));
+      if (isSoilDryWarning && soilVal !== undefined) warningReason.push(t("charts.status.warnSoil", "Đất đang khô dần ({soil}%)").replace("{soil}", soilVal.toFixed(0)));
+
+      return {
+        code: "WARNING",
+        label: t("charts.status.warning", "Cảnh báo môi trường nhẹ"),
+        desc: t("charts.status.warningDesc", "Phát hiện chỉ số môi trường chưa tối ưu: {reasons}. Hệ thống khuyên bạn nên điều chỉnh nhẹ để giữ cây trồng trong điều kiện tốt nhất.").replace("{reasons}", warningReason.join(", ")),
+        color: "#f59e0b",
+        bg: "rgba(245, 158, 11, 0.05)",
+        border: "rgba(245, 158, 11, 0.15)",
+        ledColor: "Vàng cam (Orange)"
+      };
+    }
+
+    // 7. Normal
+    return {
+      code: "NORMAL",
+      label: t("charts.status.normal", "Hệ sinh thái lý tưởng"),
+      desc: t("charts.status.normalDesc", "Tất cả chỉ số môi trường (Nhiệt độ: {temp}, Độ ẩm khí: {humi}%, Độ ẩm đất: {soil}%, Ánh sáng: {light} lux) đang ở dải tối ưu tuyệt vời. Hệ thống LED báo trạng thái tốt.").replace("{temp}", `${tempVal.toFixed(1)}°${tempUnit}`).replace("{humi}", (humiVal || 0).toFixed(0)).replace("{soil}", (soilVal || 0).toFixed(0)).replace("{light}", (lightVal || 0).toFixed(0)),
+      color: "#10b981",
+      bg: "rgba(16, 185, 129, 0.05)",
+      border: "rgba(16, 185, 129, 0.15)",
+      ledColor: "Xanh lá (Green)"
+    };
+  };
+
+  const status = getSystemStatus();
 
   return (
     <div className="ch-container">
@@ -404,19 +550,19 @@ export function ChartView() {
       <section className="ch-header">
         <div className="ch-header-left">
           <span className="ch-badge-pill">
-            Telemetry realtime
+            {t("charts.telemetryRealtime", "Telemetry realtime")}
           </span>
           <h1 className="ch-title">
-            Biểu đồ cảm biến theo ESP
+            {t("charts.title", "Biểu đồ cảm biến theo ESP")}
           </h1>
           <p className="ch-subtitle">
-            Dữ liệu lịch sử lấy từ readings API, điểm mới được cập nhật từ socket realtime-data.
+            {t("charts.subtitle", "Dữ liệu lịch sử lấy từ readings API, điểm mới được cập nhật từ socket realtime-data.")}
           </p>
         </div>
 
         <div className="ch-header-actions">
           <div className="ch-action-group">
-            <span className="ch-action-label">Thiết bị ESP</span>
+            <span className="ch-action-label">{t("charts.espDevice", "Thiết bị ESP")}</span>
             <select
               value={selectedDeviceId}
               onChange={(event) => setSelectedDeviceId(event.target.value)}
@@ -431,7 +577,7 @@ export function ChartView() {
           </div>
 
           <div className="ch-action-group">
-            <span className="ch-action-label">Số điểm dữ liệu</span>
+            <span className="ch-action-label">{t("charts.dataPoints", "Số điểm dữ liệu")}</span>
             <select
               value={limit}
               onChange={(event) => setLimit(Number(event.target.value))}
@@ -439,7 +585,7 @@ export function ChartView() {
             >
               {limitOptions.map((option) => (
                 <option key={option} value={option}>
-                  {option} điểm
+                  {option} {t("charts.pointsSuffix", "điểm")}
                 </option>
               ))}
             </select>
@@ -460,7 +606,7 @@ export function ChartView() {
               className={`ch-metric-card ch-metric-card--${metric}`}
             >
               <div className="ch-metric-left">
-                <span className="ch-metric-label">{label}</span>
+                <span className="ch-metric-label">{t("history.metrics." + metric, label)}</span>
                 <div className="ch-metric-value-row">
                   <span className="ch-metric-val">{value ?? "--"}</span>
                   <span className="ch-metric-unit">{unit}</span>
@@ -482,10 +628,10 @@ export function ChartView() {
             <div className="ch-panel-title-area">
               <h2 className="ch-panel-title">
                 <Activity size={18} style={{ color: "#10b981" }} />
-                Diễn biến cảm biến
+                {t("charts.sensorTrends", "Diễn biến cảm biến")}
               </h2>
               <p className="ch-panel-subtitle">
-                Cập nhật gần nhất: {formatFullTime(latestAt)}
+                {t("charts.lastUpdate", "Cập nhật gần nhất: {time}").replace("{time}", formatFullTime(latestAt, locale))}
               </p>
             </div>
 
@@ -495,7 +641,7 @@ export function ChartView() {
               }`}
             >
               {connected ? <Wifi size={14} /> : <WifiOff size={14} />}
-              {connected ? "Realtime online" : "Realtime offline"}
+              {connected ? t("charts.realtimeOnline", "Realtime online") : t("charts.realtimeOffline", "Realtime offline")}
             </div>
           </div>
 
@@ -508,7 +654,7 @@ export function ChartView() {
                 activeTab === "all" ? "ch-tab-btn--all-active" : "ch-tab-btn--all"
               }`}
             >
-              Tất cả cảm biến
+              {t("charts.allSensors", "Tất cả cảm biến")}
             </button>
             {(Object.keys(metricConfig) as MetricKey[]).map((metric) => {
               const active = activeTab === metric;
@@ -530,18 +676,18 @@ export function ChartView() {
                       backgroundColor: active ? "white" : metricConfig[metric].color,
                     }}
                   />
-                  {metricConfig[metric].label} ({metricConfig[metric].unit})
+                  {t("history.metrics." + metric, metricConfig[metric].label)} ({metric === "temp" ? "°" + tempUnit : metricConfig[metric].unit})
                 </button>
               );
             })}
           </div>
 
           {/* Chart Drawing Area */}
-          <div className="h-[430px] min-w-0" style={{ marginTop: "0.5rem" }}>
+          <div className="ch-chart-wrapper" style={{ marginTop: "0.5rem" }}>
             {loading ? (
               <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400 gap-2">
                 <RefreshCcw size={16} className="animate-spin" />
-                Đang tải biểu đồ...
+                {t("charts.loadingChart", "Đang tải biểu đồ...")}
               </div>
             ) : error ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
@@ -553,13 +699,13 @@ export function ChartView() {
             ) : !isMounted ? (
               <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400 gap-2">
                 <RefreshCcw size={16} className="animate-spin" />
-                Đang khởi tạo biểu đồ...
+                {t("charts.initializingChart", "Đang khởi tạo biểu đồ...")}
               </div>
             ) : points.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
                 <Activity size={30} className="text-slate-300" />
                 <p className="text-sm font-semibold text-slate-500">
-                  Chưa có dữ liệu readings cho ESP này.
+                  {t("charts.noReadings", "Chưa có dữ liệu readings cho ESP này.")}
                 </p>
               </div>
             ) : (
@@ -625,7 +771,7 @@ export function ChartView() {
                         type="monotone"
                         dataKey={metric}
                         yAxisId={activeTab === "all" ? (metric === "light" ? "right" : "left") : "left"}
-                        name={`${metricConfig[metric].label} (${metricConfig[metric].unit})`}
+                        name={`${t("history.metrics." + metric, metricConfig[metric].label)} (${metric === "temp" ? "°" + tempUnit : metricConfig[metric].unit})`}
                         stroke={metricConfig[metric].color}
                         strokeWidth={3}
                         dot={false}
@@ -645,49 +791,80 @@ export function ChartView() {
           <div className="ch-side-card">
             <h3 className="ch-side-title">
               <Database size={16} style={{ display: "inline-block", marginRight: 6, verticalAlign: "middle", color: "#64748b" }} />
-              Nguồn dữ liệu
+              {t("charts.dataSource", "Nguồn dữ liệu")}
             </h3>
             <div className="ch-info-list">
-              <InfoRow label="Thiết bị" value={selectedDevice?.name ?? "--"} />
-              <InfoRow label="Địa chỉ MAC" value={selectedDevice?.mac_address ?? "--"} />
-              <InfoRow label="Tổng số điểm" value={`${points.length} điểm`} />
-              <InfoRow label="Cảm biến map" value={`${Object.keys(metricSensors).length}/4`} />
+              <InfoRow label={t("charts.device", "Thiết bị")} value={selectedDevice?.name ?? "--"} />
+              <InfoRow label={t("charts.macAddress", "Địa chỉ MAC")} value={selectedDevice?.mac_address ?? "--"} />
+              <InfoRow label={t("charts.totalPoints", "Tổng số điểm")} value={`${points.length} ${t("charts.pointsSuffix", "điểm")}`} />
+              <InfoRow label={t("charts.mappedSensors", "Cảm biến map")} value={`${Object.keys(metricSensors).length}/4`} />
             </div>
           </div>
 
           <div className="ch-side-card">
             <h3 className="ch-side-title">
               <Cpu size={16} style={{ display: "inline-block", marginRight: 6, verticalAlign: "middle", color: "#64748b" }} />
-              Cảm biến vật lý
+              {t("charts.physicalSensors", "Cảm biến vật lý")}
             </h3>
             <div className="ch-sensor-list">
               <SensorMapRow
                 icon={<Thermometer size={16} />}
-                label="Nhiệt độ"
+                label={t("history.metrics.temp", "Nhiệt độ")}
                 sensor={metricSensors.temp}
                 metric="temp"
               />
               <SensorMapRow
                 icon={<Wind size={16} />}
-                label="Độ ẩm không khí"
+                label={t("history.metrics.humi", "Độ ẩm không khí")}
                 sensor={metricSensors.humi}
                 metric="humi"
               />
               <SensorMapRow
                 icon={<Droplets size={16} />}
-                label="Độ ẩm đất"
+                label={t("history.metrics.soil", "Độ ẩm đất")}
                 sensor={metricSensors.soil}
                 metric="soil"
               />
               <SensorMapRow
                 icon={<Waves size={16} />}
-                label="Ánh sáng"
+                label={t("history.metrics.light", "Ánh sáng")}
                 sensor={metricSensors.light}
                 metric="light"
               />
             </div>
           </div>
         </aside>
+      </section>
+
+      {/* Real-time System Status Advisory Card */}
+      <section 
+        className="ch-status-card"
+        style={{
+          background: status.bg,
+          borderColor: status.border,
+        }}
+      >
+        <div className="ch-status-card-inner">
+          <div className="ch-status-led-wrap">
+            <span 
+              className="ch-status-led-dot"
+              style={{
+                background: status.color,
+                boxShadow: `0 0 12px ${status.color}, 0 0 4px ${status.color}`,
+              }}
+            />
+            <span className="ch-status-led-pulse" style={{ background: status.color }} />
+          </div>
+          <div className="ch-status-content">
+            <div className="ch-status-meta">
+              <span className="ch-status-title">{status.label}</span>
+              <span className="ch-status-led-text" style={{ color: status.color }}>
+                {t("charts.status.ledState", "Chỉ báo LED:")} {status.ledColor}
+              </span>
+            </div>
+            <p className="ch-status-desc">{status.desc}</p>
+          </div>
+        </div>
       </section>
 
       {/* Styled JSX block */}
@@ -831,8 +1008,8 @@ export function ChartView() {
 
         .ch-metric-card {
           background: white;
-          border: 1.5px solid #e2e8f0;
           border-radius: 24px;
+          border: 1.5px solid #e2e8f0;
           padding: 1.25rem 1.5rem;
           display: flex;
           align-items: center;
@@ -852,6 +1029,18 @@ export function ChartView() {
         .ch-metric-card--humi:hover { border-color: #7dd3fc; }
         .ch-metric-card--soil:hover { border-color: #86efac; }
         .ch-metric-card--light:hover { border-color: #fde047; }
+
+        .ch-metric-card--temp:hover .ch-metric-val,
+        .ch-metric-card--temp:hover .ch-metric-unit { color: #ef4444; }
+
+        .ch-metric-card--humi:hover .ch-metric-val,
+        .ch-metric-card--humi:hover .ch-metric-unit { color: #0ea5e9; }
+
+        .ch-metric-card--soil:hover .ch-metric-val,
+        .ch-metric-card--soil:hover .ch-metric-unit { color: #10b981; }
+
+        .ch-metric-card--light:hover .ch-metric-val,
+        .ch-metric-card--light:hover .ch-metric-unit { color: #f59e0b; }
 
         .ch-metric-left {
           display: flex;
@@ -881,14 +1070,16 @@ export function ChartView() {
           font-weight: 900;
           color: #0f172a;
           line-height: 1;
+          transition: color 0.25s ease;
         }
 
         .ch-metric-unit {
-          font-size: 0.85rem;
+          font-size: 1.1rem;
           font-weight: 750;
           color: #64748b;
           align-self: flex-end;
           padding-bottom: 2px;
+          transition: color 0.25s ease;
         }
 
         .ch-metric-icon-wrap {
@@ -906,10 +1097,10 @@ export function ChartView() {
           transform: scale(1.08) rotate(3deg);
         }
 
-        .ch-metric-icon-wrap--temp { background: rgba(239, 68, 68, 0.08); color: #ef4444; }
-        .ch-metric-icon-wrap--humi { background: rgba(14, 165, 233, 0.08); color: #0ea5e9; }
-        .ch-metric-icon-wrap--soil { background: rgba(16, 185, 129, 0.08); color: #10b981; }
-        .ch-metric-icon-wrap--light { background: rgba(245, 158, 11, 0.08); color: #f59e0b; }
+        .ch-metric-icon-wrap--temp { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
+        .ch-metric-icon-wrap--humi { background: rgba(14, 165, 233, 0.12); color: #0ea5e9; }
+        .ch-metric-icon-wrap--soil { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+        .ch-metric-icon-wrap--light { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
 
         /* ===== Main Grid ===== */
         .ch-main-grid {
@@ -932,6 +1123,12 @@ export function ChartView() {
           box-shadow: 0 4px 20px rgba(0,0,0,0.02);
           display: flex;
           flex-direction: column;
+        }
+
+        .ch-chart-wrapper {
+          flex: 1;
+          min-height: 430px;
+          min-width: 0;
         }
 
         .ch-panel-header {
@@ -1232,6 +1429,107 @@ export function ChartView() {
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+
+        /* ===== Smart Status Card ===== */
+        .ch-status-card {
+          border-radius: 24px;
+          border: 1.5px solid #e2e8f0;
+          padding: 1.5rem;
+          background: white;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.01);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .ch-status-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.03);
+        }
+
+        .ch-status-card-inner {
+          display: flex;
+          align-items: flex-start;
+          gap: 1.25rem;
+        }
+
+        .ch-status-led-wrap {
+          position: relative;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          margin-top: 0.2rem;
+        }
+
+        .ch-status-led-dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          z-index: 2;
+        }
+
+        .ch-status-led-pulse {
+          position: absolute;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          opacity: 0.25;
+          animation: chLedPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          z-index: 1;
+        }
+
+        @keyframes chLedPulse {
+          0%, 100% {
+            transform: scale(0.7);
+            opacity: 0.1;
+          }
+          50% {
+            transform: scale(1.1);
+            opacity: 0.35;
+          }
+        }
+
+        .ch-status-content {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .ch-status-meta {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.5rem;
+        }
+
+        .ch-status-title {
+          font-size: 1.05rem;
+          font-weight: 850;
+          color: #0f172a;
+          letter-spacing: -0.01em;
+        }
+
+        .ch-status-led-text {
+          font-size: 0.72rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          background: rgba(0,0,0,0.02);
+          padding: 0.2rem 0.6rem;
+          border-radius: 6px;
+        }
+
+        .ch-status-desc {
+          font-size: 0.85rem;
+          color: #475569;
+          line-height: 1.5;
+          margin: 0;
+          font-weight: 500;
+        }
       `}</style>
     </div>
   );
@@ -1259,6 +1557,7 @@ function SensorMapRow({
   sensor?: Sensor;
   metric: MetricKey;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="ch-sensor-row">
       <div className={`ch-sensor-icon-box ch-metric-icon-wrap--${metric}`}>
@@ -1266,10 +1565,10 @@ function SensorMapRow({
       </div>
       <div className="ch-sensor-details">
         <p className="ch-sensor-name-lbl">{label}</p>
-        <p className="ch-sensor-meta-lbl" title={sensor ? `${sensor.name} (Pin ${sensor.pin_connection})` : "Chưa map được sensor"}>
+        <p className="ch-sensor-meta-lbl" title={sensor ? `${sensor.name} (Pin ${sensor.pin_connection})` : t("charts.sensorStatus.notConfigured", "Chưa map được sensor")}>
           {sensor
             ? `${sensor.name} · Pin ${sensor.pin_connection}`
-            : "Chưa map được sensor"}
+            : t("charts.sensorStatus.notConfigured", "Chưa map được sensor")}
         </p>
       </div>
     </div>

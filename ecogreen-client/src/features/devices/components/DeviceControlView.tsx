@@ -23,6 +23,7 @@ import {
 } from "@/services/automation.service";
 import { useRealtimeTelemetry } from "@/features/shared/useRealtimeTelemetry";
 import type { DeviceControlState, PrimaryDevice } from "@/types/automation";
+import { useLanguage } from "@/context/LanguageContext";
 
 const shellStyles = {
   "--emerald-background": "#f7f9fb",
@@ -44,6 +45,7 @@ const shellStyles = {
 
 export function DeviceControlView() {
   const { telemetry, connected } = useRealtimeTelemetry();
+  const { formatTemp } = useLanguage();
   const [state, setState] = useState<DeviceControlState | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -188,7 +190,7 @@ export function DeviceControlView() {
             />
             <StatusPill
               label="Nhiệt độ"
-              value={`${telemetry.temp.toFixed(1)}°C`}
+              value={formatTemp(telemetry.temp)}
               icon={<Thermometer className="size-4 text-[#ef4444]" />}
             />
             <StatusPill

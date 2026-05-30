@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth.context";
+import { useLanguage } from "@/context/LanguageContext";
 
 type NavItem = {
   key: string;
@@ -110,6 +111,7 @@ const navItems: NavItem[] = [
 
 function RealtimeClock() {
   const [time, setTime] = useState<Date | null>(null);
+  const { language } = useLanguage();
 
   useEffect(() => {
     setTime(new Date());
@@ -119,13 +121,15 @@ function RealtimeClock() {
 
   if (!time) return null;
 
+  const locale = language === "en" ? "en-US" : "vi-VN";
+
   return (
     <div className="hidden sm:flex flex-col items-end px-3 mr-1 text-white/90">
       <span className="text-[0.95rem] font-bold tracking-wider leading-tight font-sans bg-clip-text text-transparent bg-gradient-to-b from-white to-white/80">
-        {time.toLocaleTimeString('vi-VN', { hour12: false })}
+        {time.toLocaleTimeString(locale, { hour12: false })}
       </span>
       <span className="text-[0.65rem] opacity-70 uppercase tracking-widest font-medium">
-        {time.toLocaleDateString('vi-VN')}
+        {time.toLocaleDateString(locale)}
       </span>
     </div>
   );
@@ -147,13 +151,85 @@ export default function DashboardLayout({
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const { t: contextT } = useLanguage();
+  const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem("sidebar_collapsed");
     if (saved !== null) {
       setIsCollapsed(saved === "true");
     }
   }, []);
+
+  useEffect(() => {
+    const updateAvatar = () => {
+      setAvatarEmoji(localStorage.getItem("user_avatar_emoji"));
+    };
+    updateAvatar();
+    window.addEventListener("ecogreen_avatar_updated", updateAvatar);
+    return () => {
+      window.removeEventListener("ecogreen_avatar_updated", updateAvatar);
+    };
+  }, []);
+
+  const t = (key: string) => {
+    const keyMap: Record<string, { key: string; def: string }> = {
+      "Tổng quan": { key: "layout.menu.DASHBOARD", def: "Tổng quan" },
+      "Quản lý thiết bị": { key: "layout.menu.DEVICE", def: "Quản lý thiết bị" },
+      "Biểu đồ": { key: "layout.menu.CHART", def: "Biểu đồ" },
+      "Lịch sử dữ liệu": { key: "layout.menu.HISTORY", def: "Lịch sử dữ liệu" },
+      "Lịch trình tưới": { key: "layout.menu.SCHEDULE", def: "Lịch trình tưới" },
+      "Ngưỡng tưới & Logic": { key: "layout.menu.THRESHOLDS", def: "Ngưỡng tưới & Logic" },
+      "Cấu hình thông báo": { key: "layout.menu.NOTIFICATION", def: "Cấu hình thông báo" },
+      "Nhật ký hoạt động": { key: "layout.menu.LOG", def: "Nhật ký hoạt động" },
+      "Logic thông minh": { key: "layout.menu.SMART LOGIC", def: "Logic thông minh" },
+      "Thông tin cá nhân": { key: "layout.menu.PROFILE", def: "Thông tin cá nhân" },
+      DASHBOARD: { key: "layout.menu.DASHBOARD", def: "Tổng quan" },
+      DEVICE: { key: "layout.menu.DEVICE", def: "Quản lý thiết bị" },
+      CHART: { key: "layout.menu.CHART", def: "Biểu đồ" },
+      HISTORY: { key: "layout.menu.HISTORY", def: "Lịch sử dữ liệu" },
+      SCHEDULE: { key: "layout.menu.SCHEDULE", def: "Lịch trình tưới" },
+      THRESHOLDS: { key: "layout.menu.THRESHOLDS", def: "Ngưỡng tưới & Logic" },
+      NOTIFICATION: { key: "layout.menu.NOTIFICATION", def: "Cấu hình thông báo" },
+      LOG: { key: "layout.menu.LOG", def: "Nhật ký hoạt động" },
+      "SMART LOGIC": { key: "layout.menu.SMART LOGIC", def: "Logic thông minh" },
+      PROFILE: { key: "layout.menu.PROFILE", def: "Thông tin cá nhân" },
+      logout: { key: "common.logout", def: "Đăng xuất" },
+      smartFarming: { key: "layout.smartFarming", def: "Nông nghiệp thông minh" },
+      searchPlaceholder: { key: "layout.searchPlaceholder", def: "Tìm kiếm thông tin, thiết bị..." },
+      timeTitle: { key: "layout.accountProfile", def: "Thông tin tài khoản" },
+      logoutConfirm: { key: "layout.logoutConfirm", def: "Bạn có chắc chắn muốn đăng xuất khỏi hệ thống EcoGreen không?" },
+      cancel: { key: "common.cancel", def: "Hủy bỏ" },
+      activeStatus: { key: "common.activeStatus", def: "Đang hoạt động" },
+      editProfile: { key: "profile.avatar.change", def: "Chỉnh sửa hồ sơ" },
+      detailTitle: { key: "profile.securityCheck.title", def: "Thông tin chi tiết" },
+      emailLabel: { key: "profile.form.email", def: "Địa chỉ Email" },
+      userIdLabel: { key: "profile.form.userId", def: "Mã người dùng (User ID)" },
+      roleLabel: { key: "profile.role", def: "Quyền hạn hệ thống" },
+      adminRole: { key: "profile.adminRole", def: "Thành viên quản trị" },
+      noEmail: { key: "common.n_a", def: "Chưa thiết lập" },
+      notAvailable: { key: "common.n_a", def: "Chưa cập nhật" },
+      logoutTitle: { key: "layout.logoutTitle", def: "Đăng xuất tài khoản" },
+      collapseTitle: { key: "layout.collapseTitle", def: "Thu gọn/Mở rộng menu" },
+      supportTitle: { key: "layout.supportTitle", def: "Hỗ trợ" },
+      notifTitle: { key: "layout.notifTitle", def: "Thông báo" }
+    };
+
+    const mapping = keyMap[key];
+    if (mapping) {
+      return contextT(mapping.key, mapping.def);
+    }
+    return contextT(key, key);
+  };
+
+
+  const translatedNavItems = navItems.map((item) => ({
+    ...item,
+    label: t(item.key),
+    title: t(item.key)
+  }));
 
   const toggleCollapse = () => {
     setIsCollapsed((prev) => {
@@ -165,12 +241,12 @@ export default function DashboardLayout({
 
   // Find active menu item
   const currentItem =
-    (activeMenu ? navItems.find((item) => item.key === activeMenu) : null) ??
-    navItems.find(
+    (activeMenu ? translatedNavItems.find((item) => item.key === activeMenu) : null) ??
+    translatedNavItems.find(
       (item) =>
         item.href === pathname || Boolean(item.aliases?.includes(pathname))
     ) ??
-    navItems[0];
+    translatedNavItems[0];
 
   // Get user initials for profile avatar
   const getInitials = (name?: string) => {
@@ -180,7 +256,7 @@ export default function DashboardLayout({
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  const initials = getInitials(user?.full_name || user?.username || "User");
+  const initials = mounted && user ? getInitials(user.full_name || user.username || "User") : "US";
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -221,7 +297,7 @@ export default function DashboardLayout({
                   EcoGreen
                 </span>
                 <span className="text-[0.6rem] text-emerald-100/50 font-semibold tracking-widest uppercase truncate mt-1">
-                  Smart Farming
+                  {t("smartFarming")}
                 </span>
               </div>
             )}
@@ -230,7 +306,7 @@ export default function DashboardLayout({
 
         {/* Sidebar Nav Items */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto mt-2">
-          {navItems.map((item) => (
+          {translatedNavItems.map((item) => (
             <SidebarItem
               key={item.key}
               icon={item.icon}
@@ -242,20 +318,63 @@ export default function DashboardLayout({
           ))}
         </nav>
 
-        {/* Logout (Đăng xuất) */}
-        <div className="p-3 border-t border-emerald-950/20">
-          <button
-            onClick={handleLogoutClick}
-            className={`w-full flex items-center rounded-xl text-sm text-emerald-100/50 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 ${
-              isCollapsed ? "justify-center p-3" : "gap-3 px-4 py-3"
-            }`}
-            id="logout-btn"
-            type="button"
-            title={isCollapsed ? "Đăng xuất" : undefined}
-          >
-            <LogOut size={20} />
-            {!isCollapsed && <span className="font-medium">Đăng xuất</span>}
-          </button>
+        {/* User Profile & Logout Section */}
+        <div className="p-3 border-t border-white/10 mt-auto">
+          {isCollapsed ? (
+            <div className="flex flex-col items-center gap-3">
+              <div 
+                onClick={() => setShowProfileDrawer(true)}
+                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-sm font-bold text-white shadow-inner cursor-pointer transition-all"
+                title={t("timeTitle")}
+              >
+                {avatarEmoji ? (
+                  <span className="text-xl leading-none select-none">{avatarEmoji}</span>
+                ) : (
+                  initials
+                )}
+              </div>
+              <button
+                onClick={handleLogoutClick}
+                className="w-10 h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 flex items-center justify-center transition-all duration-200"
+                title={t("logout")}
+                type="button"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between p-2 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all duration-200">
+              <div 
+                onClick={() => setShowProfileDrawer(true)}
+                className="flex items-center gap-3 cursor-pointer min-w-0"
+              >
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/80 to-green-600/80 text-white flex items-center justify-center text-sm font-bold shadow-md shadow-emerald-500/5 select-none hover:from-emerald-500 hover:to-green-600 transition-all flex-shrink-0">
+                  {avatarEmoji ? (
+                    <span className="text-xl leading-none select-none">{avatarEmoji}</span>
+                  ) : (
+                    initials
+                  )}
+                </div>
+                <div className="text-left min-w-0">
+                  <p className="text-xs font-bold text-white leading-tight truncate">
+                    {mounted && user ? (user.full_name || user.username || "User") : "User"}
+                  </p>
+                  <p className="text-[10px] text-emerald-300/80 leading-none mt-1 font-semibold tracking-wider">
+                    {t("adminRole")}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogoutClick}
+                className="p-2 rounded-xl text-emerald-100/50 hover:bg-red-500/15 hover:text-red-400 transition-all duration-200 flex-shrink-0"
+                title={t("logout")}
+                type="button"
+                id="logout-btn"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -268,12 +387,12 @@ export default function DashboardLayout({
             <button
               onClick={toggleCollapse}
               className="p-2 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
-              title="Thu gọn/Mở rộng menu"
+              title={t("collapseTitle")}
             >
               <Menu size={20} />
             </button>
             <h2 className="text-lg font-bold tracking-wide text-white truncate max-w-[200px] sm:max-w-none">
-              {pageTitle || currentItem.title}
+              {pageTitle ? t(pageTitle) : currentItem.title}
             </h2>
           </div>
 
@@ -284,7 +403,7 @@ export default function DashboardLayout({
             </span>
             <input
               type="text"
-              placeholder="Tìm kiếm thông tin, thiết bị..."
+              placeholder={t("searchPlaceholder")}
               className="w-full pl-10 pr-4 py-2 bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-white/15 focus:border-white/30 rounded-full text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
             />
           </div>
@@ -297,7 +416,7 @@ export default function DashboardLayout({
             <Link
               href="/dashboard/notifications"
               className="p-2 rounded-xl hover:bg-white/10 transition-colors relative"
-              title="Thông báo"
+              title={t("notifTitle")}
             >
               <Bell size={20} className="text-white/80 hover:text-white" />
               <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-emerald-800 rounded-full"></span>
@@ -306,7 +425,7 @@ export default function DashboardLayout({
             {/* Help Icon */}
             <button
               className="p-2 rounded-xl hover:bg-white/10 transition-colors text-white/80 hover:text-white"
-              title="Hỗ trợ"
+              title={t("supportTitle")}
             >
               <HelpCircle size={20} />
             </button>
@@ -320,15 +439,19 @@ export default function DashboardLayout({
               className="flex items-center gap-3 pl-2 cursor-pointer hover:opacity-90 transition-opacity"
             >
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-white leading-tight" suppressHydrationWarning>
-                  {user?.full_name || user?.username || "User"}
+                <p className="text-sm font-semibold text-white leading-tight">
+                  {mounted && user ? (user.full_name || user.username || "User") : "User"}
                 </p>
-                <p className="text-[10px] text-emerald-100/70 leading-none mt-0.5" suppressHydrationWarning>
-                  {user?.email || ""}
+                <p className="text-[10px] text-emerald-100/70 leading-none mt-0.5">
+                  {mounted && user ? (user.email || "") : ""}
                 </p>
               </div>
               <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-sm font-bold text-white shadow-inner select-none hover:bg-white/20 transition-all" suppressHydrationWarning>
-                {initials}
+                {avatarEmoji ? (
+                  <span className="text-lg leading-none select-none">{avatarEmoji}</span>
+                ) : (
+                  initials
+                )}
               </div>
             </div>
           </div>
@@ -354,7 +477,7 @@ export default function DashboardLayout({
               <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 bg-slate-50">
                 <div className="flex items-center gap-2">
                   <User className="text-emerald-600 size-5" />
-                  <span className="text-base font-extrabold text-slate-800">Thông tin tài khoản</span>
+                  <span className="text-base font-extrabold text-slate-800">{t("timeTitle")}</span>
                 </div>
                 <button
                   onClick={() => setShowProfileDrawer(false)}
@@ -369,10 +492,14 @@ export default function DashboardLayout({
                 {/* Avatar Card */}
                 <div className="flex flex-col items-center p-6 bg-gradient-to-b from-emerald-50/50 to-transparent rounded-3xl border border-emerald-500/10">
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center text-3xl font-extrabold shadow-lg shadow-emerald-500/20 mb-4 border-4 border-white">
-                    {initials}
+                    {avatarEmoji ? (
+                      <span className="text-4xl select-none leading-none">{avatarEmoji}</span>
+                    ) : (
+                      initials
+                    )}
                   </div>
                   <h3 className="text-lg font-bold text-slate-900 leading-tight">
-                    {user?.full_name || "Chưa cập nhật họ tên"}
+                    {user?.full_name || t("notAvailable")}
                   </h3>
                   <p className="text-sm text-slate-500 mt-1">
                     @{user?.username || "username"}
@@ -381,37 +508,37 @@ export default function DashboardLayout({
                   {/* Status Pill */}
                   <span className="mt-3.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Đang hoạt động
+                    {t("activeStatus")}
                   </span>
                 </div>
 
                 {/* Details Section */}
                 <div className="space-y-4">
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 px-1">Thông tin chi tiết</h4>
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 px-1">{t("detailTitle")}</h4>
                   
                   <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4.5 space-y-4">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Địa chỉ Email</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">{t("emailLabel")}</span>
                       <span className="text-sm font-semibold text-slate-800 mt-0.5 block truncate">
-                        {user?.email || "Chưa thiết lập"}
+                        {user?.email || t("noEmail")}
                       </span>
                     </div>
 
                     <div className="h-px bg-slate-200/60" />
 
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Mã người dùng (User ID)</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">{t("userIdLabel")}</span>
                       <span className="text-sm font-mono font-medium text-slate-500 mt-0.5 block truncate">
-                        {user?.User_ID || "N/A"}
+                        {user?.User_ID || t("notAvailable")}
                       </span>
                     </div>
 
                     <div className="h-px bg-slate-200/60" />
 
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Quyền hạn hệ thống</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">{t("roleLabel")}</span>
                       <span className="text-sm font-semibold text-slate-800 mt-0.5 block">
-                        Thành viên quản trị
+                        {t("adminRole")}
                       </span>
                     </div>
                   </div>
@@ -429,7 +556,7 @@ export default function DashboardLayout({
                   type="button"
                 >
                   <User size={16} />
-                  Chỉnh sửa hồ sơ
+                  {t("editProfile")}
                 </button>
                 <button
                   onClick={() => {
@@ -440,7 +567,7 @@ export default function DashboardLayout({
                   type="button"
                 >
                   <LogOut size={16} />
-                  Đăng xuất
+                  {t("logout")}
                 </button>
               </div>
             </div>
@@ -455,23 +582,23 @@ export default function DashboardLayout({
                 <LogOut size={22} />
               </div>
               <h3 className="text-lg font-extrabold text-slate-900 text-center mb-1">
-                Đăng xuất tài khoản
+                {t("logoutTitle")}
               </h3>
               <p className="text-sm text-slate-500 text-center mb-6 leading-relaxed px-2">
-                Bạn có chắc chắn muốn đăng xuất khỏi hệ thống EcoGreen không?
+                {t("logoutConfirm")}
               </p>
               <div className="flex gap-3 w-full">
                 <button
                   onClick={cancelLogout}
                   className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-semibold text-slate-600 transition-all cursor-pointer text-center focus:outline-none"
                 >
-                  Hủy bỏ
+                  {t("cancel")}
                 </button>
                 <button
                   onClick={confirmLogout}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-sm font-bold text-white shadow-lg shadow-red-500/20 hover:shadow-red-500/30 transition-all cursor-pointer text-center focus:outline-none"
                 >
-                  Đăng xuất
+                  {t("logout")}
                 </button>
               </div>
             </div>

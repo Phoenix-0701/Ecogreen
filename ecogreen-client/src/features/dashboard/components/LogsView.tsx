@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { getDevices } from "@/services/device.service";
 import { requestJson } from "@/services/api";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface LogRow {
   id: string;
@@ -26,6 +27,7 @@ interface LogRow {
 }
 
 export function LogsView() {
+  const { t, translateLog } = useLanguage();
   const [filter, setFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [logs, setLogs] = useState<LogRow[]>([]);
@@ -61,8 +63,17 @@ export function LogsView() {
   useEffect(() => {
     fetchLogs();
 
-    // Reload logs every 5 seconds
-    const interval = setInterval(fetchLogs, 5000);
+    let refreshSec = 5;
+    try {
+      const saved = localStorage.getItem("pref_refresh_interval");
+      if (saved) {
+        refreshSec = Number(saved);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    const interval = setInterval(fetchLogs, refreshSec * 1000);
 
     return () => {
       clearInterval(interval);
@@ -81,14 +92,14 @@ export function LogsView() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "success":
-        return "Thành công";
+        return t('activityLogs.status.success', "Thành công");
       case "warning":
       case "warning-dark":
-        return "Cảnh báo";
+        return t('activityLogs.status.warning', "Cảnh báo");
       case "error":
-        return "Lỗi";
+        return t('activityLogs.status.error', "Lỗi");
       default:
-        return "Thông tin";
+        return t('activityLogs.status.info', "Thông tin");
     }
   };
 
@@ -172,7 +183,7 @@ export function LogsView() {
   const filterPills = [
     {
       value: "all",
-      label: "Tất cả",
+      label: t('activityLogs.status.all', "Tất cả"),
       count: metrics.total,
       activeClass: "bg-slate-900 text-white border-slate-900",
       inactiveClass:
@@ -180,7 +191,7 @@ export function LogsView() {
     },
     {
       value: "success",
-      label: "Thành công",
+      label: t('activityLogs.status.success', "Thành công"),
       count: metrics.success,
       activeClass: "bg-emerald-600 text-white border-emerald-600",
       inactiveClass:
@@ -188,7 +199,7 @@ export function LogsView() {
     },
     {
       value: "warning",
-      label: "Cảnh báo",
+      label: t('activityLogs.status.warning', "Cảnh báo"),
       count: metrics.warning,
       activeClass: "bg-amber-500 text-white border-amber-500",
       inactiveClass:
@@ -196,7 +207,7 @@ export function LogsView() {
     },
     {
       value: "error",
-      label: "Lỗi",
+      label: t('activityLogs.status.error', "Lỗi"),
       count: metrics.error,
       activeClass: "bg-red-600 text-white border-red-600",
       inactiveClass:
@@ -213,11 +224,11 @@ export function LogsView() {
         </div>
         <div>
           <span className="logs-badge-pill">
-            <Activity size={11} /> Hệ thống giám sát
+            <Activity size={11} /> {t('activityLogs.monitoringSystem', 'Hệ thống giám sát')}
           </span>
-          <h2 className="logs-header-title">Nhật ký hoạt động</h2>
+          <h2 className="logs-header-title">{t('activityLogs.title', 'Nhật ký hoạt động')}</h2>
           <p className="logs-header-desc">
-            Tra cứu chi tiết các sự kiện tự động, trạng thái thiết bị và cảnh báo lỗi trong quá trình vận hành.
+            {t('activityLogs.desc', 'Tra cứu chi tiết các sự kiện tự động, trạng thái thiết bị và cảnh báo lỗi trong quá trình vận hành.')}
           </p>
         </div>
       </div>
@@ -229,7 +240,7 @@ export function LogsView() {
             <Activity size={20} />
           </div>
           <div>
-            <span className="logs-stat-label">Tổng sự kiện</span>
+            <span className="logs-stat-label">{t('activityLogs.stats.total', 'Tổng sự kiện')}</span>
             <span className="logs-stat-value">{metrics.total}</span>
           </div>
         </div>
@@ -239,7 +250,7 @@ export function LogsView() {
             <CheckCircle2 size={20} />
           </div>
           <div>
-            <span className="logs-stat-label">Vận hành tốt</span>
+            <span className="logs-stat-label">{t('activityLogs.stats.healthy', 'Vận hành tốt')}</span>
             <span className="logs-stat-value">{metrics.success}</span>
           </div>
         </div>
@@ -249,7 +260,7 @@ export function LogsView() {
             <AlertCircle size={20} />
           </div>
           <div>
-            <span className="logs-stat-label">Cảnh báo</span>
+            <span className="logs-stat-label">{t('activityLogs.stats.warning', 'Cảnh báo')}</span>
             <span className="logs-stat-value">{metrics.warning}</span>
           </div>
         </div>
@@ -259,7 +270,7 @@ export function LogsView() {
             <ShieldAlert size={20} />
           </div>
           <div>
-            <span className="logs-stat-label">Lỗi hệ thống</span>
+            <span className="logs-stat-label">{t('activityLogs.stats.error', 'Lỗi hệ thống')}</span>
             <span className="logs-stat-value">{metrics.error}</span>
           </div>
         </div>
@@ -300,7 +311,7 @@ export function LogsView() {
             </span>
             <input
               type="text"
-              placeholder="Tìm kiếm sự kiện, mô tả..."
+              placeholder={t('activityLogs.searchPlaceholder', 'Tìm kiếm sự kiện, mô tả...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-slate-50/50 focus:bg-white transition-all placeholder-slate-400"
@@ -314,14 +325,14 @@ export function LogsView() {
             <div className="logs-loading-state">
               <Loader2 size={32} className="animate-spin text-emerald-500" />
               <p className="text-xs font-semibold text-slate-400 mt-2">
-                Đang tải nhật ký hoạt động...
+                {t('activityLogs.loading', 'Đang tải nhật ký hoạt động...')}
               </p>
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="logs-empty-state">
               <ScrollText size={48} className="text-slate-200 mb-2" />
               <p className="text-sm font-semibold text-slate-400">
-                Không tìm thấy sự kiện nào khớp với bộ lọc.
+                {t('activityLogs.empty', 'Không tìm thấy sự kiện nào khớp với bộ lọc.')}
               </p>
             </div>
           ) : (
@@ -354,7 +365,7 @@ export function LogsView() {
                         className="log-event-name"
                         style={{ color: eventStyle.textColor }}
                       >
-                        {log.eventType}
+                        {translateLog(log.eventType)}
                       </span>
                       <div className="log-time-wrapper">
                         <Clock size={12} className="text-slate-400" />
@@ -366,7 +377,7 @@ export function LogsView() {
                   {/* Center details: Description */}
                   <div className="log-item-desc">
                     <p className="font-medium text-slate-600">
-                      {log.description}
+                      {translateLog(log.description)}
                     </p>
                   </div>
 
@@ -386,18 +397,20 @@ export function LogsView() {
         {!loading && filteredLogs.length > 0 && (
           <div className="logs-pagination">
             <div className="logs-pagination-info">
-              Hiển thị từ{" "}
+              {t('activityLogs.pagination.showing', 'Hiển thị từ')}{" "}
               <strong>
                 {Math.min(
                   (currentPage - 1) * itemsPerPage + 1,
                   filteredLogs.length
                 )}
               </strong>{" "}
-              đến{" "}
+              {t('activityLogs.pagination.to', 'đến')}{" "}
               <strong>
                 {Math.min(currentPage * itemsPerPage, filteredLogs.length)}
               </strong>{" "}
-              trên tổng số <strong>{filteredLogs.length}</strong> sự kiện
+              {t('activityLogs.pagination.of', 'trên tổng số')}{" "}
+              <strong>{filteredLogs.length}</strong>{" "}
+              {t('activityLogs.pagination.events', 'sự kiện')}
             </div>
 
             {totalPages > 1 && (
@@ -406,9 +419,9 @@ export function LogsView() {
                   onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
                   disabled={currentPage === 1}
                   className="logs-page-nav-btn"
-                  title="Trang trước"
+                  title={t('activityLogs.pagination.prevTitle', 'Trang trước')}
                 >
-                  &larr; Trước
+                  &larr; {t('activityLogs.pagination.prev', 'Trước')}
                 </button>
 
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(
@@ -431,9 +444,9 @@ export function LogsView() {
                   }
                   disabled={currentPage === totalPages}
                   className="logs-page-nav-btn"
-                  title="Trang sau"
+                  title={t('activityLogs.pagination.nextTitle', 'Trang sau')}
                 >
-                  Sau &rarr;
+                  {t('activityLogs.pagination.next', 'Sau')} &rarr;
                 </button>
               </div>
             )}

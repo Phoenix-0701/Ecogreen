@@ -34,6 +34,7 @@ import {
   toggleActuator,
   setDeviceMode,
 } from "@/services/device.service";
+import { useLanguage } from "@/context/LanguageContext";
 
 const ACTUATOR_STATE_STORAGE_KEY = "ecogreen.device.actuator-states";
 
@@ -132,18 +133,18 @@ function formatRuntime(ms: number) {
     .join(":");
 }
 
-function formatActuatorTime(value: string | null) {
+function formatActuatorTime(value: string | null, locale = "vi-VN", fallbackText = "Chưa ghi nhận") {
   if (!value) {
-    return "Chưa ghi nhận";
+    return fallbackText;
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Chưa ghi nhận";
+    return fallbackText;
   }
 
-  return date.toLocaleString("vi-VN", {
+  return date.toLocaleString(locale, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -155,6 +156,7 @@ function formatActuatorTime(value: string | null) {
 function getSensorReading(
   sensor: Sensor,
   telemetry?: TelemetrySnapshot,
+  formatTemp?: (val: number, dec?: number) => string
 ): { value: string; stale: boolean } {
   if (!telemetry) {
     return { value: "—", stale: true };
@@ -168,7 +170,7 @@ function getSensorReading(
     text.includes("nhiệt")
   ) {
     return {
-      value: `${telemetry.temp.toFixed(1)}${sensor.unit || "°C"}`,
+      value: formatTemp ? formatTemp(telemetry.temp) : `${telemetry.temp.toFixed(1)}${sensor.unit || "°C"}`,
       stale: false,
     };
   }
@@ -250,6 +252,27 @@ function getSensorIconAndColor(sensor: Sensor): {
 }
 
 export function DeviceListView() {
+  const { language, t, formatTemp } = useLanguage();
+
+  // Translate sensor display name by sensor type when in English
+  const translateSensorName = (sensor: { type: string; name: string }) => {
+    if (language === "vi") return sensor.name;
+    const text = `${sensor.type} ${sensor.name}`.toLowerCase();
+    if (text.includes("temperature") || text.includes("nhiet") || text.includes("nhiệt")) return "Temperature";
+    if (text.includes("soil") || text.includes("dat") || text.includes("đất") || text.includes("moisture")) return "Soil Moisture";
+    if (text.includes("humidity") || text.includes("khong khi") || text.includes("không khí") || text.includes("ẩm")) return "Air Humidity";
+    if (text.includes("light") || text.includes("lux") || text.includes("anh sang") || text.includes("ánh sáng")) return "Light";
+    return sensor.name;
+  };
+
+  // Translate actuator display name when in English
+  const translateActuatorName = (name: string) => {
+    if (language === "vi") return name;
+    const lower = name.toLowerCase().trim();
+    if (lower === "máy bơm nước" || lower === "máy bơm") return "Water Pump";
+    if (lower === "quạt thông gió" || lower === "quạt") return "Ventilation Fan";
+    return name;
+  };
   const { telemetry, telemetryByMac } = useRealtimeTelemetry();
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
@@ -311,19 +334,64 @@ export function DeviceListView() {
 
     setActuatorStates((current) => {
       const next = { ...readActuatorStates(), ...current };
+      let changed = false;
+      const now = Date.now();
 
       devices.forEach((device) => {
+        const macUpper = device.mac_address.toUpperCase();
+        const deviceTelemetry =
+          telemetryByMac[macUpper] ??
+          telemetryByMac[device.mac_address] ??
+          telemetry;
+
         device.actuators?.forEach((actuator) => {
-          if (next[actuator.Actuator_ID] === undefined) {
-            next[actuator.Actuator_ID] = createDefaultActuatorState();
+          const actuatorId = actuator.Actuator_ID;
+          const isFan = actuator.type === "fan";
+          const telemetryRunning = isFan 
+            ? deviceTelemetry?.fanState
+            : deviceTelemetry?.pumpState;
+
+          if (next[actuatorId] === undefined) {
+            next[actuatorId] = createDefaultActuatorState();
+            changed = true;
+          }
+
+          const actuatorState = next[actuatorId];
+
+          // Check if we are in optimistic manual update window (3s) to avoid race conditions with MQTT latency
+          const manualTime = new Date(actuatorState.changedAt || 0).getTime();
+          const isOptimistic = (now - manualTime) < 3000;
+
+          if (!isOptimistic && telemetryRunning !== undefined && telemetryRunning !== actuatorState.running) {
+            const previous = actuatorState;
+            next[actuatorId] = {
+              running: telemetryRunning,
+              changedAt: new Date(now).toISOString(),
+              startedAt: telemetryRunning ? new Date(now).toISOString() : null,
+              totalMs: telemetryRunning
+                ? previous.totalMs
+                : getActuatorRuntimeMs(previous, now),
+            };
+            changed = true;
           }
         });
       });
 
-      writeActuatorStates(next);
-      return next;
+      if (changed) {
+        writeActuatorStates(next);
+        return next;
+      }
+
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(next);
+      if (nextKeys.length !== currentKeys.length) {
+        writeActuatorStates(next);
+        return next;
+      }
+
+      return current;
     });
-  }, [devices]);
+  }, [devices, telemetryByMac, telemetry]);
 
   useEffect(() => {
     const hasRunningActuator = Object.values(actuatorStates).some(
@@ -366,16 +434,17 @@ export function DeviceListView() {
       setToast({
         show: true,
         type: "success",
-        title: "Thành công",
-        message: `Đã gửi lệnh chuyển sang chế độ ${isAuto ? "Tự động (AUTO)" : "Thủ công (MANUAL)"} thành công!`,
+        title: t('deviceList.mode.toastSuccess', "Thành công"),
+        message: t('deviceList.mode.toastModeMsg', "Đã gửi lệnh chuyển sang chế độ {mode} thành công!")
+          .replace('{mode}', isAuto ? t('deviceList.mode.auto', "Tự động") : t('deviceList.mode.manual', "Thủ công")),
       });
     } catch (err) {
       console.error("Lỗi thay đổi chế độ:", err);
       setToast({
         show: true,
         type: "danger",
-        title: "Lỗi",
-        message: "Không thể thay đổi chế độ hoạt động.",
+        title: t('deviceList.mode.toastError', "Lỗi"),
+        message: t('deviceList.mode.toastModeErr', "Không thể thay đổi chế độ hoạt động."),
       });
     } finally {
       setTogglingModeDeviceId(null);
@@ -435,36 +504,51 @@ export function DeviceListView() {
 
   return (
     <div className="dv-shell">
+      {/* ===== Header ===== */}
+      <section className="dv-header">
+        <div className="dv-header-left">
+          <span className="dv-badge-pill">
+            {t('deviceList.headerBadge', 'Quản lý phần cứng')}
+          </span>
+          <h1 className="dv-title">
+            {t('deviceList.headerTitle', 'Quản lý thiết bị')}
+          </h1>
+          <p className="dv-subtitle">
+            {t('deviceList.headerSubtitle', 'Xem danh sách thiết bị IoT, trạng thái kết nối, cấu hình cảm biến và điều khiển trực tiếp các cơ cấu chấp hành.')}
+          </p>
+        </div>
+      </section>
+
       {/* ===== Stats Row ===== */}
       <div className="dv-stats">
-        <div className="dv-stat-card">
+        <div className="dv-stat-card dv-stat-card--total">
           <div className="dv-stat-icon dv-stat-icon--total">
             <Cpu size={20} />
           </div>
           <div>
-            <p className="dv-stat-label">Tổng thiết bị</p>
-            <h3 className="dv-stat-value">{devices.length}</h3>
+            <p className="dv-stat-label">{t('deviceList.stats.totalDevices', 'Tổng thiết bị')}</p>
+            <h3 className="dv-stat-value dv-stat-value--total">{devices.length}</h3>
           </div>
           <div className="dv-stat-shimmer" />
         </div>
-        <div className="dv-stat-card">
+        <div className="dv-stat-card dv-stat-card--online">
           <div className="dv-stat-icon dv-stat-icon--online">
             <Wifi size={20} />
           </div>
           <div>
-            <p className="dv-stat-label">Đang trực tuyến</p>
+            <p className="dv-stat-label">{t('deviceList.stats.onlineDevices', 'Đang trực tuyến')}</p>
             <h3 className="dv-stat-value dv-stat-value--online">
               {onlineCount}
             </h3>
           </div>
           <div className="dv-stat-shimmer" />
         </div>
-        <div className="dv-stat-card">
+        <div className="dv-stat-card dv-stat-card--offline">
           <div className="dv-stat-icon dv-stat-icon--offline">
             <WifiOff size={20} />
           </div>
           <div>
-            <p className="dv-stat-label">Ngoại tuyến</p>
+            <p className="dv-stat-label">{t('deviceList.stats.offlineDevices', 'Ngoại tuyến')}</p>
             <h3 className="dv-stat-value dv-stat-value--offline">
               {offlineCount}
             </h3>
@@ -492,7 +576,7 @@ export function DeviceListView() {
           </span>
           <input
             type="text"
-            placeholder="Tìm tên thiết bị hoặc địa chỉ MAC..."
+            placeholder={t('deviceList.searchPlaceholder', 'Tìm tên thiết bị hoặc địa chỉ MAC...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="dv-search-input"
@@ -508,7 +592,7 @@ export function DeviceListView() {
           <button
             onClick={fetchDevices}
             className="dv-btn dv-btn--ghost"
-            title="Làm mới"
+            title={t('deviceList.refreshTitle', 'Làm mới')}
           >
             <RefreshCw size={16} />
           </button>
@@ -518,7 +602,7 @@ export function DeviceListView() {
             id="add-device-btn"
           >
             <Plus size={18} />
-            Thêm thiết bị
+            {t('deviceList.addDeviceBtn', 'Thêm thiết bị')}
           </button>
         </div>
       </div>
@@ -532,21 +616,21 @@ export function DeviceListView() {
               className="animate-spin"
               style={{ color: "#22c55e" }}
             />
-            <p>Đang tải danh sách thiết bị...</p>
+            <p>{t('deviceList.loadingDevices', 'Đang tải danh sách thiết bị...')}</p>
           </div>
         ) : filteredDevices.length === 0 ? (
           <div className="dv-empty">
             <div className="dv-empty-icon">
               <Cpu size={40} />
             </div>
-            <h3>Chưa có thiết bị nào</h3>
-            <p>Nhấn &quot;Thêm thiết bị&quot; để đăng ký thiết bị IoT mới</p>
+            <h3>{t('deviceList.noDevicesTitle', 'Chưa có thiết bị nào')}</h3>
+            <p>{t('deviceList.noDevicesDesc', 'Nhấn "Thêm thiết bị" để đăng ký thiết bị IoT mới')}</p>
             <button
               onClick={() => setShowAddModal(true)}
               className="dv-btn dv-btn--primary"
               style={{ marginTop: "0.5rem" }}
             >
-              <Plus size={16} /> Thêm thiết bị
+              <Plus size={16} /> {t('deviceList.addDeviceBtn', 'Thêm thiết bị')}
             </button>
           </div>
         ) : (
@@ -591,11 +675,11 @@ export function DeviceListView() {
                         >
                           {isOnline ? (
                             <>
-                              <CheckCircle2 size={10} /> Online
+                              <CheckCircle2 size={10} /> {t('deviceList.stats.online', 'Online')}
                             </>
                           ) : (
                             <>
-                              <WifiOff size={10} /> Offline
+                              <WifiOff size={10} /> {t('deviceList.stats.offline', 'Offline')}
                             </>
                           )}
                         </span>
@@ -613,7 +697,7 @@ export function DeviceListView() {
                           />{" "}
                           {device.last_seen_at
                             ? new Date(device.last_seen_at).toLocaleString(
-                                "vi-VN",
+                                language === 'vi' ? 'vi-VN' : 'en-US',
                                 {
                                   hour: "2-digit",
                                   minute: "2-digit",
@@ -621,7 +705,7 @@ export function DeviceListView() {
                                   month: "2-digit",
                                 },
                               )
-                            : "Chưa ghi nhận"}
+                            : t('deviceList.card.noSeenRecord', 'Chưa ghi nhận')}
                         </span>
                         <span className="dv-meta-sep">·</span>
                         <span>
@@ -632,7 +716,7 @@ export function DeviceListView() {
                               verticalAlign: "middle",
                             }}
                           />{" "}
-                          {device.sensors?.length ?? 0} cảm biến
+                          {t('deviceList.card.sensorsCount', '{count} cảm biến').replace('{count}', String(device.sensors?.length ?? 0))}
                         </span>
                         <span className="dv-meta-sep">·</span>
                         <span>
@@ -643,7 +727,7 @@ export function DeviceListView() {
                               verticalAlign: "middle",
                             }}
                           />{" "}
-                          {device.actuators?.length ?? 0} thiết bị chấp hành
+                          {t('deviceList.card.actuatorsCount', '{count} thiết bị chấp hành').replace('{count}', String(device.actuators?.length ?? 0))}
                         </span>
                       </div>
                     </div>
@@ -656,7 +740,7 @@ export function DeviceListView() {
                         e.stopPropagation();
                         handleDeleteDevice(device.Device_ID);
                       }}
-                      title="Xóa thiết bị"
+                      title={t('deviceList.card.deleteTitle', 'Xóa thiết bị')}
                     >
                       <Trash2 size={15} />
                     </button>
@@ -682,11 +766,11 @@ export function DeviceListView() {
                     {/* Device Mode Switch Section */}
                     <div className="dv-mode-section">
                       <div className="dv-mode-info">
-                        <span className="dv-mode-title">Chế độ vận hành</span>
+                        <span className="dv-mode-title">{t('deviceList.mode.title', 'Chế độ vận hành')}</span>
                         <p className="dv-mode-desc">
                           {isAuto
-                            ? "Chế độ Tự động (AUTO): Thiết bị tự động điều chỉnh theo cảm biến & lịch trình."
-                            : "Chế độ Thủ công (MANUAL): Cho phép bật/tắt thiết bị bằng nút nhấn trực tiếp."}
+                            ? t('deviceList.mode.autoDesc', 'Chế độ Tự động (AUTO): Thiết bị tự động điều chỉnh theo cảm biến & lịch trình.')
+                            : t('deviceList.mode.manualDesc', 'Chế độ Thủ công (MANUAL): Cho phép bật/tắt thiết bị bằng nút nhấn trực tiếp.')}
                         </p>
                       </div>
                       <div className="dv-mode-switch-group">
@@ -697,7 +781,7 @@ export function DeviceListView() {
                           disabled={togglingModeDeviceId === device.Device_ID}
                           className={`dv-mode-tab ${isAuto ? "dv-mode-tab--active-auto" : ""}`}
                         >
-                          Tự động
+                          {t('deviceList.mode.auto', 'Tự động')}
                         </button>
                         <button
                           onClick={() =>
@@ -706,7 +790,7 @@ export function DeviceListView() {
                           disabled={togglingModeDeviceId === device.Device_ID}
                           className={`dv-mode-tab ${!isAuto ? "dv-mode-tab--active-manual" : ""}`}
                         >
-                          Thủ công
+                          {t('deviceList.mode.manual', 'Thủ công')}
                         </button>
                       </div>
                     </div>
@@ -715,7 +799,7 @@ export function DeviceListView() {
                     <div className="dv-section">
                       <div className="dv-section-header">
                         <Activity size={14} />
-                        <span>Cảm biến thời gian thực</span>
+                        <span>{t('deviceList.realtimeSensors', 'Cảm biến thời gian thực')}</span>
                         <span className="dv-section-count">
                           {device.sensors?.length ?? 0}
                         </span>
@@ -726,7 +810,13 @@ export function DeviceListView() {
                             const reading = getSensorReading(
                               s,
                               deviceTelemetry,
+                              formatTemp
                             );
+                            const text = `${s.type} ${s.name}`.toLowerCase();
+                            const isTemp = text.includes("temperature") || text.includes("nhiet") || text.includes("nhiệt");
+                            const displayValue = (isTemp && deviceTelemetry) 
+                              ? formatTemp(deviceTelemetry.temp) 
+                              : reading.value;
                             const { icon, color, bg } =
                               getSensorIconAndColor(s);
                             return (
@@ -739,7 +829,7 @@ export function DeviceListView() {
                                 </div>
                                 <div className="dv-sensor-info">
                                   <span className="dv-sensor-name">
-                                    {s.name}
+                                    {translateSensorName(s)}
                                   </span>
                                   <strong
                                     className="dv-sensor-value"
@@ -747,10 +837,10 @@ export function DeviceListView() {
                                       color: reading.stale ? "#9ca3af" : color,
                                     }}
                                   >
-                                    {reading.value}
+                                    {displayValue}
                                   </strong>
                                   <span className="dv-sensor-meta">
-                                    Pin {s.pin_connection} · {s.unit}
+                                    Pin {s.pin_connection} · {isTemp ? `°${formatTemp(0).slice(-1)}` : s.unit}
                                   </span>
                                 </div>
                               </div>
@@ -758,7 +848,7 @@ export function DeviceListView() {
                           })}
                         </div>
                       ) : (
-                        <p className="dv-empty-text">Chưa có cảm biến nào</p>
+                        <p className="dv-empty-text">{t('deviceList.noSensors', 'Chưa có cảm biến nào')}</p>
                       )}
                     </div>
 
@@ -766,7 +856,7 @@ export function DeviceListView() {
                     <div className="dv-section">
                       <div className="dv-section-header">
                         <Zap size={14} />
-                        <span>Thiết bị chấp hành</span>
+                        <span>{t('deviceList.actuators', 'Thiết bị chấp hành')}</span>
                         <span className="dv-section-count">
                           {device.actuators?.length ?? 0}
                         </span>
@@ -843,13 +933,13 @@ export function DeviceListView() {
                                   </div>
                                   <div className="dv-actuator-identity">
                                     <h5 className="dv-actuator-name">
-                                      {a.name}
+                                      {translateActuatorName(a.name)}
                                     </h5>
                                     <p className="dv-actuator-type">
                                       {isFan
-                                        ? "Quạt thông gió"
-                                        : "Máy bơm nước"}{" "}
-                                      · Pin {a.pin_connection}
+                                        ? t('deviceList.actuator.fan', 'Quạt thông gió')
+                                        : t('deviceList.actuator.pump', 'Máy bơm nước')}{" "}
+                                      · {t('deviceList.actuator.pin', 'Pin')} {a.pin_connection}
                                     </p>
                                   </div>
                                   <span
@@ -869,23 +959,27 @@ export function DeviceListView() {
                                     }
                                   >
                                     {!running && !isFan && isAuto && deviceTelemetry?.cooldownRemain && deviceTelemetry.cooldownRemain > 0
-                                      ? `Chờ ${Math.floor(deviceTelemetry.cooldownRemain / 60)}p ${deviceTelemetry.cooldownRemain % 60}s`
+                                      ? t('deviceList.actuator.cooldown', 'Chờ {min}p {sec}s')
+                                          .replace('{min}', String(Math.floor(deviceTelemetry.cooldownRemain / 60)))
+                                          .replace('{sec}', String(deviceTelemetry.cooldownRemain % 60))
                                       : running
-                                        ? "Đang bật"
-                                        : "Đang tắt"}
+                                        ? t('deviceList.actuator.statusOn', 'Đang bật')
+                                        : t('deviceList.actuator.statusOff', 'Đang tắt')}
                                   </span>
                                 </div>
 
                                 <div className="dv-actuator-stats">
                                   <div className="dv-actuator-stat">
-                                    <span>Thời gian chạy</span>
+                                    <span>{t('deviceList.actuator.runtime', 'Thời gian chạy')}</span>
                                     <strong>{runtimeLabel}</strong>
                                   </div>
                                   <div className="dv-actuator-stat">
-                                    <span>Lần đổi trạng thái</span>
+                                    <span>{t('deviceList.actuator.lastChange', 'Lần đổi trạng thái')}</span>
                                     <strong>
                                       {formatActuatorTime(
                                         actuatorState.changedAt,
+                                        language === 'vi' ? 'vi-VN' : 'en-US',
+                                        t('deviceList.actuator.noRecord', 'Chưa ghi nhận')
                                       )}
                                     </strong>
                                   </div>
@@ -926,19 +1020,19 @@ export function DeviceListView() {
                                         size={15}
                                         className="animate-spin"
                                       />{" "}
-                                      Đang xử lý...
+                                      {t('deviceList.actuator.processing', 'Đang xử lý...')}
                                     </>
                                   ) : isAuto ? (
                                     <>
-                                      <PowerOff size={15} /> Khóa (Tự động)
+                                      <PowerOff size={15} /> {t('deviceList.actuator.lockAuto', 'Khóa (Tự động)')}
                                     </>
                                   ) : running ? (
                                     <>
-                                      <PowerOff size={15} /> Tắt thiết bị
+                                      <PowerOff size={15} /> {t('deviceList.actuator.turnOff', 'Tắt thiết bị')}
                                     </>
                                   ) : (
                                     <>
-                                      <Zap size={15} /> Bật thiết bị
+                                      <Zap size={15} /> {t('deviceList.actuator.turnOn', 'Bật thiết bị')}
                                     </>
                                   )}
                                 </button>
@@ -948,7 +1042,7 @@ export function DeviceListView() {
                         </div>
                       ) : (
                         <p className="dv-empty-text">
-                          Chưa có thiết bị chấp hành nào
+                          {t('deviceList.noActuators', 'Chưa có thiết bị chấp hành nào')}
                         </p>
                       )}
                     </div>
@@ -1018,6 +1112,63 @@ export function DeviceListView() {
           gap: 1.5rem;
         }
 
+        /* ===== Header ===== */
+        .dv-header {
+          background: white;
+          border-radius: 24px;
+          border: 1.5px solid #e2e8f0;
+          padding: 1.75rem 2rem;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+        }
+
+        @media (min-width: 1024px) {
+          .dv-header {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+          }
+        }
+
+        .dv-header-left {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .dv-badge-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.25rem 0.75rem;
+          border-radius: 100px;
+          font-size: 0.72rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border: 1px solid rgba(16, 185, 129, 0.15);
+          background: rgba(16, 185, 129, 0.08);
+          color: #10b981;
+          width: fit-content;
+        }
+
+        .dv-title {
+          font-size: 1.875rem;
+          font-weight: 850;
+          color: #0f172a;
+          letter-spacing: -0.02em;
+          margin: 0;
+        }
+
+        .dv-subtitle {
+          font-size: 0.875rem;
+          color: #64748b;
+          margin: 0;
+          line-height: 1.5;
+        }
+
         /* ===== Stats ===== */
         .dv-stats {
           display: grid;
@@ -1032,33 +1183,69 @@ export function DeviceListView() {
           gap: 1rem;
           padding: 1.25rem 1.5rem;
           background: white;
-          border: 1px solid #e5e7eb;
+          border: 1.5px solid #e2e8f0;
           border-radius: 18px;
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
           overflow: hidden;
-          transition:
-            transform 0.2s,
-            box-shadow 0.2s;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .dv-stat-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+        .dv-stat-card--total:hover {
+          transform: translateY(-3px);
+          border-color: #cbd5e1;
+          box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+        }
+
+        .dv-stat-card--online:hover {
+          transform: translateY(-3px);
+          border-color: #bbf7d0;
+          box-shadow: 0 10px 25px rgba(22, 163, 74, 0.08);
+        }
+
+        .dv-stat-card--offline:hover {
+          transform: translateY(-3px);
+          border-color: #fecaca;
+          box-shadow: 0 10px 25px rgba(220, 38, 38, 0.08);
         }
 
         .dv-stat-shimmer {
           position: absolute;
           top: 0;
           right: 0;
-          width: 80px;
-          height: 80px;
+          width: 90px;
+          height: 90px;
           border-radius: 50%;
+          transform: translate(25px, -25px);
+          transition: transform 0.25s ease;
+          pointer-events: none;
+        }
+
+        .dv-stat-card:hover .dv-stat-shimmer {
+          transform: translate(15px, -15px) scale(1.1);
+        }
+
+        .dv-stat-card--total .dv-stat-shimmer {
           background: radial-gradient(
             circle,
-            rgba(34, 197, 94, 0.06) 0%,
+            rgba(15, 23, 42, 0.05) 0%,
             transparent 70%
           );
-          transform: translate(20px, -20px);
+        }
+
+        .dv-stat-card--online .dv-stat-shimmer {
+          background: radial-gradient(
+            circle,
+            rgba(22, 163, 74, 0.06) 0%,
+            transparent 70%
+          );
+        }
+
+        .dv-stat-card--offline .dv-stat-shimmer {
+          background: radial-gradient(
+            circle,
+            rgba(220, 38, 38, 0.06) 0%,
+            transparent 70%
+          );
         }
 
         .dv-stat-icon {
@@ -1069,40 +1256,52 @@ export function DeviceListView() {
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+          transition: transform 0.25s ease;
+        }
+
+        .dv-stat-card:hover .dv-stat-icon {
+          transform: scale(1.08) rotate(3deg);
         }
 
         .dv-stat-icon--total {
-          background: linear-gradient(135deg, #e0f2fe, #bae6fd);
-          color: #0284c7;
+          background: linear-gradient(135deg, #475569, #1e293b);
+          color: #f8fafc;
         }
 
         .dv-stat-icon--online {
-          background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-          color: #16a34a;
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: #ffffff;
         }
 
         .dv-stat-icon--offline {
-          background: linear-gradient(135deg, #fef2f2, #fecaca);
-          color: #dc2626;
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          color: #ffffff;
         }
 
         .dv-stat-label {
           font-size: 0.78rem;
-          color: #6b7280;
-          font-weight: 500;
+          color: #64748b;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
           margin-bottom: 3px;
         }
 
         .dv-stat-value {
-          font-size: 1.75rem;
-          font-weight: 800;
-          color: #111827;
+          font-size: 1.875rem;
+          font-weight: 850;
+          color: #0f172a;
           line-height: 1;
         }
 
-        .dv-stat-value--online {
-          color: #16a34a;
+        .dv-stat-value--total {
+          color: #1e293b;
         }
+
+        .dv-stat-value--online {
+          color: #10b981;
+        }
+
         .dv-stat-value--offline {
           color: #ef4444;
         }
@@ -1620,14 +1819,14 @@ export function DeviceListView() {
           background: #fafafa;
           border: 1px solid #f0f0f0;
           border-radius: 14px;
-          transition: all 0.2s;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .dv-sensor-tile:hover {
           background: white;
           border-color: #e5e7eb;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+          transform: translateY(-3px);
         }
 
         .dv-sensor-icon-wrap {
@@ -1638,6 +1837,11 @@ export function DeviceListView() {
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+          transition: transform 0.25s ease;
+        }
+
+        .dv-sensor-tile:hover .dv-sensor-icon-wrap {
+          transform: scale(1.08) rotate(3deg);
         }
 
         .dv-sensor-info {
@@ -1657,9 +1861,16 @@ export function DeviceListView() {
         }
 
         .dv-sensor-value {
-          font-size: 1.15rem;
-          font-weight: 800;
+          font-size: 1.35rem;
+          font-weight: 850;
           line-height: 1.1;
+          transition: transform 0.25s ease;
+          transform-origin: left center;
+          display: inline-block;
+        }
+
+        .dv-sensor-tile:hover .dv-sensor-value {
+          transform: scale(1.04);
         }
 
         .dv-sensor-meta {
@@ -1900,40 +2111,59 @@ function AddDeviceModal({
   onClose: () => void;
   onSuccess: (device: Device) => void;
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [macAddress, setMacAddress] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [macError, setMacError] = useState("");
+
+  const MAC_REGEX = /^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$|^[0-9A-Fa-f]{12}$/;
+
+  const handleMacChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setMacAddress(val);
+    if (val && !MAC_REGEX.test(val)) {
+      setMacError("Địa chỉ MAC không hợp lệ. VD: AA:BB:CC:DD:EE:FF hoặc AABBCCDDEEFF");
+    } else {
+      setMacError("");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsSubmitting(true);
 
+    if (!MAC_REGEX.test(macAddress)) {
+      setMacError("Địa chỉ MAC không hợp lệ. VD: AA:BB:CC:DD:EE:FF hoặc AABBCCDDEEFF");
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const payload: CreateDevicePayload = {
         name,
-        mac_address: macAddress,
+        mac_address: macAddress.toUpperCase(),
       };
       const newDevice = await createDevice(payload);
       onSuccess(newDevice);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Không thể tạo thiết bị!");
+      setError(err instanceof Error ? err.message : t('deviceList.addModal.createError', "Không thể tạo thiết bị!"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <ModalWrapper onClose={onClose} title="Đăng ký thiết bị IoT mới">
+    <ModalWrapper onClose={onClose} title={t('deviceList.addModal.title', "Đăng ký thiết bị IoT mới")}>
       <form onSubmit={handleSubmit} className="modal-form">
         {error && <div className="modal-error">{error}</div>}
 
         <div className="modal-field">
-          <label>Tên thiết bị *</label>
+          <label>{t('deviceList.addModal.nameLabel', "Tên thiết bị *")}</label>
           <input
             type="text"
-            placeholder="VD: ESP32 - Vườn rau"
+            placeholder={t('deviceList.addModal.namePlaceholder', "VD: ESP32 - Vườn rau")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -1942,20 +2172,26 @@ function AddDeviceModal({
         </div>
 
         <div className="modal-field">
-          <label>Địa chỉ MAC *</label>
+          <label>{t('deviceList.addModal.macLabel', "Địa chỉ MAC *")}</label>
           <input
             type="text"
-            placeholder="VD: AA:BB:CC:DD:EE:FF"
+            placeholder={t('deviceList.addModal.macPlaceholder', "VD: AA:BB:CC:DD:EE:FF")}
             value={macAddress}
-            onChange={(e) => setMacAddress(e.target.value)}
+            onChange={handleMacChange}
             required
             id="device-mac-input"
+            style={{ borderColor: macError ? '#ef4444' : undefined }}
           />
+          {macError && (
+            <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              {macError}
+            </p>
+          )}
         </div>
 
         <div className="modal-actions">
           <button type="button" className="modal-btn-cancel" onClick={onClose}>
-            Hủy
+            {t('deviceList.addModal.cancel', "Hủy")}
           </button>
           <button
             type="submit"
@@ -1968,7 +2204,7 @@ function AddDeviceModal({
             ) : (
               <Plus size={16} />
             )}
-            Đăng ký thiết bị
+            {t('deviceList.addModal.submit', "Đăng ký thiết bị")}
           </button>
         </div>
       </form>
@@ -1986,23 +2222,23 @@ function ConfirmDeleteModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useLanguage();
   return (
-    <ModalWrapper onClose={onClose} title="Xóa thiết bị">
+    <ModalWrapper onClose={onClose} title={t('deviceList.deleteModal.title', "Xóa thiết bị")}>
       <div className="confirm-modal-body">
         <div className="confirm-icon-wrap">
           <AlertTriangle size={32} />
         </div>
         <p className="confirm-text">
-          Bạn có chắc chắn muốn xóa thiết bị này không?
+          {t('deviceList.deleteModal.confirmMsg', "Bạn có chắc chắn muốn xóa thiết bị này không?")}
         </p>
         <p className="confirm-subtext">
-          Tất cả dữ liệu cảm biến, lịch sử hoạt động và các cài đặt liên quan sẽ
-          bị xóa vĩnh viễn. Hành động này không thể hoàn tác!
+          {t('deviceList.deleteModal.warningMsg', "Tất cả dữ liệu cảm biến, lịch sử hoạt động và các cài đặt liên quan sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác!")}
         </p>
 
         <div className="modal-actions" style={{ marginTop: "1.5rem" }}>
           <button type="button" className="modal-btn-cancel" onClick={onClose}>
-            Hủy
+            {t('deviceList.deleteModal.cancel', "Hủy")}
           </button>
           <button
             type="button"
@@ -2010,7 +2246,7 @@ function ConfirmDeleteModal({
             onClick={onConfirm}
             id="confirm-delete-btn"
           >
-            Xóa thiết bị
+            {t('deviceList.deleteModal.submit', "Xóa thiết bị")}
           </button>
         </div>
       </div>

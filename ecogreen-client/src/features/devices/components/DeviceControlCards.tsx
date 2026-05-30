@@ -13,6 +13,7 @@ import type {
   PrimaryDevice,
   TelemetrySnapshot,
 } from "@/types/automation";
+import { useLanguage } from "@/context/LanguageContext";
 
 const toneClasses: Record<
   DeviceAccessory["tone"],
@@ -43,6 +44,7 @@ export function PrimaryDeviceCard({
   onToggleRunning: () => void;
   onSpeedChange: (value: number) => void;
 }) {
+  const { formatTemp } = useLanguage();
   const isPump = device.kind === "pump";
   const badgeClass = isPump
     ? "bg-[color:rgba(0,108,73,0.1)] text-[var(--emerald-primary)]"
@@ -146,7 +148,7 @@ export function PrimaryDeviceCard({
               value={
                 isPump
                   ? `${telemetry.soil.toFixed(0)}%`
-                  : `${telemetry.temp.toFixed(1)}°C`
+                  : formatTemp(telemetry.temp)
               }
             />
           </div>

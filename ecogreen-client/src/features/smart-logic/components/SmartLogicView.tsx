@@ -21,8 +21,10 @@ import {
 } from "@/services/automation.service";
 import { useRealtimeTelemetry } from "@/features/shared/useRealtimeTelemetry";
 import type { SmartLogicState } from "@/types/automation";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function SmartLogicView() {
+  const { t } = useLanguage();
   const { telemetry, connected } = useRealtimeTelemetry();
   const [draft, setDraft] = useState<SmartLogicState | null>(null);
   const [saved, setSaved] = useState<SmartLogicState | null>(null);
@@ -58,7 +60,7 @@ export function SmartLogicView() {
       <div className="flex min-h-[60vh] items-center justify-center rounded-[2rem] bg-white shadow-sm">
         <div className="flex items-center gap-3 text-sm font-medium text-[#5d6c63]">
           <Loader2 className="size-4 animate-spin" />
-          Đang tải màn Smart Logic...
+          {t('smartLogic.loading', 'Đang tải màn Smart Logic...')}
         </div>
       </div>
     );
@@ -86,24 +88,24 @@ export function SmartLogicView() {
       <section style={{ background: 'white', borderRadius: '24px', border: '1.5px solid #e2e8f0', padding: '1.75rem 2rem', boxShadow: '0 4px 20px rgba(0,0,0,0.02)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1.25rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.25rem 0.75rem', borderRadius: '100px', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.05em', border: '1px solid rgba(16,185,129,0.15)', background: 'rgba(16,185,129,0.08)', color: '#10b981', width: 'fit-content' }}>
-            <BrainCircuit size={13} /> Tưới thông minh
+            <BrainCircuit size={13} /> {t('smartLogic.badge', 'Tưới thông minh')}
           </span>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 850, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
-            Smart Logic - Tưới thông minh
+            {t('smartLogic.title', 'Smart Logic - Tưới thông minh')}
           </h1>
           <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
-            Cho phép AI đánh chặn lịch tưới khi dự báo thời tiết đủ điều kiện.
+            {t('smartLogic.subtitle', 'Cho phép AI đánh chặn lịch tưới khi dự báo thời tiết đủ điều kiện.')}
           </p>
         </div>
 
         <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '0.875rem 1.25rem' }}>
           <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.05em', color: '#10b981', margin: 0 }}>
-            Trạng thái hệ thống
+            {t('smartLogic.systemStatus', 'Trạng thái hệ thống')}
           </p>
           <p style={{ marginTop: '0.125rem', fontSize: '0.9375rem', fontWeight: 700, color: '#0f172a' }}>
-            {draft.enabled ? "Đang tối ưu" : "Tạm dừng"}
+            {draft.enabled ? t('smartLogic.optimizing', "Đang tối ưu") : t('smartLogic.paused', "Tạm dừng")}
             <span style={{ padding: '0 0.5rem', color: '#94a3b8' }}>•</span>
-            {connected ? "Realtime online" : "Đang chờ dữ liệu"}
+            {connected ? "Realtime online" : t('smartLogic.waitingData', "Đang chờ dữ liệu")}
           </p>
         </div>
       </section>
@@ -113,10 +115,10 @@ export function SmartLogicView() {
           <div className="mb-8 flex items-start justify-between gap-6">
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', margin: 0 }}>
-                Hệ thống tự chủ
+                {t('smartLogic.autonomousSystem', 'Hệ thống tự chủ')}
               </h2>
               <p style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.375rem' }}>
-                Cho phép AI ghi đè lịch trình khi dự báo mưa đủ lớn.
+                {t('smartLogic.autonomousDesc', 'Cho phép AI ghi đè lịch trình khi dự báo mưa đủ lớn.')}
               </p>
             </div>
             <ToggleSwitch
@@ -127,27 +129,27 @@ export function SmartLogicView() {
 
           <div className="space-y-5">
             <FormField
-              label={`Khóa dự báo ${draft.providerLabel}`}
+              label={`${t('smartLogic.apiKeyLabel', 'Khóa dự báo')} ${draft.providerLabel}`}
               value={draft.apiKey}
               onChange={(value) => setDraft({ ...draft, apiKey: value })}
-              placeholder="Nhập khóa dự báo"
+              placeholder={t('smartLogic.apiKeyPlaceholder', 'Nhập khóa dự báo')}
               type="password"
             />
             <FormField
-              label="Thành phố triển khai"
+              label={t('smartLogic.cityLabel', 'Thành phố triển khai')}
               value={draft.city}
               onChange={(value) => setDraft({ ...draft, city: value })}
-              placeholder="Ví dụ: Ho Chi Minh City"
+              placeholder={t('smartLogic.cityPlaceholder', 'Ví dụ: Ho Chi Minh City')}
             />
 
             <div>
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <label className="text-sm font-semibold text-[#1d2420]">
-                    Ngưỡng xác suất mưa
+                    {t('smartLogic.rainThresholdLabel', 'Ngưỡng xác suất mưa')}
                   </label>
                   <p className="mt-1 text-sm text-[#66756b]">
-                    Trên mức này, hệ thống sẽ ưu tiên đánh chặn chu kỳ tưới.
+                    {t('smartLogic.rainThresholdDesc', 'Trên mức này, hệ thống sẽ ưu tiên đánh chặn chu kỳ tưới.')}
                   </p>
                 </div>
                 <div
@@ -168,8 +170,8 @@ export function SmartLogicView() {
                 className="h-3 w-full cursor-pointer appearance-none rounded-full bg-[#e7ece9] accent-[#14b36d]"
               />
               <div className="mt-2 flex justify-between text-xs font-semibold uppercase tracking-[0.18em] text-[#8c9a91]">
-                <span>Luôn tưới</span>
-                <span>Chỉ khi hạn hán</span>
+                <span>{t('smartLogic.alwaysWater', 'Luôn tưới')}</span>
+                <span>{t('smartLogic.onlyDrought', 'Chỉ khi hạn hán')}</span>
               </div>
             </div>
           </div>
@@ -182,7 +184,7 @@ export function SmartLogicView() {
               className="inline-flex items-center justify-center gap-2 rounded-[1.4rem] bg-[#0b7a50] px-5 py-4 font-semibold text-white shadow-[0_14px_28px_rgba(11,122,80,0.24)] transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              Áp dụng thiết lập
+              {t('smartLogic.applySettings', 'Áp dụng thiết lập')}
             </button>
             <button
               type="button"
@@ -191,7 +193,7 @@ export function SmartLogicView() {
               className="inline-flex items-center justify-center gap-2 rounded-[1.4rem] border border-[#d6ddd8] bg-white px-5 py-4 font-semibold text-[#0b7a50] transition hover:bg-[#f2f7f4]"
             >
               {checking ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
-              Kiểm tra thời tiết
+              {t('smartLogic.checkWeather', 'Kiểm tra thời tiết')}
             </button>
           </div>
 
@@ -199,16 +201,15 @@ export function SmartLogicView() {
             <div className="mb-2 flex items-center gap-2 text-[#603cc8]">
               <Bot className="size-4" />
               <span className="text-sm font-semibold uppercase tracking-[0.16em]">
-                Dự báo hiệu quả
+                {t('smartLogic.efficiencyForecast', 'Dự báo hiệu quả')}
               </span>
             </div>
             <p className="text-base leading-7 text-[#484969]">
-              Với ngưỡng mưa {draft.rainThreshold}% và độ ẩm đất hiện tại {telemetry.soil.toFixed(0)}%,
-              hệ thống đang ước tính có thể giảm khoảng{" "}
+              {t('smartLogic.efficiency.prefix', 'Với ngưỡng mưa ')}{draft.rainThreshold}%{t('smartLogic.efficiency.soil', ' và độ ẩm đất hiện tại ')}{telemetry.soil.toFixed(0)}%,{t('smartLogic.efficiency.estimate', ' hệ thống đang ước tính có thể giảm khoảng ')}
               <span className="font-semibold text-[#3821a7]">
                 {draft.projectedSavingsPercent}%
               </span>{" "}
-              lượng nước lãng phí trong 72 giờ tới.
+              {t('smartLogic.efficiency.suffix', 'lượng nước lãng phí trong 72 giờ tới.')}
             </p>
           </div>
         </section>
@@ -217,18 +218,18 @@ export function SmartLogicView() {
           <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', margin: 0 }}>
-                Luồng đánh chặn
+                {t('smartLogic.interceptionFlow', 'Luồng đánh chặn')}
               </h2>
               <p style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.375rem' }}>
-                Mô tả trực quan quyết định thời gian thực từ cảm biến và nguồn dự báo.
+                {t('smartLogic.interceptionDesc', 'Mô tả trực quan quyết định thời gian thực từ cảm biến và nguồn dự báo.')}
               </p>
             </div>
             <div className="rounded-[1.25rem] bg-white px-4 py-3 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8c9a91]">
-                Đầu vào A1
+                {t('smartLogic.inputA1', 'Đầu vào A1')}
               </div>
               <div className="mt-1 text-2xl font-semibold text-[#1d2420]">
-                Đất {telemetry.soil.toFixed(0)}%
+                {t('smartLogic.soilText', 'Đất ')}{telemetry.soil.toFixed(0)}%
               </div>
             </div>
           </div>
@@ -239,44 +240,44 @@ export function SmartLogicView() {
                 <CloudRain className="size-7" />
               </div>
               <h3 style={{ marginTop: '2rem', textAlign: 'center', fontSize: '1.125rem', fontWeight: 800, color: 'white' }}>
-                Đánh chặn thời tiết
+                {t('smartLogic.weatherInterception', 'Đánh chặn thời tiết')}
               </h3>
               <p className="mt-3 text-center text-sm leading-6 text-white/80">
-                Thành phố đang theo dõi: {draft.city}. Xác suất mưa gần nhất được ghi nhận là{" "}
+                {t('smartLogic.monitoringCity', 'Thành phố đang theo dõi: ')}{draft.city}{t('smartLogic.rainProbText', '. Xác suất mưa gần nhất được ghi nhận là ')}
                 <span className="font-semibold text-white">{draft.lastRainProbability}%</span>.
               </p>
             </div>
 
             <DecisionCard
               active={!blockWeather}
-              title="Kết quả"
-              label="Thực hiện chu kỳ"
+              title={t('smartLogic.decisionCard.title', 'Kết quả')}
+              label={t('smartLogic.decisionCard.run', 'Thực hiện chu kỳ')}
               icon={<ShieldCheck className="size-6" />}
               tone="green"
             />
             <DecisionCard
               active={blockWeather}
-              title="Kết quả"
-              label="Chờ mưa"
+              title={t('smartLogic.decisionCard.title', 'Kết quả')}
+              label={t('smartLogic.decisionCard.wait', 'Chờ mưa')}
               icon={<Slash className="size-6" />}
               tone="gray"
             />
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <MetricTile label="Xác suất mưa" value={`${draft.lastRainProbability}%`} />
-            <MetricTile label="Ngưỡng chặn" value={`${draft.rainThreshold}%`} />
-            <MetricTile label="Quyết định" value={blockWeather ? "Bỏ qua" : "Cho tưới"} />
+            <MetricTile label={t('smartLogic.metrics.rainProb', 'Xác suất mưa')} value={`${draft.lastRainProbability}%`} />
+            <MetricTile label={t('smartLogic.metrics.blockThreshold', 'Ngưỡng chặn')} value={`${draft.rainThreshold}%`} />
+            <MetricTile label={t('smartLogic.metrics.decision', 'Quyết định')} value={blockWeather ? t('smartLogic.metrics.skip', "Bỏ qua") : t('smartLogic.metrics.allow', "Cho tưới")} />
           </div>
         </section>
 
         <section style={{ background: 'white', borderRadius: '24px', border: '1.5px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }} className="xl:col-span-12">
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', margin: 0 }}>
-              Nhật ký thực thi trực tiếp
+              {t('smartLogic.liveLog', 'Nhật ký thực thi trực tiếp')}
             </h2>
             <div className="rounded-full bg-[#eef7f1] px-4 py-2 text-sm font-semibold text-[#0b7a50]">
-              {draft.enabled ? "Đang giám sát" : "Đã tắt Smart Logic"}
+              {draft.enabled ? t('smartLogic.monitoring', "Đang giám sát") : t('smartLogic.disabled', "Đã tắt Smart Logic")}
             </div>
           </div>
 
@@ -307,10 +308,10 @@ export function SmartLogicView() {
                   }`}
                 >
                   {entry.level === "success"
-                    ? "Đã ngăn chặn"
+                    ? t('smartLogic.levels.intercepted', "Đã ngăn chặn")
                     : entry.level === "info"
-                      ? "Ổn định"
-                      : "Hệ thống"}
+                      ? t('smartLogic.levels.stable', "Ổn định")
+                      : t('smartLogic.levels.system', "Hệ thống")}
                 </span>
               </div>
             ))}

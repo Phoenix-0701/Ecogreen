@@ -99,20 +99,36 @@ export function useRealtimeTelemetry() {
     socket.on("disconnect", () => setConnected(false));
     socket.on("connect_error", () => setConnected(false));
 
+    let lastUpdate = 0;
+
     socket.on("realtime-data", (payload: unknown) => {
       const nextTelemetry = parseRealtimeTelemetry(payload);
       if (!nextTelemetry) {
         return;
       }
 
-      setTelemetry(nextTelemetry);
-      if (nextTelemetry.macAddress) {
-        setTelemetryByMac((current) => ({
-          ...current,
-          [nextTelemetry.macAddress as string]: nextTelemetry,
-        }));
+      const now = Date.now();
+      let currentInterval = 5; // default to 5 seconds
+      try {
+        const saved = localStorage.getItem("pref_refresh_interval");
+        if (saved) {
+          currentInterval = Number(saved);
+        }
+      } catch (e) {
+        console.error(e);
       }
-      persistTelemetry(nextTelemetry);
+
+      if (now - lastUpdate >= currentInterval * 1000) {
+        lastUpdate = now;
+        setTelemetry(nextTelemetry);
+        if (nextTelemetry.macAddress) {
+          setTelemetryByMac((current) => ({
+            ...current,
+            [nextTelemetry.macAddress as string]: nextTelemetry,
+          }));
+        }
+        persistTelemetry(nextTelemetry);
+      }
     });
 
     return () => {

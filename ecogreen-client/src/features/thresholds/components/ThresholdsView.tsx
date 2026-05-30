@@ -20,8 +20,10 @@ import {
 } from "@/services/automation.service";
 import { useRealtimeTelemetry } from "@/features/shared/useRealtimeTelemetry";
 import type { ThresholdState } from "@/types/automation";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function ThresholdsView() {
+  const { t, formatTemp, tempUnit, convertTemp, language } = useLanguage();
   const { telemetry } = useRealtimeTelemetry();
   const [draft, setDraft] = useState<ThresholdState | null>(null);
   const [saved, setSaved] = useState<ThresholdState | null>(null);
@@ -79,7 +81,7 @@ export function ThresholdsView() {
       <div className="flex min-h-[60vh] items-center justify-center rounded-[2rem] bg-white shadow-sm">
         <div className="flex items-center gap-3 text-sm font-medium text-[#5d6c63]">
           <Loader2 className="size-4 animate-spin" />
-          Đang tải cấu hình ngưỡng tưới...
+          {t('thresholdsLogic.loading', 'Đang tải cấu hình ngưỡng tưới...')}
         </div>
       </div>
     );
@@ -96,15 +98,15 @@ export function ThresholdsView() {
       setSaved(result);
       showNotification(
         "success",
-        "Lưu cấu hình thành công",
-        "Ngưỡng tưới và thông số an toàn đã được cập nhật thành công.",
+        t('thresholdsLogic.toast.saveSuccessTitle', "Lưu cấu hình thành công"),
+        t('thresholdsLogic.toast.saveSuccessMsg', "Ngưỡng tưới và thông số an toàn đã được cập nhật thành công."),
       );
     } catch (error) {
       console.error("Error saving thresholds:", error);
       showNotification(
         "error",
-        "Lỗi lưu cấu hình",
-        "Không thể kết nối với máy chủ để lưu cấu hình. Vui lòng thử lại sau.",
+        t('thresholdsLogic.toast.saveFailTitle', "Lỗi lưu cấu hình"),
+        t('thresholdsLogic.toast.saveFailMsg', "Không thể kết nối với máy chủ để lưu cấu hình. Vui lòng thử lại sau."),
       );
     } finally {
       setSaving(false);
@@ -113,10 +115,10 @@ export function ThresholdsView() {
 
   const moistureNote =
     telemetry.soil < draft.dryThreshold
-      ? "Độ ẩm đất đang thấp hơn ngưỡng khô, bơm nên được ưu tiên."
+      ? t('thresholdsLogic.moistureNotes.dry', "Độ ẩm đất đang thấp hơn ngưỡng khô, bơm nên được ưu tiên.")
       : telemetry.soil > draft.wetThreshold
-        ? "Độ ẩm đất đã vượt ngưỡng ướt, có thể tạm khóa chu kỳ bơm."
-        : "Độ ẩm đang nằm trong dải an toàn, hệ thống có thể tiếp tục theo lịch.";
+        ? t('thresholdsLogic.moistureNotes.wet', "Độ ẩm đất đã vượt ngưỡng ướt, có thể tạm khóa chu kỳ bơm.")
+        : t('thresholdsLogic.moistureNotes.safe', "Độ ẩm đang nằm trong dải an toàn, hệ thống có thể tiếp tục theo lịch.");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -154,7 +156,7 @@ export function ThresholdsView() {
               width: "fit-content",
             }}
           >
-            <SlidersHorizontal size={13} /> Kiểm soát môi trường
+            <SlidersHorizontal size={13} /> {t('thresholdsLogic.envControl', 'Kiểm soát môi trường')}
           </span>
           <h1
             style={{
@@ -165,11 +167,10 @@ export function ThresholdsView() {
               margin: 0,
             }}
           >
-            Ngưỡng tưới & Logic
+            {t('thresholdsLogic.title', 'Ngưỡng tưới & Logic')}
           </h1>
           <p style={{ fontSize: "0.875rem", color: "#64748b", margin: 0 }}>
-            Thiết lập ngưỡng độ ẩm đất và thông số an toàn cho hệ thống tưới tự
-            động.
+            {t('thresholdsLogic.subtitle', 'Thiết lập ngưỡng độ ẩm đất và thông số an toàn cho hệ thống tưới tự động.')}
           </p>
         </div>
 
@@ -192,7 +193,7 @@ export function ThresholdsView() {
               transition: "all 0.2s",
             }}
           >
-            Hủy bỏ
+            {t('thresholdsLogic.cancel', 'Hủy bỏ')}
           </button>
           <button
             type="button"
@@ -220,7 +221,7 @@ export function ThresholdsView() {
             ) : (
               <Save className="size-4" />
             )}
-            Lưu thay đổi
+            {t('thresholdsLogic.saveChanges', 'Lưu thay đổi')}
           </button>
         </div>
       </section>
@@ -262,7 +263,7 @@ export function ThresholdsView() {
                   margin: 0,
                 }}
               >
-                Logic độ ẩm đất
+                {t('thresholdsLogic.soilMoistureLogic', 'Logic độ ẩm đất')}
               </h2>
               <p
                 style={{
@@ -271,8 +272,7 @@ export function ThresholdsView() {
                   marginTop: "0.375rem",
                 }}
               >
-                Khu vực theo dõi: {draft.zone}. Giá trị cảm biến hiện tại đang ở
-                mức{" "}
+                {t('thresholdsLogic.monitoredZone', 'Khu vực theo dõi: ')}{draft.zone}{t('thresholdsLogic.sensorCurrent', '. Giá trị cảm biến hiện tại đang ở mức ')}{" "}
                 <span style={{ fontWeight: 700, color: "#059669" }}>
                   {telemetry.soil.toFixed(0)}%
                 </span>
@@ -283,8 +283,8 @@ export function ThresholdsView() {
 
           <div className="space-y-10">
             <RangeField
-              label="Ngưỡng khô (Bật)"
-              hint="Máy bơm bắt đầu khi độ ẩm giảm xuống dưới mức này"
+              label={t('thresholdsLogic.dryThresholdLabel', "Ngưỡng khô (Bật)")}
+              hint={t('thresholdsLogic.dryThresholdDesc', "Máy bơm bắt đầu khi độ ẩm giảm xuống dưới mức này")}
               min={10}
               max={70}
               value={draft.dryThreshold}
@@ -296,8 +296,8 @@ export function ThresholdsView() {
               }}
             />
             <RangeField
-              label="Ngưỡng ướt (Tắt)"
-              hint="Máy bơm dừng khi độ ẩm đất đạt tới mức bão hòa này"
+              label={t('thresholdsLogic.wetThresholdLabel', "Ngưỡng ướt (Tắt)")}
+              hint={t('thresholdsLogic.wetThresholdDesc', "Máy bơm dừng khi độ ẩm đất đạt tới mức bão hòa này")}
               min={20}
               max={90}
               value={draft.wetThreshold}
@@ -330,12 +330,12 @@ export function ThresholdsView() {
               margin: 0,
             }}
           >
-            Xem trước ngưỡng trực quan
+            {t('thresholdsLogic.visualPreview', 'Xem trước ngưỡng trực quan')}
           </h3>
           <div className="mt-6 rounded-[1.5rem] border border-dashed border-[#d9e2dc] bg-[#fbfcfb] p-5">
             <div className="mb-6 flex justify-between text-xs font-semibold uppercase tracking-[0.18em] text-[#7b8b81]">
-              <span>Ngưỡng khô {draft.dryThreshold}%</span>
-              <span>Ngưỡng ướt {draft.wetThreshold}%</span>
+              <span>{t('thresholdsLogic.dryThresholdPrefix', 'Ngưỡng khô ')}{draft.dryThreshold}%</span>
+              <span>{t('thresholdsLogic.wetThresholdPrefix', 'Ngưỡng ướt ')}{draft.wetThreshold}%</span>
             </div>
             <div className="flex h-56 items-end gap-2">
               {previewBands.map((value, index) => {
@@ -360,7 +360,7 @@ export function ThresholdsView() {
                     />
                     {isCurrent ? (
                       <span className="mt-2 rounded-full bg-[#0b7a50] px-2 py-1 text-[10px] font-bold text-white">
-                        Hiện tại
+                        {t('thresholdsLogic.current', 'Hiện tại')}
                       </span>
                     ) : (
                       <span className="mt-2 text-[10px] text-[#98a59d]">•</span>
@@ -410,7 +410,7 @@ export function ThresholdsView() {
                   margin: 0,
                 }}
               >
-                Thông số thời gian & an toàn
+                {t('thresholdsLogic.timeSafety', 'Thông số thời gian & an toàn')}
               </h2>
               <p
                 style={{
@@ -419,32 +419,32 @@ export function ThresholdsView() {
                   marginTop: "0.375rem",
                 }}
               >
-                Giới hạn thời gian mỗi phiên bơm và độ trễ giữa hai lần tưới.
+                {t('thresholdsLogic.timeSafetyDesc', 'Giới hạn thời gian mỗi phiên bơm và độ trễ giữa hai lần tưới.')}
               </p>
             </div>
           </div>
 
           <div className="grid gap-8 lg:grid-cols-2">
             <RangeField
-              label="Thời gian bơm tối đa"
-              hint="Giới hạn mỗi phiên bơm"
+              label={t('thresholdsLogic.maxPumpDuration', 'Thời gian bơm tối đa')}
+              hint={t('thresholdsLogic.maxPumpDesc', 'Giới hạn mỗi phiên bơm')}
               min={15}
               max={120}
               step={5}
               value={draft.maxPumpSeconds}
-              suffix="giây"
+              suffix={t('thresholdsLogic.seconds', 'giây')}
               onChange={(value) =>
                 setDraft({ ...draft, maxPumpSeconds: value })
               }
             />
             <RangeField
-              label="Thời gian nghỉ"
-              hint="Độ trễ giữa hai phiên tưới"
+              label={t('thresholdsLogic.cooldownDuration', 'Thời gian nghỉ')}
+              hint={t('thresholdsLogic.cooldownDesc', 'Độ trễ giữa hai phiên tưới')}
               min={1}
               max={30}
               step={1}
               value={draft.cooldownMinutes}
-              suffix="phút"
+              suffix={t('thresholdsLogic.minutes', 'phút')}
               onChange={(value) =>
                 setDraft({ ...draft, cooldownMinutes: value })
               }
@@ -458,23 +458,30 @@ export function ThresholdsView() {
             <div className="mb-4 flex items-center gap-3 text-[#5b3ab4]">
               <Leaf className="size-5" />
               <span className="text-sm font-semibold uppercase tracking-[0.18em]">
-                Trí tuệ thực vật
+                {t('thresholdsLogic.plantIntel', 'Trí tuệ thực vật')}
               </span>
             </div>
             <p className="text-base leading-7 text-[#4b4d67]">
-              {draft.recommendation}
+              {/* Translate recommendation from backend/mock Vietnamese to English */}
+              {language === 'en' && draft.recommendation
+                ? (draft.recommendation.toLowerCase().includes('trầu bà')
+                    ? "Philodendron is in a strong growth phase. Consider keeping the dry threshold around 32% for better root aeration during the afternoon."
+                    : draft.recommendation.toLowerCase().includes('độ ẩm') && draft.recommendation.toLowerCase().includes('khô')
+                    ? "Soil moisture is approaching the dry threshold. Consider increasing the watering frequency or raising the dry threshold slightly."
+                    : draft.recommendation)
+                : draft.recommendation}
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <InsightCard
-                label="Độ ẩm đất"
+                label={t('thresholdsLogic.soilMoisture', 'Độ ẩm đất')}
                 value={`${telemetry.soil.toFixed(0)}%`}
               />
               <InsightCard
-                label="Nhiệt độ"
-                value={`${telemetry.temp.toFixed(1)}°C`}
+                label={t('thresholdsLogic.temperature', 'Nhiệt độ')}
+                value={formatTemp(telemetry.temp)}
               />
               <InsightCard
-                label="Không khí"
+                label={t('thresholdsLogic.airHumidity', 'Không khí')}
                 value={`${telemetry.humi.toFixed(0)}%`}
               />
             </div>
@@ -482,13 +489,13 @@ export function ThresholdsView() {
 
           <div className="overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#214c38,#7db08f)] p-6 text-white shadow-sm">
             <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
-              Mô phỏng khu trồng
+              {t('thresholdsLogic.greenhouseSim', 'Mô phỏng khu trồng')}
             </div>
             <div className="mt-6 rounded-[1.5rem] border border-white/12 bg-white/8 p-5 backdrop-blur-sm">
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-[1rem] bg-white/10 p-4">
                   <p className="text-xs uppercase tracking-[0.16em] text-white/70">
-                    Mốc bật bơm
+                    {t('thresholdsLogic.startThreshold', 'Mốc bật bơm')}
                   </p>
                   <p className="mt-2 text-2xl font-semibold">
                     {draft.dryThreshold}%
@@ -496,7 +503,7 @@ export function ThresholdsView() {
                 </div>
                 <div className="rounded-[1rem] bg-white/10 p-4">
                   <p className="text-xs uppercase tracking-[0.16em] text-white/70">
-                    Mốc ngắt bơm
+                    {t('thresholdsLogic.stopThreshold', 'Mốc ngắt bơm')}
                   </p>
                   <p className="mt-2 text-2xl font-semibold">
                     {draft.wetThreshold}%
@@ -506,10 +513,12 @@ export function ThresholdsView() {
               <div className="mt-4 flex items-center gap-3 rounded-[1rem] bg-white/10 p-4">
                 <Thermometer className="size-5 text-[#ffc6c6]" />
                 <div>
-                  <p className="text-sm font-semibold">Điều hòa nhiệt độ</p>
+                  <p className="text-sm font-semibold">{t('thresholdsLogic.tempRegulation', 'Điều hòa nhiệt độ')}</p>
                   <p className="text-sm text-white/70">
-                    Tự động bật quạt khi {draft.highTempC}°C và ngắt khi{" "}
-                    {draft.lowTempC}°C.
+                    {t('thresholdsLogic.fanControlDesc', 'Tự động bật quạt khi {high}°C và ngắt khi {low}°C.')
+                      .replace('{high}', Math.round(convertTemp(draft.highTempC)).toString())
+                      .replace('{low}', Math.round(convertTemp(draft.lowTempC)).toString())
+                      .replace(/°C/g, `°${tempUnit}`)}
                   </p>
                 </div>
               </div>
@@ -554,37 +563,37 @@ export function ThresholdsView() {
                   margin: 0,
                 }}
               >
-                Ngưỡng điều khiển quạt
+                {t('thresholdsLogic.fanControlTitle', 'Ngưỡng điều khiển quạt')}
               </h2>
               <p style={{ fontSize: "0.8rem", color: "#64748b", margin: 0 }}>
-                Tự động bật/ngắt quạt theo nhiệt độ nhà kính.
+                {t('thresholdsLogic.fanControlSubtitle', 'Tự động bật/ngắt quạt theo nhiệt độ nhà kính.')}
               </p>
             </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <RangeField
-              label="Ngưỡng bật quạt"
-              hint="Bật quạt khi nhiệt độ vượt mức này"
-              min={24}
-              max={42}
-              value={draft.highTempC}
-              suffix="°C"
+              label={t('thresholdsLogic.fanTurnOnLabel', 'Ngưỡng bật quạt')}
+              hint={t('thresholdsLogic.fanTurnOnDesc', 'Bật quạt khi nhiệt độ vượt mức này')}
+              min={tempUnit === 'F' ? 75 : 24}
+              max={tempUnit === 'F' ? 108 : 42}
+              value={Math.round(convertTemp(draft.highTempC))}
+              suffix={`°${tempUnit}`}
               onChange={(value) => {
-                const newHigh = value;
+                const newHigh = Math.round(tempUnit === 'F' ? (value - 32) / 1.8 : value);
                 const newLow = newHigh <= draft.lowTempC ? newHigh - 1 : draft.lowTempC;
                 setDraft({ ...draft, highTempC: newHigh, lowTempC: newLow });
               }}
             />
             <RangeField
-              label="Ngưỡng ngắt quạt"
-              hint="Tắt quạt khi nhiệt độ xuống dưới mức"
-              min={20}
-              max={40}
-              value={draft.lowTempC}
-              suffix="°C"
+              label={t('thresholdsLogic.fanTurnOffLabel', 'Ngưỡng ngắt quạt')}
+              hint={t('thresholdsLogic.fanTurnOffDesc', 'Tắt quạt khi nhiệt độ xuống dưới mức')}
+              min={tempUnit === 'F' ? 68 : 20}
+              max={tempUnit === 'F' ? 104 : 40}
+              value={Math.round(convertTemp(draft.lowTempC))}
+              suffix={`°${tempUnit}`}
               onChange={(value) => {
-                const newLow = value;
+                const newLow = Math.round(tempUnit === 'F' ? (value - 32) / 1.8 : value);
                 const newHigh = newLow >= draft.highTempC ? newLow + 1 : draft.highTempC;
                 setDraft({ ...draft, lowTempC: newLow, highTempC: newHigh });
               }}
@@ -624,7 +633,6 @@ export function ThresholdsView() {
         </div>
       )}
 
-      {/* @ts-expect-error styled-jsx is not typed */}
       <style jsx global>{`
         @keyframes slideInUp {
           from {

@@ -27,8 +27,10 @@ import {
   saveNotificationConfig,
   testNotification,
 } from "@/services/notification.service";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function NotificationConfigView() {
+  const { t } = useLanguage();
   const [config, setConfig] = useState<NotificationConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -106,15 +108,15 @@ export function NotificationConfigView() {
       setConfig(updated);
       showNotification(
         "success",
-        "Lưu cấu hình thành công",
-        "Thông số kênh thông báo và cảnh báo đã được lưu lại hệ thống."
+        t('notificationsConfig.toast.saveSuccessTitle', "Lưu cấu hình thành công"),
+        t('notificationsConfig.toast.saveSuccessMsg', "Thông số kênh thông báo và cảnh báo đã được lưu lại hệ thống.")
       );
     } catch (err) {
       console.error("Lỗi lưu cấu hình:", err);
       showNotification(
         "error",
-        "Lỗi lưu cấu hình",
-        "Không thể lưu cấu hình thông báo. Vui lòng kiểm tra kết nối."
+        t('notificationsConfig.toast.saveFailTitle', "Lỗi lưu cấu hình"),
+        t('notificationsConfig.toast.saveFailMsg', "Không thể lưu cấu hình thông báo. Vui lòng kiểm tra kết nối.")
       );
     } finally {
       setSaving(false);
@@ -127,14 +129,14 @@ export function NotificationConfigView() {
       const result = await testNotification("telegram");
       showNotification(
         "success",
-        "Gửi thử nghiệm thành công",
-        result.message || "Đã gửi tin nhắn kiểm tra qua Telegram."
+        t('notificationsConfig.toast.testSuccessTitle', "Gửi thử nghiệm thành công"),
+        result.message || t('notificationsConfig.toast.testTgMsg', "Đã gửi tin nhắn kiểm tra qua Telegram.")
       );
     } catch (err: unknown) {
       showNotification(
         "error",
-        "Gửi thử nghiệm thất bại",
-        err instanceof Error ? err.message : "Gửi thử nghiệm qua Telegram thất bại."
+        t('notificationsConfig.toast.testFailTitle', "Gửi thử nghiệm thất bại"),
+        err instanceof Error ? err.message : t('notificationsConfig.toast.testFailTitle', "Gửi thử nghiệm qua Telegram thất bại.")
       );
     } finally {
       setTestingTg(false);
@@ -147,14 +149,14 @@ export function NotificationConfigView() {
       const result = await testNotification("email");
       showNotification(
         "success",
-        "Gửi thử nghiệm thành công",
-        result.message || "Đã gửi email kiểm tra đến hòm thư SMTP."
+        t('notificationsConfig.toast.testSuccessTitle', "Gửi thử nghiệm thành công"),
+        result.message || t('notificationsConfig.toast.testEmailMsg', "Đã gửi email kiểm tra đến hòm thư SMTP.")
       );
     } catch (err: unknown) {
       showNotification(
         "error",
-        "Gửi thử nghiệm thất bại",
-        err instanceof Error ? err.message : "Gửi email thử nghiệm SMTP thất bại."
+        t('notificationsConfig.toast.testFailTitle', "Gửi thử nghiệm thất bại"),
+        err instanceof Error ? err.message : t('notificationsConfig.toast.testFailTitle', "Gửi email thử nghiệm SMTP thất bại.")
       );
     } finally {
       setTestingEmail(false);
@@ -168,7 +170,7 @@ export function NotificationConfigView() {
     return (
       <div className="notif-loading">
         <Loader2 size={32} className="animate-spin text-green-500" />
-        <p>Đang tải cấu hình...</p>
+        <p>{t('notificationsConfig.loading', 'Đang tải cấu hình...')}</p>
       </div>
     );
   }
@@ -182,12 +184,11 @@ export function NotificationConfigView() {
         </div>
         <div>
           <span className="notif-badge-pill">
-            <Bell size={11} /> Cấu hình hệ thống
+            <Bell size={11} /> {t('notificationsConfig.systemConfig', 'Cấu hình hệ thống')}
           </span>
-          <h2 className="notif-header-title">Cấu hình thông báo</h2>
+          <h2 className="notif-header-title">{t('notificationsConfig.title', 'Cấu hình thông báo')}</h2>
           <p className="notif-header-desc">
-            Thiết lập kênh nhận cảnh báo qua Telegram hoặc Email khi hệ thống
-            phát hiện sự cố hoặc thực hiện hành động tự động.
+            {t('notificationsConfig.desc', 'Thiết lập kênh nhận cảnh báo qua Telegram hoặc Email khi hệ thống phát hiện sự cố hoặc thực hiện hành động tự động.')}
           </p>
         </div>
       </div>
@@ -214,11 +215,11 @@ export function NotificationConfigView() {
                   >
                     {isTelegramConfigured ? (
                       <>
-                        <CheckCircle2 size={12} /> Đã cấu hình
+                        <CheckCircle2 size={12} /> {t('notificationsConfig.configured', 'Đã cấu hình')}
                       </>
                     ) : (
                       <>
-                        <AlertTriangle size={12} /> Chưa cấu hình
+                        <AlertTriangle size={12} /> {t('notificationsConfig.notConfigured', 'Chưa cấu hình')}
                       </>
                     )}
                   </span>
@@ -231,7 +232,7 @@ export function NotificationConfigView() {
                   <input
                     id="tg-bot-token"
                     type="password"
-                    placeholder="Nhập Bot Token từ @BotFather..."
+                    placeholder={t('notificationsConfig.botTokenPlaceholder', 'Nhập Bot Token từ @BotFather...')}
                     value={tgBotToken}
                     onChange={(e) => setTgBotToken(e.target.value)}
                     onFocus={(e) => {
@@ -247,7 +248,7 @@ export function NotificationConfigView() {
                   <input
                     id="tg-chat-id"
                     type="text"
-                    placeholder="VD: 123456789"
+                    placeholder={t('notificationsConfig.chatIdPlaceholder', 'VD: 123456789')}
                     value={tgChatId}
                     onChange={(e) => setTgChatId(e.target.value)}
                   />
@@ -256,7 +257,7 @@ export function NotificationConfigView() {
                 <div className="notif-channel-hint">
                   <Info size={14} />
                   <span>
-                    Tạo bot qua{" "}
+                    {t('notificationsConfig.tg.hint.create', 'Tạo bot qua')}{" "}
                     <a
                       href="https://t.me/BotFather"
                       target="_blank"
@@ -264,7 +265,7 @@ export function NotificationConfigView() {
                     >
                       @BotFather <ExternalLink size={10} />
                     </a>{" "}
-                    và lấy Chat ID qua{" "}
+                    {t('notificationsConfig.tg.hint.getId', 'và lấy Chat ID qua')}{" "}
                     <a
                       href="https://t.me/userinfobot"
                       target="_blank"
@@ -285,7 +286,7 @@ export function NotificationConfigView() {
                   ) : (
                     <Send size={14} />
                   )}
-                  Gửi tin nhắn test
+                  {t('notificationsConfig.sendTestMsg', 'Gửi tin nhắn test')}
                 </button>
               </div>
             </div>
@@ -307,11 +308,11 @@ export function NotificationConfigView() {
                   >
                     {isEmailConfigured ? (
                       <>
-                        <CheckCircle2 size={12} /> Đã cấu hình
+                        <CheckCircle2 size={12} /> {t('notificationsConfig.configured', 'Đã cấu hình')}
                       </>
                     ) : (
                       <>
-                        <AlertTriangle size={12} /> Chưa cấu hình
+                        <AlertTriangle size={12} /> {t('notificationsConfig.notConfigured', 'Chưa cấu hình')}
                       </>
                     )}
                   </span>
@@ -320,11 +321,11 @@ export function NotificationConfigView() {
 
               <div className="notif-channel-body">
                 <div className="notif-field">
-                  <label htmlFor="smtp-email">Địa chỉ Email</label>
+                  <label htmlFor="smtp-email">{t('notificationsConfig.emailAddr', 'Địa chỉ Email')}</label>
                   <input
                     id="smtp-email"
                     type="email"
-                    placeholder="VD: your.email@gmail.com"
+                    placeholder={t('notificationsConfig.emailPlaceholder', 'VD: your.email@gmail.com')}
                     value={smtpEmail}
                     onChange={(e) => setSmtpEmail(e.target.value)}
                   />
@@ -335,7 +336,7 @@ export function NotificationConfigView() {
                   <input
                     id="smtp-password"
                     type="password"
-                    placeholder="Nhập App Password..."
+                    placeholder={t('notificationsConfig.appPwdPlaceholder', 'Nhập App Password...')}
                     value={smtpPassword}
                     onChange={(e) => setSmtpPassword(e.target.value)}
                     onFocus={(e) => {
@@ -349,7 +350,7 @@ export function NotificationConfigView() {
                 <div className="notif-channel-hint">
                   <Info size={14} />
                   <span>
-                    Sử dụng{" "}
+                    {t('notificationsConfig.email.hint.prefix', 'Sử dụng')}{" "}
                     <a
                       href="https://myaccount.google.com/apppasswords"
                       target="_blank"
@@ -357,7 +358,7 @@ export function NotificationConfigView() {
                     >
                       App Password <ExternalLink size={10} />
                     </a>{" "}
-                    thay cho mật khẩu Gmail thông thường (cần bật 2FA trước).
+                    {t('notificationsConfig.email.hint.suffix', 'thay cho mật khẩu Gmail thông thường (cần bật 2FA trước).')}
                   </span>
                 </div>
 
@@ -371,7 +372,7 @@ export function NotificationConfigView() {
                   ) : (
                     <Send size={14} />
                   )}
-                  Gửi email test
+                  {t('notificationsConfig.sendTestEmail', 'Gửi email test')}
                 </button>
               </div>
             </div>
@@ -380,7 +381,7 @@ export function NotificationConfigView() {
           {/* Notification Triggers */}
           <div className="notif-triggers-card">
             <h3 className="notif-triggers-title">
-              <Zap size={18} /> Điều kiện gửi thông báo
+              <Zap size={18} /> {t('notificationsConfig.triggerTitle', 'Điều kiện gửi thông báo')}
             </h3>
 
             <div className="notif-triggers-list">
@@ -388,8 +389,8 @@ export function NotificationConfigView() {
                 <div className="notif-trigger-info">
                   <ShieldAlert size={18} className="text-red-500" />
                   <div>
-                    <h4>Khi có lỗi / sự cố</h4>
-                    <p>Thông báo khi cảm biến mất kết nối, thiết bị offline, hoặc giá trị vượt ngưỡng.</p>
+                    <h4>{t('notificationsConfig.triggerError', 'Khi có lỗi / sự cố')}</h4>
+                    <p>{t('notificationsConfig.triggerErrorDesc', 'Thông báo khi cảm biến mất kết nối, thiết bị offline, hoặc giá trị vượt ngưỡng.')}</p>
                   </div>
                 </div>
                 <label className="notif-switch">
@@ -407,8 +408,8 @@ export function NotificationConfigView() {
                 <div className="notif-trigger-info">
                   <Zap size={18} className="text-amber-500" />
                   <div>
-                    <h4>Khi thực hiện hành động tự động</h4>
-                    <p>Thông báo khi hệ thống tự bật/tắt máy bơm, quạt, hoặc thiết bị khác.</p>
+                    <h4>{t('notificationsConfig.triggerAction', 'Khi thực hiện hành động tự động')}</h4>
+                    <p>{t('notificationsConfig.triggerActionDesc', 'Thông báo khi hệ thống tự bật/tắt máy bơm, quạt, hoặc thiết bị khác.')}</p>
                   </div>
                 </div>
                 <label className="notif-switch">
@@ -437,7 +438,7 @@ export function NotificationConfigView() {
               ) : (
                 <Save size={18} />
               )}
-              Lưu cấu hình
+              {t('notificationsConfig.saveConfig', 'Lưu cấu hình')}
             </button>
           </div>
         </div>
@@ -446,63 +447,47 @@ export function NotificationConfigView() {
         <aside className="notif-guide-panel">
           <div className="notif-guide-header">
             <HelpCircle size={20} className="text-emerald-600" />
-            <h3>Hướng dẫn liên kết</h3>
+            <h3>{t('notificationsConfig.guideTitle', 'Hướng dẫn liên kết')}</h3>
           </div>
 
           <div className="notif-guide-section">
             <div className="notif-guide-section-title">
               <MessageCircle size={16} className="text-sky-500" />
-              <h4>Cấu hình Telegram Bot</h4>
+              <h4>{t('notificationsConfig.tgSetup', 'Cấu hình Telegram Bot')}</h4>
             </div>
             <ol className="notif-guide-steps">
-              <li>
-                <strong>Bước 1:</strong> Chat với <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>, gửi lệnh <code>/newbot</code> để tạo và nhận <strong>Bot Token</strong>.
-              </li>
-              <li>
-                <strong>Bước 2:</strong> Nhấp vào link bot vừa tạo và nhấn <strong>Bắt đầu (/start)</strong> để kích hoạt.
-              </li>
-              <li>
-                <strong>Bước 3:</strong> Chat hoặc chuyển tiếp tin nhắn bất kỳ tới <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer">@userinfobot</a> để nhận <strong>Chat ID</strong> của bạn.
-              </li>
-              <li>
-                <strong>Bước 4:</strong> Điền thông tin vào form và nhấn <strong>Gửi tin nhắn test</strong> để kiểm tra.
-              </li>
+              <li dangerouslySetInnerHTML={{ __html: t('notificationsConfig.tgSteps.step1', '<strong>Bước 1:</strong> Chat với <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>, gửi lệnh <code>/newbot</code> để tạo và nhận <strong>Bot Token</strong>.') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('notificationsConfig.tgSteps.step2', '<strong>Bước 2:</strong> Nhấp vào link bot vừa tạo và nhấn <strong>Bắt đầu (/start)</strong> để kích hoạt.') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('notificationsConfig.tgSteps.step3', '<strong>Bước 3:</strong> Chat hoặc chuyển tiếp tin nhắn bất kỳ tới <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer">@userinfobot</a> để nhận <strong>Chat ID</strong> của bạn.') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('notificationsConfig.tgSteps.step4', '<strong>Bước 4:</strong> Điền thông tin vào form và nhấn <strong>Gửi tin nhắn test</strong> để kiểm tra.') }} />
             </ol>
           </div>
 
           <div className="notif-guide-section">
             <div className="notif-guide-section-title">
               <Mail size={16} className="text-amber-500" />
-              <h4>Cấu hình Email (SMTP)</h4>
+              <h4>{t('notificationsConfig.emailSetup', 'Cấu hình Email (SMTP)')}</h4>
             </div>
             <ol className="notif-guide-steps">
-              <li>
-                <strong>Bước 1:</strong> Truy cập tài khoản Google của bạn, đảm bảo đã bật <strong>Xác minh 2 bước</strong>.
-              </li>
-              <li>
-                <strong>Bước 2:</strong> Truy cập trang <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer">Mật khẩu ứng dụng</a>.
-              </li>
-              <li>
-                <strong>Bước 3:</strong> Tạo một mật khẩu ứng dụng mới với tên gợi nhớ (VD: <em>EcoGreen App</em>).
-              </li>
-              <li>
-                <strong>Bước 4:</strong> Copy mật khẩu 16 chữ số được tạo và dán vào ô <strong>App Password</strong> bên trái.
-              </li>
+              <li dangerouslySetInnerHTML={{ __html: t('notificationsConfig.emailSteps.step1', '<strong>Bước 1:</strong> Truy cập tài khoản Google của bạn, đảm bảo đã bật <strong>Xác minh 2 bước</strong>.') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('notificationsConfig.emailSteps.step2', '<strong>Bước 2:</strong> Truy cập trang <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer">Mật khẩu ứng dụng</a>.') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('notificationsConfig.emailSteps.step3', '<strong>Bước 3:</strong> Tạo một mật khẩu ứng dụng mới với tên gợi nhớ (VD: <em>EcoGreen App</em>).') }} />
+              <li dangerouslySetInnerHTML={{ __html: t('notificationsConfig.emailSteps.step4', '<strong>Bước 4:</strong> Copy mật khẩu 16 chữ số được tạo và dán vào ô <strong>App Password</strong> bên trái.') }} />
             </ol>
           </div>
 
           {/* Visual Alert Flow Diagram */}
           <div className="notif-guide-visual">
-            <h5>Quy trình gửi cảnh báo</h5>
+            <h5>{t('notificationsConfig.alertProcess', 'Quy trình gửi cảnh báo')}</h5>
             <div className="notif-flow-diagram">
               <div className="notif-flow-node notif-flow-node--sensor">
                 <Leaf size={14} />
-                <span>Cảnh báo lỗi</span>
+                <span>{t('notificationsConfig.errorAlert', 'Cảnh báo lỗi')}</span>
               </div>
               <span className="notif-flow-arrow">➔</span>
               <div className="notif-flow-node notif-flow-node--engine">
                 <Zap size={14} />
-                <span>Xử lý & Lọc</span>
+                <span>{t('notificationsConfig.processFilter', 'Xử lý & Lọc')}</span>
               </div>
               <span className="notif-flow-arrow">➔</span>
               <div className="notif-flow-node notif-flow-node--channel">

@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { useLanguage } from "@/context/LanguageContext";
 import {
   createEmptyScheduleRule,
   loadScheduleState,
@@ -58,6 +59,37 @@ function sortSchedules(schedules: ScheduleRule[]) {
 }
 
 export function ScheduleView() {
+  const { t, language } = useLanguage();
+
+  // Translate advisory text (from mock/backend - Vietnamese)
+  const translateAdvisory = (text: string): string => {
+    if (language === "vi" || !text) return text;
+    const lower = text.toLowerCase();
+    if (lower.includes("độ ẩm đất") && lower.includes("cao")) {
+      return "Soil moisture is high in the West wing. AI recommends skipping the 04:30 PM cycle today to prevent root rot.";
+    }
+    if (lower.includes("độ ẩm đất") && lower.includes("thấp")) {
+      return "Soil moisture is lower than optimal. AI recommends increasing watering frequency.";
+    }
+    if (lower.includes("nguy cơ mưa")) {
+      return "Rain risk detected. AI recommends skipping the upcoming watering cycle.";
+    }
+    return text;
+  };
+
+  // Translate schedule title (Vietnamese names from backend)
+  const translateScheduleTitle = (title: string): string => {
+    if (language === "vi" || !title) return title;
+    const lower = title.toLowerCase();
+    if (lower.includes("chu kỳ tưới mới") || lower.includes("chu ky tuoi moi")) {
+      return "New Watering Cycle";
+    }
+    if (lower.includes("phun sương")) return title.replace(/phun sương/gi, "Misting");
+    if (lower.includes("tưới đẫm")) return title.replace(/tưới đẫm/gi, "Deep irrigation");
+    return title;
+  };
+  const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  const CHART_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   const [draft, setDraft] = useState<ScheduleState | null>(null);
   const [saved, setSaved] = useState<ScheduleState | null>(null);
   const [toast, setToast] = useState<{
@@ -124,7 +156,7 @@ export function ScheduleView() {
       <div className="flex min-h-[60vh] items-center justify-center rounded-[2rem] bg-white shadow-sm">
         <div className="flex items-center gap-3 text-sm font-medium text-[#5d6c63]">
           <Loader2 className="size-4 animate-spin" />
-          Đang tải màn lịch trình...
+          {t("schedule.loading", "Đang tải màn lịch trình...")}
         </div>
       </div>
     );
@@ -169,8 +201,10 @@ export function ScheduleView() {
     if (hasOverlap) {
       showNotification(
         "error",
-        "Lịch trùng thời gian",
-        `Không thể ${scheduleModal?.mode === "edit" ? "cập nhật" : "thêm"} vì đã có lịch trùng giờ (${formatTime(rule.time)}) vào ngày được chọn.`
+        t("schedule.overlapTitle", "Lịch trùng thời gian"),
+        t("schedule.overlapMsg", "Không thể {mode} vì đã có lịch trùng giờ ({time}) vào ngày được chọn.")
+          .replace("{mode}", scheduleModal?.mode === "edit" ? t("schedule.modal.edit", "cập nhật").toLowerCase() : t("schedule.modal.createNew", "thêm").toLowerCase())
+          .replace("{time}", formatTime(rule.time))
       );
       return;
     }
@@ -185,10 +219,10 @@ export function ScheduleView() {
     
     showNotification(
       "success",
-      scheduleModal?.mode === "edit" ? "Cập nhật thành công" : "Thêm lịch thành công",
+      scheduleModal?.mode === "edit" ? t("schedule.updateSuccessTitle", "Cập nhật thành công") : t("schedule.addSuccessTitle", "Thêm lịch thành công"),
       scheduleModal?.mode === "edit"
-        ? `Lịch trình "${rule.title}" đã được cập nhật nháp.`
-        : `Lịch trình "${rule.title}" đã được thêm nháp thành công.`
+        ? t("schedule.updateSuccessMsg", 'Lịch trình "{title}" đã được cập nhật nháp.').replace("{title}", rule.title)
+        : t("schedule.addSuccessMsg", 'Lịch trình "{title}" đã được thêm nháp thành công.').replace("{title}", rule.title)
     );
     
     setScheduleModal(null);
@@ -209,14 +243,14 @@ export function ScheduleView() {
       setSaved(normalized);
       showNotification(
         "success",
-        "Lưu lịch trình thành công",
-        "Cấu hình lịch tưới tự động đã được lưu lại hệ thống."
+        t("schedule.saveSuccessTitle", "Lưu lịch trình thành công"),
+        t("schedule.saveSuccessMsg", "Cấu hình lịch tưới tự động đã được lưu lại hệ thống.")
       );
     } catch (error) {
       showNotification(
         "error",
-        "Lỗi lưu lịch trình",
-        "Không thể lưu lịch trình tới máy chủ. Vui lòng kiểm tra lại kết nối."
+        t("schedule.saveFailTitle", "Lỗi lưu lịch trình"),
+        t("schedule.saveFailMsg", "Không thể lưu lịch trình tới máy chủ. Vui lòng kiểm tra lại kết nối.")
       );
     } finally {
       setSaving(false);
@@ -245,19 +279,19 @@ export function ScheduleView() {
       <section className="sc-header">
         <div className="sc-header-left">
           <span className="sc-badge-pill">
-            <CalendarClock size={13} /> Lịch tưới tự động
+            <CalendarClock size={13} /> {t("schedule.autoWatering", "Lịch tưới tự động")}
           </span>
-          <h1 className="sc-title">Quản lý lịch tưới</h1>
+          <h1 className="sc-title">{t("schedule.title", "Quản lý lịch tưới")}</h1>
           <p className="sc-subtitle">
-            Thiết lập chu kỳ tưới tiêu tự động cho các khu vực canh tác.
+            {t("schedule.subtitle", "Thiết lập chu kỳ tưới tiêu tự động cho các khu vực canh tác.")}
           </p>
         </div>
         <div className="sc-header-actions">
           <div className="sc-toggle-card">
             <div>
-              <span className="sc-toggle-label">Kích hoạt lịch tưới</span>
+              <span className="sc-toggle-label">{t("schedule.activate", "Kích hoạt lịch tưới")}</span>
               <p className="sc-toggle-status">
-                {draft.enabled ? "Đang hoạt động" : "Tạm dừng"}
+                {draft.enabled ? t("schedule.active", "Đang hoạt động") : t("schedule.paused", "Tạm dừng")}
               </p>
             </div>
             <ToggleSwitch
@@ -272,7 +306,7 @@ export function ScheduleView() {
             className="sc-save-btn"
           >
             {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            Lưu thay đổi
+            {t("schedule.saveChanges", "Lưu thay đổi")}
           </button>
         </div>
       </section>
@@ -282,14 +316,14 @@ export function ScheduleView() {
         {/* Left: Schedule List */}
         <section className="sc-left">
           <div className="sc-section-header">
-            <h2 className="sc-section-title">Chu kỳ sắp tới</h2>
+            <h2 className="sc-section-title">{t("schedule.upcomingCycles", "Chu kỳ sắp tới")}</h2>
             <button
               type="button"
               onClick={openCreateScheduleModal}
               className="sc-add-btn"
             >
               <Plus className="size-4" />
-              Thêm lịch mới
+              {t("schedule.addNew", "Thêm lịch mới")}
             </button>
           </div>
 
@@ -304,7 +338,7 @@ export function ScheduleView() {
                       <Icon className="size-6" />
                     </div>
                     <div>
-                      <h3 className="sc-card-title">{schedule.title}</h3>
+                      <h3 className="sc-card-title">{translateScheduleTitle(schedule.title)}</h3>
                       <p className="sc-card-zone">{schedule.zone}</p>
                       <div className="sc-card-meta">
                         <span className="sc-meta-item">
@@ -313,7 +347,7 @@ export function ScheduleView() {
                         </span>
                         <span className="sc-meta-item">
                           <TimerReset className="size-3.5" />
-                          {schedule.durationMinutes} phút
+                          {schedule.durationMinutes} {t("schedule.minutesLabel", "phút")}
                         </span>
                       </div>
                       <div className="sc-day-pills">
@@ -324,7 +358,7 @@ export function ScheduleView() {
                               schedule.days.includes(index) ? "sc-day-pill--active" : ""
                             }`}
                           >
-                            {day}
+                            {t(`schedule.days.${DAY_KEYS[index]}`, day)}
                           </span>
                         ))}
                       </div>
@@ -365,14 +399,14 @@ export function ScheduleView() {
           <div className="sc-ai-banner">
             <p className="sc-ai-text">
               <Sparkles className="size-4 text-emerald-500" />
-              Tối ưu hóa lịch trình dựa trên thông tin AI về khí hậu địa phương.
+              {t("schedule.aiOptimization", "Tối ưu hóa lịch trình dựa trên thông tin AI về khí hậu địa phương.")}
             </p>
             <button
               type="button"
               onClick={applySkipSuggestion}
               className="sc-ai-btn"
             >
-              Áp dụng gợi ý
+              {t("schedule.applySuggestion", "Áp dụng gợi ý")}
             </button>
           </div>
         </section>
@@ -381,9 +415,9 @@ export function ScheduleView() {
         <section className="sc-right">
           <div className="sc-panel">
             <div className="sc-panel-header">
-              <h2 className="sc-panel-title">Dự báo tiêu thụ</h2>
+              <h2 className="sc-panel-title">{t("schedule.consumptionForecast", "Dự báo tiêu thụ")}</h2>
               <p className="sc-panel-subtitle">
-                Lít nước mỗi giờ theo lịch hiện tại trong 7 ngày gần nhất.
+                {t("schedule.consumptionDesc", "Lít nước mỗi giờ theo lịch hiện tại trong 7 ngày gần nhất.")}
               </p>
             </div>
 
@@ -399,15 +433,15 @@ export function ScheduleView() {
                       className={`sc-bar ${isPeak ? "sc-bar--peak" : ""}`}
                       style={{ height: `${peakValue > 0 ? Math.max(12, (value / peakValue) * 110) : 12}px` }}
                     />
-                    <span className="sc-bar-label">{CHART_LABELS[index]}</span>
+                    <span className="sc-bar-label">{t(`schedule.days.${CHART_KEYS[index]}`, CHART_LABELS[index])}</span>
                   </div>
                 );
               })}
             </div>
 
             <div className="sc-summary-row">
-              <SummaryCard label="Tổng thể tích" value={`${totalConsumption}L`} tone="green" />
-              <SummaryCard label="Tiết kiệm" value={`${draft.projectedSavingsPercent}%`} tone="violet" />
+              <SummaryCard label={t("schedule.totalVolume", "Tổng thể tích")} value={`${totalConsumption}L`} tone="green" />
+              <SummaryCard label={t("schedule.savings", "Tiết kiệm")} value={`${draft.projectedSavingsPercent}%`} tone="violet" />
             </div>
           </div>
 
@@ -415,10 +449,10 @@ export function ScheduleView() {
             <div className="sc-advisory-icon">
               <Sparkles className="size-5" />
             </div>
-            <h3 className="sc-advisory-title">Cảnh báo độ ẩm</h3>
-            <p className="sc-advisory-text">{draft.advisory}</p>
+            <h3 className="sc-advisory-title">{t("schedule.moistureWarning", "Cảnh báo độ ẩm")}</h3>
+            <p className="sc-advisory-text">{translateAdvisory(draft.advisory)}</p>
             <div className="sc-advisory-tag">
-              Đỉnh tiêu thụ tuần này: {CHART_LABELS[peakIndex]}
+              {t("schedule.peakConsumption", "Đỉnh tiêu thụ tuần này: ")}{t(`schedule.days.${CHART_KEYS[peakIndex]}`, CHART_LABELS[peakIndex])}
             </div>
           </div>
         </section>
@@ -862,6 +896,8 @@ function ScheduleRuleModal({
   onClose: () => void;
   onSubmit: (rule: ScheduleRule) => void;
 }) {
+  const { t } = useLanguage();
+  const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
   const [form, setForm] = useState<ScheduleRule>(rule);
   const resolvedZoneOptions = Array.from(
     new Set([form.zone, ...zoneOptions].filter(Boolean)),
@@ -891,8 +927,8 @@ function ScheduleRuleModal({
 
     onSubmit({
       ...form,
-      title: form.title.trim() || "Chu kỳ tưới mới",
-      zone: form.zone || resolvedZoneOptions[0] || "Khu canh tác",
+      title: form.title.trim() || t("schedule.modal.defaultTitle", "Chu kỳ tưới mới"),
+      zone: form.zone || resolvedZoneOptions[0] || t("schedule.modal.defaultZone", "Khu canh tác"),
       durationMinutes: Math.max(5, Math.min(180, form.durationMinutes)),
       days: form.days.length > 0 ? form.days : [1],
     });
@@ -908,13 +944,13 @@ function ScheduleRuleModal({
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-7 py-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">
-              {mode === "create" ? "Tạo mới" : "Chỉnh sửa"}
+              {mode === "create" ? t("schedule.modal.createNew", "Tạo mới") : t("schedule.modal.edit", "Chỉnh sửa")}
             </p>
             <h3 className="mt-1 text-xl font-extrabold tracking-tight text-slate-900">
-              {mode === "create" ? "Thêm lịch tưới" : "Cập nhật lịch tưới"}
+              {mode === "create" ? t("schedule.modal.addTitle", "Thêm lịch tưới") : t("schedule.modal.updateTitle", "Cập nhật lịch tưới")}
             </h3>
             <p className="mt-1 text-sm text-slate-400">
-              Khu vực được lấy theo tên thiết bị đã đăng ký.
+              {t("schedule.modal.areaHelp", "Khu vực được lấy theo tên thiết bị đã đăng ký.")}
             </p>
           </div>
           <button
@@ -929,19 +965,19 @@ function ScheduleRuleModal({
         {/* Form Body */}
         <div className="grid gap-5 px-7 py-6 md:grid-cols-2">
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Tên lịch</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.nameLabel", "Tên lịch")}</span>
             <input
               type="text"
               value={form.title}
               onChange={(event) => updateField("title", event.target.value)}
-              placeholder="VD: Tưới sáng sớm"
+              placeholder={t("schedule.modal.namePlaceholder", "VD: Tưới sáng sớm")}
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-300 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
               required
             />
           </label>
 
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Khu vực</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.areaLabel", "Khu vực")}</span>
             <select
               value={form.zone}
               onChange={(event) => updateField("zone", event.target.value)}
@@ -956,7 +992,7 @@ function ScheduleRuleModal({
           </label>
 
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Giờ bắt đầu</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.startTimeLabel", "Giờ bắt đầu")}</span>
             <input
               type="time"
               value={form.time}
@@ -967,7 +1003,7 @@ function ScheduleRuleModal({
           </label>
 
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Thời lượng (phút)</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.durationLabel", "Thời lượng (phút)")}</span>
             <input
               type="number"
               min={5}
@@ -982,7 +1018,7 @@ function ScheduleRuleModal({
           </label>
 
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Loại lịch</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.typeLabel", "Loại lịch")}</span>
             <select
               value={form.icon}
               onChange={(event) =>
@@ -990,15 +1026,15 @@ function ScheduleRuleModal({
               }
               className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
             >
-              <option value="sprout">🌱  Tưới cây</option>
-              <option value="waves">💧  Tưới nước</option>
+              <option value="sprout">{t("schedule.modal.typeSprout", "🌱  Tưới cây")}</option>
+              <option value="waves">{t("schedule.modal.typeWaves", "💧  Tưới nước")}</option>
             </select>
           </label>
 
           <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Kích hoạt lịch</span>
-              <p className="mt-0.5 text-xs text-slate-400">Có hiệu lực khi ở chế độ tự động.</p>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.activateLabel", "Kích hoạt lịch")}</span>
+              <p className="mt-0.5 text-xs text-slate-400">{t("schedule.modal.activateHelp", "Có hiệu lực khi ở chế độ tự động.")}</p>
             </div>
             <ToggleSwitch
               checked={form.enabled}
@@ -1007,7 +1043,7 @@ function ScheduleRuleModal({
           </div>
 
           <div className="md:col-span-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Ngày tưới trong tuần</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.daysLabel", "Ngày tưới trong tuần")}</span>
             <div className="mt-3 flex flex-wrap gap-2">
               {DAY_LABELS.map((day, index) => {
                 const active = form.days.includes(index);
@@ -1022,7 +1058,7 @@ function ScheduleRuleModal({
                         : "border border-slate-200 bg-white text-slate-500 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600"
                     }`}
                   >
-                    {day}
+                    {t(`schedule.days.${DAY_KEYS[index]}`, day)}
                   </button>
                 );
               })}
@@ -1037,13 +1073,13 @@ function ScheduleRuleModal({
             onClick={onClose}
             className="rounded-xl border border-slate-200 px-6 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
           >
-            Hủy bỏ
+            {t("schedule.modal.cancel", "Hủy bỏ")}
           </button>
           <button
             type="submit"
             className="rounded-xl bg-[#0b7a50] px-7 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(11,122,80,0.22)] transition hover:translate-y-[-1px] hover:shadow-[0_12px_24px_rgba(11,122,80,0.28)]"
           >
-            {mode === "create" ? "✓  Thêm lịch" : "✓  Lưu thay đổi"}
+            {mode === "create" ? t("schedule.modal.submitAdd", "✓  Thêm lịch") : t("schedule.modal.submitSave", "✓  Lưu thay đổi")}
           </button>
         </div>
       </form>

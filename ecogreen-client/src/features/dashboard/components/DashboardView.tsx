@@ -27,6 +27,7 @@ import { requestJson } from "@/services/api";
 import { useRealtimeTelemetry } from "@/features/shared/useRealtimeTelemetry";
 import type { Device } from "@/types";
 import type { TelemetrySnapshot } from "@/types/automation";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ActivityLog {
   Log_ID: string;
@@ -36,18 +37,18 @@ interface ActivityLog {
   occurred_at: string;
 }
 
-function sensorValue(type: "temp" | "humi" | "soil" | "light", telemetry: TelemetrySnapshot) {
-  if (type === "temp") return `${telemetry.temp.toFixed(1)}°C`;
+function sensorValue(type: "temp" | "humi" | "soil" | "light", telemetry: TelemetrySnapshot, formatTemp?: (val: number, dec?: number) => string) {
+  if (type === "temp") return formatTemp ? formatTemp(telemetry.temp) : `${telemetry.temp.toFixed(1)}°C`;
   if (type === "humi") return `${telemetry.humi.toFixed(0)}%`;
   if (type === "soil") return `${telemetry.soil.toFixed(0)}%`;
   return `${telemetry.light.toFixed(0)} lux`;
 }
 
-function formatTime(value?: string | null) {
-  if (!value) return "Chưa ghi nhận";
+function formatTime(value?: string | null, locale = "vi-VN", fallbackText = "Chưa ghi nhận") {
+  if (!value) return fallbackText;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Chưa ghi nhận";
-  return date.toLocaleString("vi-VN");
+  if (Number.isNaN(date.getTime())) return fallbackText;
+  return date.toLocaleString(locale);
 }
 
 function getLogIconAndClass(log: ActivityLog) {
@@ -79,6 +80,7 @@ function getLogIconAndClass(log: ActivityLog) {
 }
 
 export function DashboardView() {
+  const { language, t, translateLog, formatTemp } = useLanguage();
   const { telemetry, telemetryByMac, connected } = useRealtimeTelemetry();
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
@@ -140,7 +142,7 @@ export function DashboardView() {
       <div className="db-loader-container">
         <div className="db-loader-card">
           <Loader2 className="db-loader-spinner animate-spin" />
-          <span>Đang tải dashboard...</span>
+          <span>{t('dashboard.loader', 'Đang tải dashboard...')}</span>
         </div>
         <style jsx global>{`
           .db-loader-container {
@@ -183,26 +185,28 @@ export function DashboardView() {
               }`}
             >
               {connected ? <Wifi size={13} /> : <WifiOff size={13} />}
-              {connected ? "Realtime online" : "Đang chờ realtime"}
+              {connected ? t('dashboard.realtimeOnline', "Realtime online") : t('dashboard.waitingRealtime', "Đang chờ realtime")}
             </span>
             <span className="db-badge-pill db-badge-pill--count">
-              {onlineCount}/{devices.length} ESP online
+              {t('dashboard.espOnline', '{online}/{total} ESP online')
+                .replace('{online}', String(onlineCount))
+                .replace('{total}', String(devices.length))}
             </span>
           </div>
-          <h1 className="db-title">Tổng quan nhà vườn</h1>
+          <h1 className="db-title">{t('dashboard.title', 'Tổng quan nhà vườn')}</h1>
           <p className="db-subtitle">
-            Theo dõi nhanh thiết bị, cảm biến, máy bơm và hoạt động gần đây.
+            {t('dashboard.subtitle', 'Theo dõi nhanh thiết bị, cảm biến, máy bơm và hoạt động gần đây.')}
           </p>
         </div>
 
         <div className="db-header-actions">
           <Link href="/dashboard/devices" className="db-btn db-btn--primary">
             <Cpu size={15} />
-            Quản lý thiết bị
+            {t('dashboard.manageDevices', 'Quản lý thiết bị')}
           </Link>
           <Link href="/schedule" className="db-btn db-btn--secondary">
             <CalendarClock size={15} />
-            Lịch tưới
+            {t('dashboard.wateringSchedules', 'Lịch tưới')}
           </Link>
         </div>
       </section>
@@ -211,9 +215,9 @@ export function DashboardView() {
       <section className="db-summary-grid">
         <SummaryCard 
           icon={<Cpu size={24} />} 
-          label="ESP đã đăng ký" 
+          label={t('dashboard.registeredEsp', 'ESP đã đăng ký')} 
           value={devices.length.toString()} 
-          subtext="Thiết bị phần cứng"
+          subtext={t('dashboard.hardwareDevice', 'Thiết bị phần cứng')}
           badge={
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-50 text-slate-700 border border-slate-100">
               V1.0 Cloud
@@ -223,9 +227,9 @@ export function DashboardView() {
         />
         <SummaryCard 
           icon={<Radio size={24} />} 
-          label="Đang online" 
+          label={t('dashboard.onlineStatus', 'Đang online')} 
           value={onlineCount.toString()} 
-          subtext={onlineCount > 0 ? "Kết nối hoạt động tốt" : "Không có kết nối"}
+          subtext={onlineCount > 0 ? t('dashboard.connectionGood', 'Kết nối hoạt động tốt') : t('dashboard.noConnection', 'Không có kết nối')}
           badge={
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-100">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -236,24 +240,24 @@ export function DashboardView() {
         />
         <SummaryCard 
           icon={<Activity size={24} />} 
-          label="Sensors" 
+          label={t('dashboard.sensorsLabel', 'Sensors')} 
           value={sensorCount.toString()} 
-          subtext="Cảm biến môi trường"
+          subtext={t('dashboard.sensorsDesc', 'Cảm biến môi trường')}
           badge={
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-100">
-              Đầy đủ
+              {t('dashboard.sensorsFull', 'Đầy đủ')}
             </span>
           }
           tone="amber" 
         />
         <SummaryCard 
           icon={<Zap size={24} />} 
-          label="Pumps" 
+          label={t('dashboard.pumpsLabel', 'Pumps')} 
           value={actuatorCount.toString()} 
-          subtext="Bơm nước & quạt gió"
+          subtext={t('dashboard.pumpsDesc', 'Bơm nước & quạt gió')}
           badge={
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-100">
-              Sẵn sàng
+              {t('dashboard.pumpsReady', 'Sẵn sàng')}
             </span>
           }
           tone="blue" 
@@ -268,10 +272,10 @@ export function DashboardView() {
             <div className="db-panel-title-area">
               <h2 className="db-panel-title">
                 <Activity size={18} style={{ color: "#22c55e" }} />
-                Thông số hiện tại
+                {t('dashboard.currentParams', 'Thông số hiện tại')}
               </h2>
               <p className="db-panel-subtitle">
-                {selectedDevice ? selectedDevice.name : "Chưa có thiết bị"}
+                {selectedDevice ? selectedDevice.name : t('dashboard.noEspTitle', 'Chưa có thiết bị')}
               </p>
             </div>
             {devices.length > 0 ? (
@@ -290,16 +294,16 @@ export function DashboardView() {
           </div>
 
           <div className="db-metric-grid">
-            <MetricCard icon={<Thermometer size={20} />} label="Nhiệt độ" value={sensorValue("temp", selectedTelemetry)} tone="red" />
-            <MetricCard icon={<Wind size={20} />} label="Độ ẩm khí" value={sensorValue("humi", selectedTelemetry)} tone="blue" />
-            <MetricCard icon={<Droplets size={20} />} label="Độ ẩm đất" value={sensorValue("soil", selectedTelemetry)} tone="emerald" />
-            <MetricCard icon={<Waves size={20} />} label="Ánh sáng" value={sensorValue("light", selectedTelemetry)} tone="amber" />
+            <MetricCard icon={<Thermometer size={20} />} label={t('history.metrics.temp', 'Nhiệt độ')} value={formatTemp(selectedTelemetry.temp)} tone="red" />
+            <MetricCard icon={<Wind size={20} />} label={t('history.metrics.humi', 'Độ ẩm khí')} value={sensorValue("humi", selectedTelemetry)} tone="blue" />
+            <MetricCard icon={<Droplets size={20} />} label={t('history.metrics.soil', 'Độ ẩm đất')} value={sensorValue("soil", selectedTelemetry)} tone="emerald" />
+            <MetricCard icon={<Waves size={20} />} label={t('history.metrics.light', 'Ánh sáng')} value={sensorValue("light", selectedTelemetry)} tone="amber" />
           </div>
 
           <div className="db-meta-bar">
             <Clock size={14} />
             <span>
-              Lần cuối online: <strong>{formatTime(selectedDevice?.last_seen_at)}</strong>
+              {t('dashboard.lastSeenLabel', 'Lần cuối online: ')}<strong>{formatTime(selectedDevice?.last_seen_at, language === 'vi' ? 'vi-VN' : 'en-US', t('dashboard.noSeenRecord', 'Chưa ghi nhận'))}</strong>
             </span>
           </div>
         </div>
@@ -308,10 +312,10 @@ export function DashboardView() {
         <div className="db-panel db-panel-4">
           <div className="db-panel-header" style={{ marginBottom: "1.25rem" }}>
             <div className="db-panel-title-area">
-              <h2 className="db-panel-title">Thiết bị</h2>
-              <p className="db-panel-subtitle">Quản lý & cấu hình nhanh</p>
+              <h2 className="db-panel-title">{t('dashboard.devicesTitle', 'Thiết bị')}</h2>
+              <p className="db-panel-subtitle">{t('dashboard.quickConfig', 'Quản lý & cấu hình nhanh')}</p>
             </div>
-            <Link href="/dashboard/devices" className="db-btn db-btn--secondary" style={{ padding: "0.5rem" }} title="Quản lý chi tiết">
+            <Link href="/dashboard/devices" className="db-btn db-btn--secondary" style={{ padding: "0.5rem" }} title={t('dashboard.manageDetailsTitle', 'Quản lý chi tiết')}>
               <ExternalLink size={14} />
             </Link>
           </div>
@@ -334,7 +338,7 @@ export function DashboardView() {
                       <div className={`db-dot ${isDeviceOnline ? "db-dot--online" : ""}`} />
                     </div>
                     <span className={`db-status-pill ${isDeviceOnline ? "db-status-pill--online" : "db-status-pill--offline"}`}>
-                      {device.status}
+                      {device.status === 'online' ? t('deviceList.stats.online', 'Online') : t('deviceList.stats.offline', 'Offline')}
                     </span>
                     <ChevronRight size={13} className="db-link-arrow" />
                   </div>
@@ -344,8 +348,8 @@ export function DashboardView() {
             {devices.length === 0 ? (
               <div className="db-empty-state">
                 <Cpu size={24} style={{ color: "#d1d5db" }} />
-                <h4>Chưa có ESP nào</h4>
-                <p>Nhấp vào Quản lý thiết bị để thêm mới.</p>
+                <h4>{t('dashboard.noEspTitle', 'Chưa có ESP nào')}</h4>
+                <p>{t('dashboard.noEspDesc', 'Nhấp vào Quản lý thiết bị để thêm mới.')}</p>
               </div>
             ) : null}
           </div>
@@ -356,8 +360,8 @@ export function DashboardView() {
       <section className="db-logs-section">
         <div className="db-panel-header" style={{ marginBottom: "1.25rem" }}>
           <div className="db-panel-title-area">
-            <h2 className="db-panel-title">Hoạt động gần đây</h2>
-            <p className="db-panel-subtitle">Lịch sử điều khiển & sự kiện tự động hóa</p>
+            <h2 className="db-panel-title">{t('dashboard.recentActivity', 'Hoạt động gần đây')}</h2>
+            <p className="db-panel-subtitle">{t('dashboard.controlHistory', 'Lịch sử điều khiển & sự kiện tự động hóa')}</p>
           </div>
         </div>
         
@@ -372,19 +376,19 @@ export function DashboardView() {
                       {icon}
                     </div>
                     <div className="db-log-info">
-                      <span className="db-log-desc">{log.description || log.status}</span>
-                      <span className="db-log-time-mobile">{formatTime(log.occurred_at)}</span>
+                      <span className="db-log-desc">{translateLog(log.description || log.status)}</span>
+                      <span className="db-log-time-mobile">{formatTime(log.occurred_at, language === 'vi' ? 'vi-VN' : 'en-US', t('dashboard.noSeenRecord', 'Chưa ghi nhận'))}</span>
                     </div>
                   </div>
-                  <span className="db-log-time-desktop">{formatTime(log.occurred_at)}</span>
+                  <span className="db-log-time-desktop">{formatTime(log.occurred_at, language === 'vi' ? 'vi-VN' : 'en-US', t('dashboard.noSeenRecord', 'Chưa ghi nhận'))}</span>
                 </div>
               );
             })
           ) : (
             <div className="db-empty-state">
               <Info size={28} style={{ color: "#cbd5e1" }} />
-              <h4>Chưa có hoạt động</h4>
-              <p>Chưa có log hoạt động cho thiết bị đang chọn.</p>
+              <h4>{t('dashboard.noActivityTitle', 'Chưa có hoạt động')}</h4>
+              <p>{t('dashboard.noActivityDesc', 'Chưa có log hoạt động cho thiết bị đang chọn.')}</p>
             </div>
           )}
         </div>
@@ -403,9 +407,9 @@ export function DashboardView() {
         .db-header {
           background: white;
           border-radius: 24px;
-          border: 1.5px solid #e5e7eb;
+          border: 1.5px solid rgba(226, 232, 240, 0.8);
           padding: 1.75rem 2rem;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+          box-shadow: 0 10px 25px -5px rgba(0,0,0,0.025), 0 8px 10px -6px rgba(0,0,0,0.025);
           display: flex;
           flex-direction: column;
           gap: 1.25rem;
@@ -566,31 +570,59 @@ export function DashboardView() {
 
         .db-summary-card:hover {
           transform: translateY(-3px);
-          box-shadow: 0 10px 24px rgba(0,0,0,0.05);
         }
 
-        .db-summary-card::before {
+        /* Hover States for Border & Glow Shadows */
+        .db-summary-card--slate:hover {
+          border-color: #cbd5e1;
+          box-shadow: 0 12px 30px rgba(71, 85, 105, 0.08);
+        }
+        .db-summary-card--emerald:hover {
+          border-color: #bbf7d0;
+          box-shadow: 0 12px 30px rgba(34, 197, 94, 0.08);
+        }
+        .db-summary-card--amber:hover {
+          border-color: #fde047;
+          box-shadow: 0 12px 30px rgba(245, 158, 11, 0.08);
+        }
+        .db-summary-card--blue:hover {
+          border-color: #bfdbfe;
+          box-shadow: 0 12px 30px rgba(59, 130, 246, 0.08);
+        }
+
+        /* Subtle Radial Glow in Top-Right on Hover */
+        .db-summary-card::after {
           content: '';
           position: absolute;
           top: 0;
-          left: 0;
           right: 0;
-          height: 4.5px;
-          background: transparent;
-          transition: all 0.25s;
+          width: 100px;
+          height: 100px;
+          border-radius: 50%;
+          transition: transform 0.25s ease;
+          pointer-events: none;
         }
 
-        .db-summary-card--emerald::before { background: linear-gradient(90deg, #4ade80, #22c55e); }
-        .db-summary-card--blue::before { background: linear-gradient(90deg, #38bdf8, #0ea5e9); }
-        .db-summary-card--amber::before { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
-        .db-summary-card--violet::before { background: linear-gradient(90deg, #a78bfa, #8b5cf6); }
-        .db-summary-card--slate::before { background: linear-gradient(90deg, #64748b, #475569); }
+        .db-summary-card--slate::after {
+          background: radial-gradient(circle, rgba(71, 85, 105, 0.04) 0%, transparent 70%);
+          transform: translate(25px, -25px);
+        }
+        .db-summary-card--emerald::after {
+          background: radial-gradient(circle, rgba(34, 197, 94, 0.06) 0%, transparent 70%);
+          transform: translate(25px, -25px);
+        }
+        .db-summary-card--amber::after {
+          background: radial-gradient(circle, rgba(245, 158, 11, 0.06) 0%, transparent 70%);
+          transform: translate(25px, -25px);
+        }
+        .db-summary-card--blue::after {
+          background: radial-gradient(circle, rgba(59, 130, 246, 0.06) 0%, transparent 70%);
+          transform: translate(25px, -25px);
+        }
 
-        .db-summary-card--emerald:hover { border-color: #86efac; }
-        .db-summary-card--blue:hover { border-color: #7dd3fc; }
-        .db-summary-card--amber:hover { border-color: #fde047; }
-        .db-summary-card--violet:hover { border-color: #ddd6fe; }
-        .db-summary-card--slate:hover { border-color: #cbd5e1; }
+        .db-summary-card:hover::after {
+          transform: translate(15px, -15px) scale(1.1);
+        }
 
         .db-summary-card-inner {
           display: flex;
@@ -614,11 +646,11 @@ export function DashboardView() {
           transform: scale(1.08) rotate(3deg);
         }
 
-        .db-summary-icon-wrap--emerald { background: rgba(34, 197, 94, 0.08); color: #16a34a; }
-        .db-summary-icon-wrap--blue { background: rgba(14, 165, 233, 0.08); color: #0ea5e9; }
-        .db-summary-icon-wrap--amber { background: rgba(245, 158, 11, 0.08); color: #f59e0b; }
-        .db-summary-icon-wrap--violet { background: rgba(139, 92, 246, 0.08); color: #8b5cf6; }
         .db-summary-icon-wrap--slate { background: rgba(71, 85, 105, 0.08); color: #475569; }
+        .db-summary-icon-wrap--emerald { background: rgba(34, 197, 94, 0.08); color: #16a34a; }
+        .db-summary-icon-wrap--amber { background: rgba(245, 158, 11, 0.08); color: #f59e0b; }
+        .db-summary-icon-wrap--blue { background: rgba(14, 165, 233, 0.08); color: #0ea5e9; }
+        .db-summary-icon-wrap--violet { background: rgba(139, 92, 246, 0.08); color: #8b5cf6; }
 
         .db-summary-info {
           display: flex;

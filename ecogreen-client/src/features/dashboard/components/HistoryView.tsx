@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { getDevices, getSensorReadings } from "@/services/device.service";
 import type { Device, Sensor } from "@/types";
+import { useLanguage } from "@/context/LanguageContext";
 
 type MetricKey = "temp" | "humi" | "soil" | "light";
 
@@ -93,7 +94,7 @@ function getSensorMetric(sensor: Sensor): MetricKey | null {
   return null;
 }
 
-function formatTime(value: string, timeRange: "day" | "week" | "month") {
+function formatTime(value: string, timeRange: "day" | "week" | "month", locale: string = "vi-VN") {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -101,33 +102,33 @@ function formatTime(value: string, timeRange: "day" | "week" | "month") {
   }
 
   if (timeRange === "day") {
-    return date.toLocaleTimeString("vi-VN", {
+    return date.toLocaleTimeString(locale, {
       hour: "2-digit",
       minute: "2-digit",
     });
   }
 
-  return date.toLocaleDateString("vi-VN", {
+  return date.toLocaleDateString(locale, {
     month: "numeric",
     day: "numeric",
-  }) + " " + date.toLocaleTimeString("vi-VN", {
+  }) + " " + date.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-function formatFullTime(value?: string | null) {
+function formatFullTime(value?: string | null, locale: string = "vi-VN") {
   if (!value) {
-    return "Chưa có dữ liệu";
+    return locale === "vi-VN" ? "Chưa có dữ liệu" : "No data";
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Chưa có dữ liệu";
+    return locale === "vi-VN" ? "Chưa có dữ liệu" : "No data";
   }
 
-  return date.toLocaleString("vi-VN", {
+  return date.toLocaleString(locale, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -155,7 +156,8 @@ function getReadingTime(reading: ReadingLike) {
 
 function buildHistoryPoints(
   readingsByMetric: Partial<Record<MetricKey, ReadingLike[]>>,
-  timeRange: "day" | "week" | "month"
+  timeRange: "day" | "week" | "month",
+  locale: string = "vi-VN"
 ) {
   const byTime = new Map<string, ChartPoint>();
 
@@ -170,7 +172,7 @@ function buildHistoryPoints(
       const recordedAt = getReadingTime(reading);
       const current = byTime.get(recordedAt) ?? {
         recordedAt,
-        time: formatTime(recordedAt, timeRange),
+        time: formatTime(recordedAt, timeRange, locale),
       };
 
       byTime.set(recordedAt, {
@@ -187,12 +189,14 @@ function buildHistoryPoints(
 }
 
 const CustomTooltip = ({ active, payload }: any) => {
+  const { language, t, tempUnit } = useLanguage();
+  const locale = language === "vi" ? "vi-VN" : "en-US";
   if (active && payload && payload.length) {
     return (
       <div className="hs-tooltip">
         <div className="hs-tooltip-header">
           <Clock size={12} />
-          <span>{formatFullTime(payload[0].payload.recordedAt)}</span>
+          <span>{formatFullTime(payload[0].payload.recordedAt, locale)}</span>
         </div>
         <div className="hs-tooltip-divider" />
         <div className="hs-tooltip-body">
@@ -201,9 +205,11 @@ const CustomTooltip = ({ active, payload }: any) => {
             return (
               <div key={entry.dataKey} className="hs-tooltip-row">
                 <span className="hs-tooltip-dot" style={{ backgroundColor: entry.stroke || config?.color }} />
-                <span className="hs-tooltip-label">{config?.label || entry.name}:</span>
+                <span className="hs-tooltip-label">
+                  {config ? t("history.metrics." + (entry.dataKey as MetricKey), config.label) : entry.name}:
+                </span>
                 <span className="hs-tooltip-val">
-                  {entry.value} {config?.unit}
+                  {entry.value} {entry.dataKey === "temp" ? `°${tempUnit}` : config?.unit}
                 </span>
               </div>
             );
@@ -216,6 +222,8 @@ const CustomTooltip = ({ active, payload }: any) => {
 };
 
 export function HistoryView() {
+  const { language, t, formatTemp, tempUnit, convertTemp } = useLanguage();
+  const locale = language === "vi" ? "vi-VN" : "en-US";
   const [isMounted, setIsMounted] = useState(false);
   const [devices, setDevices] = useState<Device[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
@@ -242,7 +250,7 @@ export function HistoryView() {
       })
       .catch((err) => {
         if (mounted) {
-          setError(err instanceof Error ? err.message : "Không tải được thiết bị");
+          setError(err instanceof Error ? err.message : t("history.failedDevices", "Không tải được thiết bị"));
         }
       });
 
@@ -304,14 +312,14 @@ export function HistoryView() {
         }
 
         setPoints(
-          buildHistoryPoints(Object.fromEntries(entries), timeRange).slice(-limit)
+          buildHistoryPoints(Object.fromEntries(entries), timeRange, locale).slice(-limit)
         );
       } catch (err) {
         if (mounted) {
           setError(
             err instanceof Error
               ? err.message
-              : "Không tải được dữ liệu lịch sử"
+              : t("history.failedHistory", "Không tải được dữ liệu lịch sử")
           );
           setPoints([]);
         }
@@ -330,6 +338,16 @@ export function HistoryView() {
   }, [selectedDevice, metricSensors, limit, timeRange]);
 
   const latestAt = points.at(-1)?.recordedAt;
+
+  const convertedPoints = useMemo(() => {
+    if (tempUnit === "F") {
+      return points.map((p) => ({
+        ...p,
+        temp: p.temp !== undefined ? Number((p.temp * 1.8 + 32).toFixed(1)) : undefined,
+      }));
+    }
+    return points;
+  }, [points, tempUnit]);
 
   // Tính toán thống kê động từ dữ liệu đã tải
   const stats = useMemo(() => {
@@ -361,16 +379,16 @@ export function HistoryView() {
         <div className="hs-header-left">
           <span className="hs-badge-pill">
             <Database size={13} />
-            Lịch sử cảm biến
+            {t("history.sensorHistory", "Lịch sử cảm biến")}
           </span>
-          <h1 className="hs-title">Phân tích dữ liệu lịch sử</h1>
+          <h1 className="hs-title">{t("history.title", "Phân tích dữ liệu lịch sử")}</h1>
           <p className="hs-subtitle">
-            Truy xuất nhật ký đo đạc của các cảm biến theo từng thiết bị và chu kỳ thời gian.
+            {t("history.subtitle", "Truy xuất nhật ký đo đạc của các cảm biến theo từng thiết bị và chu kỳ thời gian.")}
           </p>
         </div>
         <div className="hs-header-actions">
           <div className="hs-action-group">
-            <span className="hs-action-label">Chọn thiết bị ESP</span>
+            <span className="hs-action-label">{t("history.selectDevice", "Chọn thiết bị ESP")}</span>
             <select
               value={selectedDeviceId}
               onChange={(event) => setSelectedDeviceId(event.target.value)}
@@ -392,10 +410,10 @@ export function HistoryView() {
           <div className="hs-panel-title-area">
             <h2 className="hs-panel-title">
               <Activity size={18} style={{ color: "#10b981" }} />
-              Biểu đồ diễn biến cảm biến
+              {t("history.chartTitle", "Biểu đồ diễn biến cảm biến")}
             </h2>
             <p className="hs-panel-subtitle">
-              {latestAt ? `Cập nhật lần cuối: ${formatFullTime(latestAt)}` : "Theo dõi các thông số cảm biến theo thời gian"}
+              {latestAt ? t("history.lastUpdated", "Cập nhật lần cuối: {time}").replace("{time}", formatFullTime(latestAt, locale)) : t("history.monitorTooltip", "Theo dõi các thông số cảm biến theo thời gian")}
             </p>
           </div>
 
@@ -407,7 +425,7 @@ export function HistoryView() {
                 onClick={() => setTimeRange(range)}
                 className={`hs-range-btn ${timeRange === range ? "hs-range-btn--active" : ""}`}
               >
-                {range === "day" ? "Ngày" : range === "week" ? "Tuần" : "Tháng"}
+                {range === "day" ? t("history.range.day", "Ngày") : range === "week" ? t("history.range.week", "Tuần") : t("history.range.month", "Tháng")}
               </button>
             ))}
           </div>
@@ -422,7 +440,7 @@ export function HistoryView() {
               activeTab === "all" ? "hs-tab-btn--all-active" : "hs-tab-btn--all"
             }`}
           >
-            Tất cả cảm biến
+            {t("history.allSensors", "Tất cả cảm biến")}
           </button>
           {(Object.keys(metricConfig) as MetricKey[]).map((metric) => {
             const active = activeTab === metric;
@@ -444,18 +462,18 @@ export function HistoryView() {
                     backgroundColor: active ? "white" : metricConfig[metric].color,
                   }}
                 />
-                {metricConfig[metric].label} ({metricConfig[metric].unit})
+                {t("history.metrics." + metric, metricConfig[metric].label)} ({metric === "temp" ? "°" + tempUnit : metricConfig[metric].unit})
               </button>
             );
           })}
         </div>
 
         {/* Chart Drawing Area */}
-        <div className="h-[430px] min-w-0" style={{ marginTop: "0.5rem" }}>
+        <div className="h-[520px] min-w-0" style={{ marginTop: "0.5rem" }}>
           {loading ? (
             <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400 gap-2">
               <RefreshCcw size={16} className="animate-spin" />
-              Đang tải biểu đồ lịch sử...
+              {t("history.loadingChart", "Đang tải biểu đồ lịch sử...")}
             </div>
           ) : error ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
@@ -467,19 +485,19 @@ export function HistoryView() {
           ) : !isMounted ? (
             <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400 gap-2">
               <RefreshCcw size={16} className="animate-spin" />
-              Đang khởi tạo biểu đồ...
+              {t("history.initializingChart", "Đang khởi tạo biểu đồ...")}
             </div>
           ) : points.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
               <Activity size={30} className="text-slate-300" />
               <p className="text-sm font-semibold text-slate-500">
-                Chưa có dữ liệu lịch sử cho thiết bị này.
+                {t("history.noData", "Chưa có dữ liệu lịch sử cho thiết bị này.")}
               </p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
-                data={points}
+                data={convertedPoints}
                 margin={{ left: 5, right: 10, top: 12, bottom: 8 }}
               >
                 <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" vertical={true} horizontal={true} />
@@ -496,7 +514,7 @@ export function HistoryView() {
                   orientation="left"
                   domain={
                     activeTab === "temp"
-                      ? [0, 45]
+                      ? tempUnit === "F" ? [32, 113] : [0, 45]
                       : activeTab === "all" || activeTab === "humi" || activeTab === "soil"
                         ? [0, 100]
                         : ["auto", "auto"]
@@ -505,7 +523,7 @@ export function HistoryView() {
                   tickLine={{ stroke: "#cbd5e1" }}
                   axisLine={{ stroke: "#cbd5e1", strokeWidth: 1.5 }}
                   tickFormatter={(value) => {
-                    if (activeTab === "temp") return `${value}°C`;
+                    if (activeTab === "temp") return `${value}°${tempUnit}`;
                     if (activeTab === "humi" || activeTab === "soil") return `${value}%`;
                     if (activeTab === "light") return `${value} lux`;
                     return `${value}`;
@@ -539,7 +557,7 @@ export function HistoryView() {
                       type="monotone"
                       dataKey={metric}
                       yAxisId={activeTab === "all" ? (metric === "light" ? "right" : "left") : "left"}
-                      name={`${metricConfig[metric].label} (${metricConfig[metric].unit})`}
+                      name={`${t("history.metrics." + metric, metricConfig[metric].label)} (${metric === "temp" ? "°" + tempUnit : metricConfig[metric].unit})`}
                       stroke={metricConfig[metric].color}
                       strokeWidth={3}
                       dot={false}
@@ -560,33 +578,33 @@ export function HistoryView() {
         <div className="hs-side-card">
           <h3 className="hs-side-title">
             <TrendingUp size={16} style={{ display: "inline-block", marginRight: 6, verticalAlign: "middle", color: "#64748b" }} />
-            Trị số trung bình ({timeRange === "day" ? "Hôm nay" : timeRange === "week" ? "Tuần này" : "Tháng này"})
+            {t("history.averageValues", "Trị số trung bình ({range})").replace("{range}", timeRange === "day" ? t("history.ranges.day", "Hôm nay") : timeRange === "week" ? t("history.ranges.week", "Tuần này") : t("history.ranges.month", "Tháng này"))}
           </h3>
           <div className="hs-info-list">
             <StatRow
               icon={<Thermometer size={16} />}
-              label="Nhiệt độ TB"
-              value={`${stats.temp.toFixed(1)}°C`}
+              label={t("history.avgTemp", "Nhiệt độ TB")}
+              value={formatTemp(stats.temp)}
               trend={stats.temp > 28 ? "up" : stats.temp < 20 ? "down" : "stable"}
               color="#ef4444"
             />
             <StatRow
               icon={<Wind size={16} />}
-              label="Độ ẩm khí TB"
+              label={t("history.avgHumi", "Độ ẩm khí TB")}
               value={`${stats.humi.toFixed(0)}%`}
               trend={stats.humi > 80 ? "up" : stats.humi < 50 ? "down" : "stable"}
               color="#0ea5e9"
             />
             <StatRow
               icon={<Droplets size={16} />}
-              label="Độ ẩm đất TB"
+              label={t("history.avgSoil", "Độ ẩm đất TB")}
               value={`${stats.soil.toFixed(0)}%`}
               trend={stats.soil > 70 ? "up" : stats.soil < 35 ? "down" : "stable"}
               color="#10b981"
             />
             <StatRow
               icon={<Waves size={16} />}
-              label="Ánh sáng TB"
+              label={t("history.avgLight", "Ánh sáng TB")}
               value={`${stats.light.toFixed(0)} lux`}
               trend={stats.light > 800 ? "up" : stats.light < 200 ? "down" : "stable"}
               color="#f59e0b"
@@ -598,13 +616,18 @@ export function HistoryView() {
         <div className="hs-side-card">
           <h3 className="hs-side-title">
             <ShieldCheck size={16} style={{ display: "inline-block", marginRight: 6, verticalAlign: "middle", color: "#64748b" }} />
-            Ngưỡng sinh trưởng an toàn
+            {t("history.safeThresholds", "Ngưỡng sinh trưởng an toàn")}
           </h3>
           <div className="hs-sensor-list">
-            <ThresholdRow label="Nhiệt độ" min={18} max={32} unit="°C" />
-            <ThresholdRow label="Độ ẩm không khí" min={45} max={85} unit="%" />
-            <ThresholdRow label="Độ ẩm đất" min={35} max={75} unit="%" />
-            <ThresholdRow label="Cường độ ánh sáng" min={400} max={1200} unit="lux" />
+            <ThresholdRow
+              label={t("history.metrics.temp", "Nhiệt độ")}
+              min={Math.round(convertTemp(18))}
+              max={Math.round(convertTemp(32))}
+              unit={`°${tempUnit}`}
+            />
+            <ThresholdRow label={t("history.metrics.humi", "Độ ẩm không khí")} min={45} max={85} unit="%" />
+            <ThresholdRow label={t("history.metrics.soil", "Độ ẩm đất")} min={35} max={75} unit="%" />
+            <ThresholdRow label={t("history.metrics.light", "Cường độ ánh sáng")} min={400} max={1200} unit="lux" />
           </div>
         </div>
       </section>
