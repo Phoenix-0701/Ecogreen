@@ -4,17 +4,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Droplets,
-  Leaf,
   RefreshCcw,
   Thermometer,
   Wifi,
   WifiOff,
   Wind,
   Waves,
-  CalendarClock,
-  Cpu,
   Clock,
-  Database
+  Cpu,
+  Database,
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -227,7 +225,20 @@ function getLatestValue(points: ChartPoint[], metric: MetricKey) {
   return undefined;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface TooltipEntry {
+  dataKey: string;
+  stroke?: string;
+  value: number;
+  name: string;
+  payload: { recordedAt: string };
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipEntry[];
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   const { language, t, tempUnit } = useLanguage();
   const locale = language === "vi" ? "vi-VN" : "en-US";
   if (active && payload && payload.length) {
@@ -239,7 +250,7 @@ const CustomTooltip = ({ active, payload }: any) => {
         </div>
         <div className="ch-tooltip-divider" />
         <div className="ch-tooltip-body">
-          {payload.map((entry: any) => {
+          {payload.map((entry: TooltipEntry) => {
             const config = metricConfig[entry.dataKey as MetricKey];
             return (
               <div key={entry.dataKey} className="ch-tooltip-row">
@@ -514,7 +525,7 @@ export function ChartView() {
 
     // 6. Minor warning
     if (hasMinorWarning) {
-      let warningReason = [];
+      const warningReason: string[] = [];
       if (isTempHighWarning) warningReason.push(t("charts.status.warnTemp", "Nhiệt độ ấm lên ({temp})").replace("{temp}", `${tempVal.toFixed(1)}°${tempUnit}`));
       if (isHumiLowWarning && humiVal !== undefined) warningReason.push(t("charts.status.warnHumi", "Độ ẩm không khí thấp ({humi}%)").replace("{humi}", humiVal.toFixed(0)));
       if (isSoilDryWarning && soilVal !== undefined) warningReason.push(t("charts.status.warnSoil", "Đất đang khô dần ({soil}%)").replace("{soil}", soilVal.toFixed(0)));

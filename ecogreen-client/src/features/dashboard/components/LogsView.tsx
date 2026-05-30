@@ -26,6 +26,14 @@ interface LogRow {
   status: string;
 }
 
+interface LogApiRow {
+  Log_ID: string;
+  occurred_at: string;
+  event_type: string;
+  description: string;
+  status: string;
+}
+
 export function LogsView() {
   const { t, translateLog } = useLanguage();
   const [filter, setFilter] = useState<string>("all");
@@ -39,7 +47,7 @@ export function LogsView() {
       const devices = await getDevices();
       if (devices.length > 0) {
         const firstDevice = devices[0];
-        const data = await requestJson<any[]>(
+        const data = await requestJson<LogApiRow[]>(
           `/v1/devices/${firstDevice.Device_ID}/logs?limit=100`
         );
         if (Array.isArray(data)) {

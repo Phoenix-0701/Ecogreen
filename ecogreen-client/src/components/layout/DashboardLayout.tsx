@@ -114,6 +114,7 @@ function RealtimeClock() {
   const { language } = useLanguage();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: initialize clock on client mount
     setTime(new Date());
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -156,6 +157,7 @@ export default function DashboardLayout({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: read localStorage after hydration
     setMounted(true);
     const saved = localStorage.getItem("sidebar_collapsed");
     if (saved !== null) {
@@ -287,21 +289,21 @@ export default function DashboardLayout({
             isCollapsed ? "justify-center px-2" : "px-6"
           }`}
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <Link href="/" className="flex items-center gap-2.5 min-w-0 hover:opacity-95 active:scale-98 transition-all cursor-pointer">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 flex-shrink-0">
-              <Leaf size={18} className="animate-pulse" />
+              <Leaf size={18} className="animate-pulse fill-white/10" />
             </div>
             {!isCollapsed && (
-              <div className="flex flex-col min-w-0 justify-center">
-                <span className="text-lg font-bold text-white tracking-wider font-sans truncate bg-gradient-to-r from-emerald-400 to-green-300 bg-clip-text text-transparent leading-none">
+              <div className="flex flex-col min-w-0 justify-center py-0.5">
+                <span className="text-lg font-black tracking-wide font-sans truncate bg-gradient-to-r from-emerald-400 to-green-300 bg-clip-text text-transparent leading-[1.15] block">
                   EcoGreen
                 </span>
-                <span className="text-[0.6rem] text-emerald-100/50 font-semibold tracking-widest uppercase truncate mt-1">
+                <span className="text-[0.58rem] text-emerald-400/85 font-extrabold tracking-widest uppercase truncate mt-0.5 block leading-none">
                   {t("smartFarming")}
                 </span>
               </div>
             )}
-          </div>
+          </Link>
         </div>
 
         {/* Sidebar Nav Items */}

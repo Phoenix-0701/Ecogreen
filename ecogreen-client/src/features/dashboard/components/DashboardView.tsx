@@ -20,7 +20,8 @@ import {
   Info,
   AlertTriangle,
   Power,
-  ChevronRight
+  ChevronRight,
+  CheckCircle2
 } from "lucide-react";
 import { getDevices } from "@/services/device.service";
 import { requestJson } from "@/services/api";
@@ -299,6 +300,84 @@ export function DashboardView() {
             <MetricCard icon={<Droplets size={20} />} label={t('history.metrics.soil', 'Độ ẩm đất')} value={sensorValue("soil", selectedTelemetry)} tone="emerald" />
             <MetricCard icon={<Waves size={20} />} label={t('history.metrics.light', 'Ánh sáng')} value={sensorValue("light", selectedTelemetry)} tone="amber" />
           </div>
+
+          {/* System Status Banner */}
+          {(() => {
+            let status = {
+              title: t('dashboard.status.optimalTitle', 'Môi trường tối ưu'),
+              desc: t('dashboard.status.optimalDesc', 'Tất cả các chỉ số môi trường đang ở mức lý tưởng. Cây trồng đang phát triển trong điều kiện rất tốt!'),
+              color: 'emerald',
+              icon: <CheckCircle2 size={22} strokeWidth={2.5} />,
+              badgeLabel: t('dashboard.status.badgeOptimal', 'Hệ thống ổn định')
+            };
+
+            const { temp, humi, soil, pumpState, fanState, autoMode } = selectedTelemetry;
+            if (temp > 40 || temp < 10) {
+              status = {
+                title: t('dashboard.status.severeTempTitle', 'Cảnh báo nhiệt độ khẩn cấp'),
+                desc: t('dashboard.status.severeTempDesc', `Nhiệt độ hiện tại (${temp.toFixed(1)}°C) ở mức nguy hiểm. Hãy kiểm tra hệ thống làm mát/sưởi ấm ngay lập tức.`),
+                color: 'red',
+                icon: <AlertTriangle size={22} strokeWidth={2.5} />,
+                badgeLabel: t('dashboard.status.badgeCritical', 'Hành động ngay')
+              };
+            } else if (pumpState && fanState) {
+              status = {
+                title: t('charts.status.pumpFan', 'Đang tưới nước & Làm mát'),
+                desc: t('charts.status.pumpFanDesc', 'Hệ thống đang đồng thời bật máy bơm nước để cân bằng độ ẩm và bật quạt thông gió giải nhiệt.'),
+                color: 'blue',
+                icon: <Droplets size={22} strokeWidth={2.5} />,
+                badgeLabel: t('dashboard.status.badgeActive', 'Đang hoạt động')
+              };
+            } else if (pumpState) {
+              status = {
+                title: t('charts.status.pumping', 'Đang trong chu kỳ tưới nước'),
+                desc: t('charts.status.pumpingDesc', 'Máy bơm nước đang hoạt động để cung cấp độ ẩm cần thiết cho đất.'),
+                color: 'blue',
+                icon: <Droplets size={22} strokeWidth={2.5} />,
+                badgeLabel: t('dashboard.status.badgeActive', 'Đang hoạt động')
+              };
+            } else if (fanState && !autoMode) {
+              status = {
+                title: t('charts.status.fanManual', 'Quạt làm mát bật thủ công'),
+                desc: t('charts.status.fanManualDesc', 'Quạt thông gió đang được vận hành thủ công bởi quản trị viên.'),
+                color: 'purple',
+                icon: <Wind size={22} strokeWidth={2.5} />,
+                badgeLabel: t('dashboard.status.badgeManual', 'Chế độ thủ công')
+              };
+            } else if (soil < 20) {
+              status = {
+                title: t('dashboard.status.mildWarnTitle', 'Cảnh báo môi trường nhẹ'),
+                desc: t('dashboard.status.lowSoilDesc', `Phát hiện chỉ số môi trường chưa tối ưu: Đất đang khô dần (${soil.toFixed(0)}%). Hệ thống khuyên bạn nên điều chỉnh nhẹ để giữ cây trồng trong điều kiện tốt nhất.`),
+                color: 'amber',
+                icon: <AlertTriangle size={22} strokeWidth={2.5} />,
+                badgeLabel: t('dashboard.status.badgeSuggest', 'Đề xuất điều chỉnh')
+              };
+            } else if (humi > 90) {
+              status = {
+                title: t('dashboard.status.mildWarnTitle', 'Cảnh báo môi trường nhẹ'),
+                desc: t('dashboard.status.highHumiDesc', `Độ ẩm không khí quá cao (${humi.toFixed(0)}%). Bạn nên bật quạt thông gió để tránh nấm mốc phát triển.`),
+                color: 'amber',
+                icon: <AlertTriangle size={22} strokeWidth={2.5} />,
+                badgeLabel: t('dashboard.status.badgeSuggest', 'Đề xuất điều chỉnh')
+              };
+            }
+
+            return (
+              <div className={`db-modern-banner ${status.color}`}>
+                <div className="banner-icon-wrapper">
+                  <div className="banner-icon-bg" />
+                  {status.icon}
+                </div>
+                <div className="banner-content">
+                  <div className="banner-header">
+                    <h4>{status.title}</h4>
+                    <span className="banner-badge">{status.badgeLabel}</span>
+                  </div>
+                  <p>{status.desc}</p>
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="db-meta-bar">
             <Clock size={14} />
@@ -796,6 +875,144 @@ export function DashboardView() {
           display: grid;
           grid-template-columns: 1fr;
           gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+
+        /* ===== System Status Banner ===== */
+        .db-modern-banner {
+          display: flex;
+          gap: 1.25rem;
+          padding: 1.25rem 1.5rem;
+          border-radius: 20px;
+          background: white;
+          position: relative;
+          overflow: hidden;
+          margin-top: 0.75rem;
+          margin-bottom: 1.25rem;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0,0,0,0.02);
+          border: 1px solid rgba(226, 232, 240, 0.8);
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        
+        .db-modern-banner:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .db-modern-banner.amber {
+          background-color: #fffbeb;
+          border-color: #fde68a;
+        }
+        .db-modern-banner.red {
+          background-color: #fef2f2;
+          border-color: #fecaca;
+        }
+        .db-modern-banner.emerald {
+          background-color: #f0fdf4;
+          border-color: #bbf7d0;
+        }
+        .db-modern-banner.blue {
+          background-color: #eff6ff;
+          border-color: #bfdbfe;
+        }
+        .db-modern-banner.purple {
+          background-color: #f5f3ff;
+          border-color: #ddd6fe;
+        }
+
+        .banner-icon-wrapper {
+          position: relative;
+          width: 48px;
+          height: 48px;
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          z-index: 1;
+        }
+
+        .banner-icon-bg {
+          position: absolute;
+          inset: 0;
+          border-radius: 16px;
+          opacity: 0.15;
+          z-index: -1;
+        }
+        
+        .amber .banner-icon-bg { background: #f59e0b; }
+        .red .banner-icon-bg { background: #ef4444; }
+        .emerald .banner-icon-bg { background: #10b981; }
+        .blue .banner-icon-bg { background: #3b82f6; }
+        .purple .banner-icon-bg { background: #8b5cf6; }
+
+        .amber .banner-icon-wrapper { color: #d97706; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15); }
+        .red .banner-icon-wrapper { color: #dc2626; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15); }
+        .emerald .banner-icon-wrapper { color: #059669; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15); }
+        .blue .banner-icon-wrapper { color: #2563eb; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); }
+        .purple .banner-icon-wrapper { color: #7c3aed; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15); }
+        
+        /* Add a subtle pulse ring to the icon wrapper */
+        .banner-icon-wrapper::after {
+          content: '';
+          position: absolute;
+          inset: -4px;
+          border-radius: 20px;
+          border: 1.5px solid transparent;
+          opacity: 0.5;
+        }
+        .amber .banner-icon-wrapper::after { border-color: rgba(245, 158, 11, 0.2); }
+        .red .banner-icon-wrapper::after { border-color: rgba(239, 68, 68, 0.2); }
+        .emerald .banner-icon-wrapper::after { border-color: rgba(16, 185, 129, 0.2); }
+        .blue .banner-icon-wrapper::after { border-color: rgba(59, 130, 246, 0.2); }
+        .purple .banner-icon-wrapper::after { border-color: rgba(139, 92, 246, 0.2); }
+
+        .banner-content {
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+          flex: 1;
+          justify-content: center;
+        }
+
+        .banner-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+
+        .banner-header h4 {
+          font-size: 1.05rem;
+          font-weight: 850;
+          color: #0f172a;
+          margin: 0;
+          letter-spacing: -0.01em;
+          line-height: 1.2;
+        }
+
+        .banner-badge {
+          font-size: 0.65rem;
+          font-weight: 800;
+          padding: 0.25rem 0.6rem;
+          border-radius: 100px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          flex-shrink: 0;
+        }
+
+        .amber .banner-badge { background: #fef3c7; color: #b45309; }
+        .red .banner-badge { background: #fee2e2; color: #b91c1c; }
+        .emerald .banner-badge { background: #dcfce3; color: #047857; }
+        .blue .banner-badge { background: #dbeafe; color: #1d4ed8; }
+        .purple .banner-badge { background: #ede9fe; color: #6d28d9; }
+
+        .banner-content p {
+          font-size: 0.85rem;
+          color: #475569;
+          line-height: 1.55;
+          margin: 0;
+          padding-right: 0.5rem;
         }
 
         @media (min-width: 640px) {

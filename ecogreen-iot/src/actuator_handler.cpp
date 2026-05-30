@@ -200,6 +200,10 @@ void autoControlPump()
     }
     else
     {
+        // Bỏ qua tắt tự động theo độ ẩm / max time nếu đang chạy theo lịch
+        if (g_scheduleTriggered || g_scheduleOffTime > 0)
+            return;
+
         // Điều kiện tắt bơm: đất đủ ẩm HOẶC đã bơm quá lâu
         if (g_soilMoisture >= g_soilWetThreshold)
         {

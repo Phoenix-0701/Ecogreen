@@ -635,5 +635,86 @@ export const en = {
     noActivityTitle: "No Recent Activity",
     noActivityDesc: "No activity logs recorded for the selected device.",
     loader: "Loading dashboard...",
+  },
+  landing: {
+    hero: {
+      badge: "Smart Farming IoT Platform",
+      title: "Smart Agriculture, Starting from Simplicity",
+      subtitle: "EcoGreen helps optimize crop yields, automate irrigation, and monitor your farm's microclimate in real-time using cutting-edge IoT technology.",
+      startBtn: "Get Started Now",
+      viewDocs: "View Technical Docs",
+      activeUsers: "1,200+ Active Farms",
+      realtimeSync: "Real-time sync"
+    },
+    nav: {
+      features: "Features",
+      roi: "ROI Savings",
+      preview: "System Live Preview",
+      technology: "Technology",
+      login: "Login / Try System",
+      dashboard: "Go to Dashboard",
+      logout: "Log Out"
+    },
+    features: {
+      title: "High-Tech IoT Features",
+      subtitle: "Fully integrated hardware and software solution to maximize farm efficiency.",
+      monitor: "Real-Time Telemetry",
+      monitorDesc: "Track temperature, soil moisture, light, and air humidity with sub-second latency.",
+      auto: "Smart Automation",
+      autoDesc: "Set thresholds and let the AI trigger water pumps or cooling fans automatically.",
+      analytics: "Historical Analytics",
+      analyticsDesc: "Identify crop growth trends with detailed charts, data exports, and averages.",
+      smartLogic: "Weather Interception",
+      smartLogicDesc: "Intelligent rain-prediction algorithm delays irrigation to save up to 30% of water."
+    },
+    roi: {
+      title: "Interactive Savings Calculator",
+      subtitle: "Estimate the monthly resources saved by transitioning to EcoGreen smart farming.",
+      farmSize: "Farm Area",
+      waterSaved: "Water Saved / Day",
+      powerSaved: "Electricity Saved / Month",
+      yieldIncrease: "Estimated Crop Yield",
+      moneySaved: "Estimated Monthly Savings",
+      liters: "Liters",
+      kwh: "kWh",
+      currency: "VND",
+      calcNote: "* Estimated values based on high-precision drip irrigation and ventilation optimization."
+    },
+    preview: {
+      title: "Interactive IoT Node Preview",
+      subtitle: "Interact with our virtual ESP32 controller node to see how actuators modify sensor data in real-time.",
+      nodeName: "Virtual Node: ESP32-ZONE_A",
+      statusOnline: "Connected (Live)",
+      temp: "Air Temperature",
+      soil: "Soil Moisture",
+      humi: "Air Humidity",
+      pump: "Water Pump (Relay 1)",
+      fan: "Ventilation Fan (Relay 2)",
+      statusOn: "Active Now",
+      statusOff: "Standby",
+      wateringMsg: "Watering crop soil... Moisture rising!",
+      coolingMsg: "Fan spinning... Heat dissipating!",
+      normalMsg: "Ecosystem stable. Monitoring sensors..."
+    },
+    stats: {
+      title: "Reliability & Numbers",
+      subtitle: "EcoGreen is built for 24/7 mission-critical greenhouse operations.",
+      uptime: "Uptime SLA",
+      uptimeDesc: "Reliable connection and continuous offline local automation fallback.",
+      waterSaved: "Water Resource Savings",
+      waterSavedDesc: "Minimized runoff water using target-based saturation sensor feedback.",
+      yield: "Average Yield Boost",
+      yieldDesc: "Optimized climate and moisture thresholds avoid plant stress cycles.",
+      latency: "IoT Command Latency",
+      latencyDesc: "Real-time socket.io communication between web panel and ESP32 nodes."
+    },
+    footer: {
+      tagline: "Cultivating the future of sustainable high-yield agriculture.",
+      product: "Product",
+      company: "Company",
+      support: "Support",
+      contact: "Contact Us",
+      copyright: "© 2026 EcoGreen. All rights reserved."
+    }
   }
 };

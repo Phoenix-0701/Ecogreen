@@ -428,9 +428,9 @@ export function ThresholdsView() {
             <RangeField
               label={t('thresholdsLogic.maxPumpDuration', 'Thời gian bơm tối đa')}
               hint={t('thresholdsLogic.maxPumpDesc', 'Giới hạn mỗi phiên bơm')}
-              min={15}
-              max={120}
-              step={5}
+              min={30}
+              max={300}
+              step={10}
               value={draft.maxPumpSeconds}
               suffix={t('thresholdsLogic.seconds', 'giây')}
               onChange={(value) =>
@@ -440,11 +440,12 @@ export function ThresholdsView() {
             <RangeField
               label={t('thresholdsLogic.cooldownDuration', 'Thời gian nghỉ')}
               hint={t('thresholdsLogic.cooldownDesc', 'Độ trễ giữa hai phiên tưới')}
-              min={1}
+              min={0.5}
               max={30}
-              step={1}
+              step={0.5}
               value={draft.cooldownMinutes}
-              suffix={t('thresholdsLogic.minutes', 'phút')}
+              suffix={draft.cooldownMinutes < 1 ? t('thresholdsLogic.seconds', 'giây') : t('thresholdsLogic.minutes', 'phút')}
+              formatValue={(val) => (val < 1 ? val * 60 : (Number.isInteger(val) ? val : val.toFixed(1)))}
               onChange={(value) =>
                 setDraft({ ...draft, cooldownMinutes: value })
               }

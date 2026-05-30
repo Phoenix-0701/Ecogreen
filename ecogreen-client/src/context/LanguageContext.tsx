@@ -22,6 +22,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [tempUnit, setTempUnit] = useState<"C" | "F">("C");
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- intentional: hydration-safe localStorage init after mount */
     // Read preference on client mount
     const savedLanguage = localStorage.getItem("pref_language") as Language;
     if (savedLanguage && (savedLanguage === "vi" || savedLanguage === "en")) {
@@ -31,6 +32,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (savedUnit && (savedUnit === "C" || savedUnit === "F")) {
       setTempUnit(savedUnit);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const handlePrefChange = () => {
       const current = localStorage.getItem("pref_language") as Language;
@@ -71,12 +73,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const t = (key: string, defaultText: string): string => {
     if (language === "vi") return defaultText;
 
+    type LocaleNode = string | Record<string, unknown>;
     const parts = key.split(".");
-    let current: any = en;
+    let current: LocaleNode = en as LocaleNode;
 
     for (const part of parts) {
       if (current && typeof current === "object" && part in current) {
-        current = current[part];
+        current = (current as Record<string, LocaleNode>)[part];
       } else {
         return defaultText;
       }

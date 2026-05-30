@@ -27,6 +27,7 @@ import {
 import { useAuth } from "@/features/auth/auth.context";
 import { getMyProfile, updateMyProfile } from "@/services/user.service";
 import { useLanguage } from "@/context/LanguageContext";
+import type { User as UserType } from "@/types";
 
 export function ProfileView() {
   const { user, updateUser } = useAuth();
@@ -109,11 +110,25 @@ export function ProfileView() {
   useEffect(() => {
     let mounted = true;
 
+    interface ProfileApiResponse {
+      data?: {
+        full_name?: string;
+        username?: string;
+        email?: string;
+        User_ID?: string;
+      };
+      full_name?: string;
+      username?: string;
+      email?: string;
+      User_ID?: string;
+    }
+
     // Fetch user details
     getMyProfile()
-      .then((res: any) => {
+      .then((res: unknown) => {
         if (!mounted) return;
-        const profile = res.data || res;
+        const r = res as ProfileApiResponse;
+        const profile = r.data || r;
         if (profile) {
           setFullName(profile.full_name || "");
           setUsername(profile.username || "");
@@ -164,9 +179,9 @@ export function ProfileView() {
       const res = (await updateMyProfile({
         full_name: fullName.trim(),
         username: username.trim(),
-      })) as any;
+      })) as { data?: Partial<UserType>; User_ID?: string; username?: string; email?: string; full_name?: string | null };
       
-      const updatedProfile = res.data || res;
+      const updatedProfile = (res.data || res) as UserType;
       if (updatedProfile) {
         updateUser(updatedProfile);
         setFullName(updatedProfile.full_name || "");
@@ -471,7 +486,7 @@ export function ProfileView() {
             <button
               type="button"
               onClick={() => setActiveTab("general")}
-              className={`px-5 py-4.5 text-xs font-bold uppercase tracking-wider border-b-2 whitespace-nowrap transition-all ${
+              className={`flex-1 px-5 py-4.5 text-xs font-bold uppercase tracking-wider border-b-2 whitespace-nowrap transition-all ${
                 activeTab === "general"
                   ? "border-emerald-600 text-emerald-700 bg-white"
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
@@ -482,7 +497,7 @@ export function ProfileView() {
             <button
               type="button"
               onClick={() => setActiveTab("preferences")}
-              className={`px-5 py-4.5 text-xs font-bold uppercase tracking-wider border-b-2 whitespace-nowrap transition-all ${
+              className={`flex-1 px-5 py-4.5 text-xs font-bold uppercase tracking-wider border-b-2 whitespace-nowrap transition-all ${
                 activeTab === "preferences"
                   ? "border-emerald-600 text-emerald-700 bg-white"
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
@@ -493,7 +508,7 @@ export function ProfileView() {
             <button
               type="button"
               onClick={() => setActiveTab("security")}
-              className={`px-5 py-4.5 text-xs font-bold uppercase tracking-wider border-b-2 whitespace-nowrap transition-all ${
+              className={`flex-1 px-5 py-4.5 text-xs font-bold uppercase tracking-wider border-b-2 whitespace-nowrap transition-all ${
                 activeTab === "security"
                   ? "border-emerald-600 text-emerald-700 bg-white"
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
@@ -504,7 +519,7 @@ export function ProfileView() {
             <button
               type="button"
               onClick={() => setActiveTab("activity")}
-              className={`px-5 py-4.5 text-xs font-bold uppercase tracking-wider border-b-2 whitespace-nowrap transition-all ${
+              className={`flex-1 px-5 py-4.5 text-xs font-bold uppercase tracking-wider border-b-2 whitespace-nowrap transition-all ${
                 activeTab === "activity"
                   ? "border-emerald-600 text-emerald-700 bg-white"
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
@@ -912,7 +927,8 @@ export function ProfileView() {
       )}
 
       {/* ===== Scoped CSS Animations & Layout Tweaks ===== */}
-      {/* @ts-ignore */}
+      {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+      {/* @ts-ignore -- styled-jsx global prop is not in React types */}
       <style jsx global>{`
         @keyframes slideInUp {
           from {

@@ -174,9 +174,18 @@ void Task_CheckSchedule(void)
                       i, s.hour, s.minute, s.duration);
 
         s_lastTriggeredMinute = currentMinute;
+        
+        // Bật cờ để vượt qua kiểm tra cooldown trong pumpOn()
         g_scheduleTriggered = true;
         pumpOn();
-        g_scheduleOffTime = millis() + ((unsigned long)s.duration * 60000UL);
+
+        if (s.duration > 0) {
+            g_scheduleOffTime = millis() + ((unsigned long)s.duration * 60000UL);
+        } else {
+            // Tưới theo ngưỡng: reset cờ để các luồng tự động (watchdog & autoControl) tự tắt bơm
+            g_scheduleTriggered = false;
+            g_scheduleOffTime = 0;
+        }
         break;
     }
 }

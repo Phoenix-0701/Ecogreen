@@ -7,6 +7,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock3,
+  Droplets,
   Loader2,
   PenLine,
   Plus,
@@ -246,7 +247,7 @@ export function ScheduleView() {
         t("schedule.saveSuccessTitle", "Lưu lịch trình thành công"),
         t("schedule.saveSuccessMsg", "Cấu hình lịch tưới tự động đã được lưu lại hệ thống.")
       );
-    } catch (error) {
+    } catch {
       showNotification(
         "error",
         t("schedule.saveFailTitle", "Lỗi lưu lịch trình"),
@@ -345,10 +346,19 @@ export function ScheduleView() {
                           <Clock3 className="size-3.5" />
                           {formatTime(schedule.time)}
                         </span>
-                        <span className="sc-meta-item">
-                          <TimerReset className="size-3.5" />
-                          {schedule.durationMinutes} {t("schedule.minutesLabel", "phút")}
-                        </span>
+                        <div className="sc-meta-item">
+                          {schedule.durationMinutes === 0 ? (
+                            <>
+                              <Droplets className="size-3.5 text-emerald-500" />
+                              {t("schedule.thresholdMode", "Tưới theo ngưỡng")}
+                            </>
+                          ) : (
+                            <>
+                              <TimerReset className="size-3.5" />
+                              {schedule.durationMinutes} {t("schedule.minutesLabel", "phút")}
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="sc-day-pills">
                         {DAY_LABELS.map((day, index) => (
@@ -929,7 +939,7 @@ function ScheduleRuleModal({
       ...form,
       title: form.title.trim() || t("schedule.modal.defaultTitle", "Chu kỳ tưới mới"),
       zone: form.zone || resolvedZoneOptions[0] || t("schedule.modal.defaultZone", "Khu canh tác"),
-      durationMinutes: Math.max(5, Math.min(180, form.durationMinutes)),
+      durationMinutes: form.durationMinutes === 0 ? 0 : Math.max(1, Math.min(180, form.durationMinutes)),
       days: form.days.length > 0 ? form.days : [1],
     });
   };
@@ -938,10 +948,10 @@ function ScheduleRuleModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-2xl overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_80px_rgba(0,0,0,0.18)]"
+        className="flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_80px_rgba(0,0,0,0.18)]"
       >
         {/* Modal Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-7 py-5">
+        <div className="flex-none flex items-start justify-between gap-4 border-b border-slate-100 px-7 py-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">
               {mode === "create" ? t("schedule.modal.createNew", "Tạo mới") : t("schedule.modal.edit", "Chỉnh sửa")}
@@ -963,7 +973,7 @@ function ScheduleRuleModal({
         </div>
 
         {/* Form Body */}
-        <div className="grid gap-5 px-7 py-6 md:grid-cols-2">
+        <div className="grid flex-1 overflow-y-auto gap-5 px-7 py-6 md:grid-cols-2">
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.nameLabel", "Tên lịch")}</span>
             <input
@@ -1003,21 +1013,6 @@ function ScheduleRuleModal({
           </label>
 
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.durationLabel", "Thời lượng (phút)")}</span>
-            <input
-              type="number"
-              min={5}
-              max={180}
-              value={form.durationMinutes}
-              onChange={(event) =>
-                updateField("durationMinutes", Number(event.target.value) || 5)
-              }
-              className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
-              required
-            />
-          </label>
-
-          <label className="block">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.typeLabel", "Loại lịch")}</span>
             <select
               value={form.icon}
@@ -1031,15 +1026,49 @@ function ScheduleRuleModal({
             </select>
           </label>
 
-          <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.useThresholdLabel", "Tưới theo ngưỡng")}</span>
+                <p className="mt-0.5 text-xs text-slate-400">{t("schedule.modal.useThresholdHelp", "Bỏ qua thời lượng, tưới cho đến khi đạt ngưỡng ẩm.")}</p>
+              </div>
+              <div className="shrink-0">
+                <ToggleSwitch
+                  checked={form.durationMinutes === 0}
+                  onChange={(checked) => updateField("durationMinutes", checked ? 0 : 20)}
+                />
+              </div>
+            </div>
+            
+            {form.durationMinutes > 0 && (
+              <label className="block pt-2 border-t border-slate-200/60">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.durationLabel", "Thời lượng (phút)")}</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={180}
+                  value={form.durationMinutes}
+                  onChange={(event) =>
+                    updateField("durationMinutes", Number(event.target.value) || 1)
+                  }
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-50"
+                  required
+                />
+              </label>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">{t("schedule.modal.activateLabel", "Kích hoạt lịch")}</span>
               <p className="mt-0.5 text-xs text-slate-400">{t("schedule.modal.activateHelp", "Có hiệu lực khi ở chế độ tự động.")}</p>
             </div>
-            <ToggleSwitch
-              checked={form.enabled}
-              onChange={(value) => updateField("enabled", value)}
-            />
+            <div className="shrink-0">
+              <ToggleSwitch
+                checked={form.enabled}
+                onChange={(value) => updateField("enabled", value)}
+              />
+            </div>
           </div>
 
           <div className="md:col-span-2">
@@ -1067,7 +1096,7 @@ function ScheduleRuleModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-7 py-5 sm:flex-row sm:justify-end">
+        <div className="flex-none flex flex-col-reverse gap-3 border-t border-slate-100 px-7 py-5 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onClose}

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useAuth } from "@/features/auth/auth.context";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Leaf, Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
@@ -60,12 +61,14 @@ export default function LoginPage() {
       <div className="login-card">
         {/* Header */}
         <div className="login-header">
-          <div className="login-logo">
-            <div className="login-logo-icon">
-              <Leaf size={28} strokeWidth={2.5} />
+          <Link href="/" className="login-logo block hover:opacity-90 transition-opacity">
+            <div className="flex items-center justify-center gap-3">
+              <div className="login-logo-icon">
+                <Leaf size={28} strokeWidth={2.5} />
+              </div>
+              <h1 className="login-title">EcoGreen</h1>
             </div>
-            <h1 className="login-title">EcoGreen</h1>
-          </div>
+          </Link>
           <p className="login-subtitle">
             Hệ thống quản lý nông nghiệp thông minh
           </p>

@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Minus, Plus } from "lucide-react";
 
 interface RangeFieldProps {
@@ -7,7 +8,8 @@ interface RangeFieldProps {
   max: number;
   step?: number;
   value: number;
-  suffix: string;
+  suffix: string | React.ReactNode;
+  formatValue?: (value: number) => React.ReactNode;
   onChange: (value: number) => void;
 }
 
@@ -19,8 +21,11 @@ export function RangeField({
   step = 1,
   value,
   suffix,
+  formatValue,
   onChange,
 }: RangeFieldProps) {
+  const percentage = ((value - min) / (max - min)) * 100;
+
   return (
     <div>
       <div className="mb-4 flex items-end justify-between gap-4">
@@ -33,7 +38,7 @@ export function RangeField({
             className="text-4xl text-[#0b7a50]"
             style={{ fontFamily: "var(--font-fraunces)" }}
           >
-            {Number.isInteger(value) ? value : value.toFixed(1)}
+            {formatValue ? formatValue(value) : (Number.isInteger(value) ? value : value.toFixed(1))}
           </div>
           <div className="text-sm text-[#66756b]">{suffix}</div>
         </div>
@@ -54,7 +59,10 @@ export function RangeField({
           step={step}
           value={value}
           onChange={(event) => onChange(Number(event.target.value))}
-          className="h-3 flex-1 cursor-pointer appearance-none rounded-full bg-[#e7ece9] accent-[#19c08b]"
+          style={{
+            background: `linear-gradient(to right, #19c08b 0%, #19c08b ${percentage}%, #e7ece9 ${percentage}%, #e7ece9 100%)`
+          }}
+          className="h-3 flex-1 cursor-pointer appearance-none rounded-full accent-[#19c08b] outline-none"
         />
         <button
           type="button"

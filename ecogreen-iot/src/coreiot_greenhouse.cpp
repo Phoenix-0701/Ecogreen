@@ -267,7 +267,7 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
 
             tmp[newCount++] = {
                 h, m,
-                (uint8_t)(constrain((int)(s["duration"] | 15), 1, 120)),
+                (uint8_t)(constrain((int)(s["duration"] | 15), 0, 120)),
                 dayMask,
                 s["enabled"].as<bool>()};
         }

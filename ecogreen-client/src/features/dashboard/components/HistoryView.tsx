@@ -13,7 +13,6 @@ import {
 } from "recharts";
 import {
   Activity,
-  CalendarClock,
   Cpu,
   Droplets,
   Loader2,
@@ -188,7 +187,20 @@ function buildHistoryPoints(
   );
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface HsTooltipEntry {
+  dataKey: string;
+  stroke?: string;
+  value: number;
+  name: string;
+  payload: { recordedAt: string };
+}
+
+interface HsTooltipProps {
+  active?: boolean;
+  payload?: HsTooltipEntry[];
+}
+
+const CustomTooltip = ({ active, payload }: HsTooltipProps) => {
   const { language, t, tempUnit } = useLanguage();
   const locale = language === "vi" ? "vi-VN" : "en-US";
   if (active && payload && payload.length) {
@@ -200,7 +212,7 @@ const CustomTooltip = ({ active, payload }: any) => {
         </div>
         <div className="hs-tooltip-divider" />
         <div className="hs-tooltip-body">
-          {payload.map((entry: any) => {
+          {payload.map((entry: HsTooltipEntry) => {
             const config = metricConfig[entry.dataKey as MetricKey];
             return (
               <div key={entry.dataKey} className="hs-tooltip-row">
