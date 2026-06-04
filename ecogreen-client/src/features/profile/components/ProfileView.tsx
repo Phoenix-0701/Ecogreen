@@ -32,6 +32,7 @@ import type { User as UserType } from "@/types";
 export function ProfileView() {
   const { user, updateUser } = useAuth();
   const { t, changeLanguage } = useLanguage();
+  const isGoogleUser = !!user?.avatar_url;
   
   // Tab State
   const [activeTab, setActiveTab] = useState<"general" | "preferences" | "security" | "activity">("general");
@@ -258,7 +259,11 @@ export function ProfileView() {
   // Select custom emoji avatar
   const handleSelectAvatar = (emoji: string) => {
     setSelectedAvatar(emoji);
-    localStorage.setItem("user_avatar_emoji", emoji);
+    if (emoji) {
+      localStorage.setItem("user_avatar_emoji", emoji);
+    } else {
+      localStorage.removeItem("user_avatar_emoji");
+    }
     window.dispatchEvent(new Event("ecogreen_avatar_updated"));
     setShowAvatarSelector(false);
     showNotification("success", t('profile.notification.avatarTitle', "Thay đổi ảnh đại diện"), t('profile.notification.avatarMsg', "Ảnh đại diện mới đã được lưu thành công."));
@@ -381,6 +386,8 @@ export function ProfileView() {
               <div className="w-28 h-28 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center text-4xl font-extrabold shadow-lg shadow-emerald-500/20 mb-4 border-4 border-white overflow-hidden relative cursor-pointer">
                 {selectedAvatar ? (
                   <span className="text-5xl select-none leading-none">{selectedAvatar}</span>
+                ) : user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   initials
                 )}
@@ -419,6 +426,15 @@ export function ProfileView() {
                       {item.emoji}
                     </button>
                   ))}
+                  {user?.avatar_url && (
+                    <button
+                      onClick={() => handleSelectAvatar("")}
+                      type="button"
+                      className="col-span-4 h-10 mt-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-bold text-slate-600 transition"
+                    >
+                      {t('profile.avatar.useGoogle', "Dùng ảnh gốc của Google")}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -720,7 +736,19 @@ export function ProfileView() {
                     <p className="text-xs text-slate-400 mt-1">{t('profile.form.secDesc', "Đảm bảo mật khẩu của bạn có ít nhất 6 ký tự và có tính bảo mật cao.")}</p>
                   </div>
 
-                  <div className="space-y-4">
+                  {isGoogleUser && (
+                    <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-3">
+                      <AlertTriangle className="size-5 text-orange-500 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="text-sm font-bold text-orange-800">Tài khoản Google liên kết</h4>
+                        <p className="text-xs text-orange-700 mt-1 leading-relaxed">
+                          Tài khoản của bạn được đăng nhập thông qua Google. Hệ thống không lưu trữ mật khẩu nên bạn không thể thay đổi mật khẩu tại đây.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={`space-y-4 ${isGoogleUser ? 'opacity-50 pointer-events-none select-none grayscale-[0.2]' : ''}`}>
                     {/* Current Password */}
                     <div className="space-y-2">
                       <label htmlFor="curr_pwd" className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.currentPassword', "Mật khẩu hiện tại")}</label>
@@ -808,8 +836,8 @@ export function ProfileView() {
                   <div className="pt-2 flex justify-end">
                     <button
                       type="submit"
-                      disabled={saving}
-                      className="flex items-center gap-2 rounded-xl bg-[#0b7a50] px-7 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(11,122,80,0.22)] transition hover:translate-y-[-1px] hover:shadow-[0_12px_24px_rgba(11,122,80,0.28)]"
+                      disabled={saving || isGoogleUser}
+                      className={`flex items-center gap-2 rounded-xl px-7 py-2.5 text-sm font-bold text-white transition ${isGoogleUser ? 'bg-slate-300 cursor-not-allowed shadow-none text-slate-500' : 'bg-[#0b7a50] shadow-[0_8px_20px_rgba(11,122,80,0.22)] hover:translate-y-[-1px] hover:shadow-[0_12px_24px_rgba(11,122,80,0.28)]'}`}
                     >
                       {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                       {saving ? t('common.saving', "Đang lưu...") : t('profile.form.updatePassword', "Cập nhật mật khẩu")}
@@ -818,7 +846,7 @@ export function ProfileView() {
                 </form>
 
                 {/* 2-Factor Authentication Widget */}
-                <div className="border-t border-slate-100 pt-6">
+                <div className={`border-t border-slate-100 pt-6 ${isGoogleUser ? 'opacity-50 pointer-events-none select-none grayscale-[0.2]' : ''}`}>
                   <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-2xl p-4.5">
                     <div className="flex items-start gap-3">
                       <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">

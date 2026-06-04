@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Bell,
   BrainCircuit,
@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth.context";
 import { useLanguage } from "@/context/LanguageContext";
+import { getMyProfile } from "@/services/user.service";
 
 type NavItem = {
   key: string;
@@ -149,7 +150,8 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const searchParams = useSearchParams();
+  const { user, logout, updateUser } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileDrawer, setShowProfileDrawer] = useState(false);
   const { t: contextT } = useLanguage();
@@ -163,7 +165,27 @@ export default function DashboardLayout({
     if (saved !== null) {
       setIsCollapsed(saved === "true");
     }
-  }, []);
+
+    // Capture token from URL if redirected from Google Login
+    const tokenFromUrl = searchParams?.get("token");
+    if (tokenFromUrl) {
+      localStorage.setItem("access_token", tokenFromUrl);
+      
+      // Fetch user profile to populate Context
+      getMyProfile()
+        .then((res: any) => {
+          const profile = res.data || res;
+          if (profile) {
+            updateUser(profile);
+          }
+        })
+        .catch(console.error);
+
+      // Clean up the URL by removing ?token=...
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, [searchParams, updateUser]);
 
   useEffect(() => {
     const updateAvatar = () => {
@@ -326,11 +348,13 @@ export default function DashboardLayout({
             <div className="flex flex-col items-center gap-3">
               <div 
                 onClick={() => setShowProfileDrawer(true)}
-                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-sm font-bold text-white shadow-inner cursor-pointer transition-all"
+                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-sm font-bold text-white shadow-inner cursor-pointer transition-all overflow-hidden"
                 title={t("timeTitle")}
               >
                 {avatarEmoji ? (
                   <span className="text-xl leading-none select-none">{avatarEmoji}</span>
+                ) : mounted && user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   initials
                 )}
@@ -350,9 +374,11 @@ export default function DashboardLayout({
                 onClick={() => setShowProfileDrawer(true)}
                 className="flex items-center gap-3 cursor-pointer min-w-0"
               >
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/80 to-green-600/80 text-white flex items-center justify-center text-sm font-bold shadow-md shadow-emerald-500/5 select-none hover:from-emerald-500 hover:to-green-600 transition-all flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/80 to-green-600/80 text-white flex items-center justify-center text-sm font-bold shadow-md shadow-emerald-500/5 select-none hover:from-emerald-500 hover:to-green-600 transition-all flex-shrink-0 overflow-hidden">
                   {avatarEmoji ? (
                     <span className="text-xl leading-none select-none">{avatarEmoji}</span>
+                  ) : mounted && user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     initials
                   )}
@@ -448,9 +474,11 @@ export default function DashboardLayout({
                   {mounted && user ? (user.email || "") : ""}
                 </p>
               </div>
-              <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-sm font-bold text-white shadow-inner select-none hover:bg-white/20 transition-all" suppressHydrationWarning>
+              <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-sm font-bold text-white shadow-inner select-none hover:bg-white/20 transition-all overflow-hidden" suppressHydrationWarning>
                 {avatarEmoji ? (
                   <span className="text-lg leading-none select-none">{avatarEmoji}</span>
+                ) : mounted && user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   initials
                 )}
@@ -493,9 +521,11 @@ export default function DashboardLayout({
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Avatar Card */}
                 <div className="flex flex-col items-center p-6 bg-gradient-to-b from-emerald-50/50 to-transparent rounded-3xl border border-emerald-500/10">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center text-3xl font-extrabold shadow-lg shadow-emerald-500/20 mb-4 border-4 border-white">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center text-3xl font-extrabold shadow-lg shadow-emerald-500/20 mb-4 border-4 border-white overflow-hidden">
                     {avatarEmoji ? (
                       <span className="text-4xl select-none leading-none">{avatarEmoji}</span>
+                    ) : mounted && user?.avatar_url ? (
+                      <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
                       initials
                     )}

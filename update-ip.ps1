@@ -48,9 +48,16 @@ DATABASE_URL="postgresql://admin:admin123@localhost:5433/ecogreendb"
 JWT_SECRET=ecogreen_super_secret_key_change_me_in_production_2026
 
 # Google OAuth 2.0
+# INSTRUCTIONS: Go to Google Cloud Console and create credentials (Web Application)
+# URL: https://console.cloud.google.com/apis/credentials
+# NOTE: Add http://localhost:3001 to Authorized JavaScript origins and Authorized redirect URIs.
+# GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+# GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+# GOOGLE_CALLBACK_URL=http://localhost:3001/v1/auth/google/callback
+
 GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-GOOGLE_CALLBACK_URL=http://${ip}:3001/v1/auth/google/callback
+GOOGLE_CALLBACK_URL=http://localhost:3001/v1/auth/google/callback
 
 # Frontend URL
 CLIENT_URL=http://${ip}:3000
@@ -63,7 +70,6 @@ OPENWEATHER_API_KEY=your_openweather_api_key_here
 "@ | Set-Content $serverEnv -Encoding UTF8
 } else {
     (Get-Content $serverEnv) `
-        -replace 'GOOGLE_CALLBACK_URL=http://[^/]+', "GOOGLE_CALLBACK_URL=http://${ip}:3001" `
         -replace 'CLIENT_URL=http://[^\r\n]+',        "CLIENT_URL=http://${ip}:3000" |
         Set-Content $serverEnv -Encoding UTF8
 }
