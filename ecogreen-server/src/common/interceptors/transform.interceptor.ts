@@ -3,6 +3,7 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
+  StreamableFile,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -15,14 +16,20 @@ export interface Response<T> {
 
 @Injectable()
 export class TransformInterceptor<T>
-  implements NestInterceptor<T, Response<T>>
+  implements NestInterceptor<T, Response<T> | T>
 {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
-  ): Observable<Response<T>> {
+  ): Observable<Response<T> | T> {
     return next.handle().pipe(
       map((res) => {
+        // Bỏ qua StreamableFile — không wrap vào JSON
+        // (PDF, Excel phải được trả nguyên binary)
+        if (res instanceof StreamableFile) {
+          return res as unknown as Response<T>;
+        }
+
         const statusCode = context.switchToHttp().getResponse().statusCode;
 
         if (

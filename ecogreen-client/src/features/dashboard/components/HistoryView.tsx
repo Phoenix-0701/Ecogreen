@@ -30,6 +30,7 @@ import {
 import { getDevices, getSensorReadings } from "@/services/device.service";
 import type { Device, Sensor } from "@/types";
 import { useLanguage } from "@/context/LanguageContext";
+import { ExportReportCard } from "./ExportReportCard";
 
 type MetricKey = "temp" | "humi" | "soil" | "light";
 
@@ -415,6 +416,16 @@ export function HistoryView() {
           </div>
         </div>
       </section>
+
+      {/* Export Report Section */}
+      {selectedDevice && (
+        <section className="hs-export-section">
+          <ExportReportCard
+            deviceId={selectedDevice.Device_ID}
+            deviceName={selectedDevice.name}
+          />
+        </section>
+      )}
 
       {/* Chart Panel (Full Width) */}
       <section className="hs-panel">
@@ -1003,6 +1014,94 @@ export function HistoryView() {
           flex-direction: column;
           gap: 0.75rem;
         }
+
+        /* ===== Export Section ===== */
+        .hs-export-section {
+          width: 100%;
+        }
+
+        /* ===== Export Report Card (shared) ===== */
+        .export-card {
+          background: white;
+          border-radius: 16px;
+          border: 1.5px solid #e2e8f0;
+          overflow: hidden;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+          transition: box-shadow 0.2s ease;
+        }
+        .export-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .export-card__header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 1rem 1.25rem; cursor: pointer; user-select: none;
+        }
+        .export-card__header-left { display: flex; align-items: center; gap: 0.75rem; }
+        .export-card__icon-wrap {
+          width: 36px; height: 36px;
+          background: linear-gradient(135deg, #1a7f4b, #22c55e);
+          border-radius: 10px; display: flex; align-items: center;
+          justify-content: center; color: white; flex-shrink: 0;
+        }
+        .export-card__title { font-size: 0.9rem; font-weight: 700; color: #0f172a; margin: 0; }
+        .export-card__subtitle { font-size: 0.73rem; color: #94a3b8; margin: 0; font-weight: 500; }
+        .export-card__toggle-btn {
+          background: none; border: none; cursor: pointer; color: #94a3b8;
+          padding: 4px; border-radius: 6px; display: flex; transition: background 0.15s;
+        }
+        .export-card__toggle-btn:hover { background: #f1f5f9; color: #475569; }
+        .export-card__body {
+          padding: 0 1.25rem 1.25rem; border-top: 1px solid #f1f5f9;
+          display: flex; flex-direction: column; gap: 0.85rem;
+        }
+        .export-card__presets { display: flex; gap: 0.4rem; flex-wrap: wrap; padding-top: 0.85rem; }
+        .export-card__preset-btn {
+          background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 20px;
+          padding: 3px 10px; font-size: 0.72rem; font-weight: 600; color: #475569;
+          cursor: pointer; transition: all 0.15s;
+        }
+        .export-card__preset-btn:hover { background: #dcfce7; border-color: #86efac; color: #15803d; }
+        .export-card__date-row { display: flex; align-items: center; gap: 0.5rem; }
+        .export-card__date-group { flex: 1; display: flex; flex-direction: column; gap: 0.2rem; }
+        .export-card__date-label {
+          font-size: 0.7rem; font-weight: 600; color: #94a3b8;
+          display: flex; align-items: center; gap: 3px;
+          text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .export-card__date-input {
+          border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 6px 8px;
+          font-size: 0.78rem; font-weight: 600; color: #0f172a;
+          background: #f8fafc; width: 100%; outline: none; transition: border-color 0.15s;
+        }
+        .export-card__date-input:focus { border-color: #22c55e; background: white; }
+        .export-card__date-sep { color: #94a3b8; font-weight: 700; font-size: 1rem; margin-top: 16px; }
+        .export-card__error {
+          background: #fef2f2; border: 1px solid #fecaca;
+          border-radius: 8px; padding: 8px 12px;
+          font-size: 0.78rem; color: #dc2626; font-weight: 500;
+        }
+        .export-card__actions { display: flex; flex-direction: column; gap: 0.5rem; }
+        .export-card__btn {
+          display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+          padding: 9px 14px; border-radius: 10px; font-size: 0.82rem; font-weight: 700;
+          cursor: pointer; border: none; transition: all 0.18s ease; letter-spacing: 0.01em;
+        }
+        .export-card__btn:disabled { opacity: 0.55; cursor: not-allowed; }
+        .export-card__btn--excel {
+          background: #10b981; color: white;
+          box-shadow: none;
+        }
+        .export-card__btn--excel:hover:not(:disabled) {
+          background: #059669;
+          transform: translateY(-1px);
+        }
+        .export-card__btn--pdf {
+          background: #ef4444; color: white;
+          box-shadow: none;
+        }
+        .export-card__btn--pdf:hover:not(:disabled) {
+          background: #dc2626;
+          transform: translateY(-1px);
+        }
+        .export-card__note { font-size: 0.7rem; color: #94a3b8; line-height: 1.5; margin: 0; font-weight: 500; }
       `}</style>
     </div>
   );
