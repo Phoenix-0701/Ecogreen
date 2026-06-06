@@ -11,6 +11,7 @@ import { LogsModule } from './modules/logs/logs.module';
 import { ActuatorsModule } from './modules/actuators/actuators.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
+import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { SchedulesModule } from './modules/schedules/schedules.module';
     ActuatorsModule,
     AnalyticsModule,
     SchedulesModule,
+    AiAssistantModule,
   ],
   controllers: [AppController],
   providers: [EventsGateway],

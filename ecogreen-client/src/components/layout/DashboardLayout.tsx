@@ -25,6 +25,7 @@ import {
 import { useAuth } from "@/features/auth/auth.context";
 import { useLanguage } from "@/context/LanguageContext";
 import { getMyProfile } from "@/services/user.service";
+import { VoiceAssistantButton } from "@/features/dashboard/components/VoiceAssistantButton";
 
 type NavItem = {
   key: string;
@@ -661,6 +662,9 @@ export default function DashboardLayout({
           }
         `}</style>
       </div>
+
+      {/* Tích hợp nút Micro trôi cho Voice Control */}
+      <VoiceAssistantButton />
     </div>
   );
 }

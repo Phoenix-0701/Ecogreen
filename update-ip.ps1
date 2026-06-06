@@ -67,10 +67,16 @@ MQTT_URL=mqtt://broker.emqx.io:1883
 
 # OpenWeather API (optional)
 OPENWEATHER_API_KEY=your_openweather_api_key_here
+
+# Gemini AI API Key
+GEMINI_API_KEY=your_gemini_api_key_here
 "@ | Set-Content $serverEnv -Encoding UTF8
 } else {
-    (Get-Content $serverEnv) `
-        -replace 'CLIENT_URL=http://[^\r\n]+',        "CLIENT_URL=http://${ip}:3000" |
+    $envContent = (Get-Content $serverEnv) -join "`n"
+    if ($envContent -notmatch "GEMINI_API_KEY") {
+        $envContent += "`n`n# Gemini AI API Key`nGEMINI_API_KEY=your_gemini_api_key_here"
+    }
+    $envContent -replace 'CLIENT_URL=http://[^\r\n]+', "CLIENT_URL=http://${ip}:3000" |
         Set-Content $serverEnv -Encoding UTF8
 }
 Write-Host "    Updated: $serverEnv" -ForegroundColor Cyan
