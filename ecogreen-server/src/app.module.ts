@@ -12,6 +12,8 @@ import { ActuatorsModule } from './modules/actuators/actuators.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { SchedulesModule } from './modules/schedules/schedules.module';
 import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SmartLogicModule } from './modules/smart-logic/smart-logic.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
     AnalyticsModule,
     SchedulesModule,
     AiAssistantModule,
+    NotificationsModule,
+    SmartLogicModule,
   ],
   controllers: [AppController],
   providers: [EventsGateway],

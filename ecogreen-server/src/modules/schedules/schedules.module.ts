@@ -4,6 +4,7 @@ import { SchedulesController } from './schedules.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { Serializer, OutgoingEvent } from '@nestjs/microservices';
+import { SmartLogicModule } from '../smart-logic/smart-logic.module';
 
 class RawMqttSerializer implements Serializer {
   serialize(value: OutgoingEvent): any {
@@ -24,6 +25,7 @@ class RawMqttSerializer implements Serializer {
         },
       },
     ]),
+    SmartLogicModule,
   ],
   controllers: [SchedulesController],
   providers: [SchedulesService],

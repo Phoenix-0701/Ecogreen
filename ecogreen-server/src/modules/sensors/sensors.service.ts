@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LogsService } from '../logs/logs.service';
 import { ActuatorsService } from '../actuators/actuators.service';
@@ -6,7 +6,12 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SensorsService {
+  private readonly logger = new Logger(SensorsService.name);
+
+  // 🟢 Bộ nhớ đệm chống Spam tin nhắn Telegram
+  // Key: Sensor_ID, Value: Thời gian gửi tin nhắn cảnh báo cuối cùng (millisecond)
   private alertCache: Map<string, number> = new Map();
+  private readonly ALERT_COOLDOWN_MS = 5 * 60 * 1000; // Khoảng cách giữa 2 lần spam (5 phút)
 
   constructor(
     private prisma: PrismaService,
@@ -15,231 +20,136 @@ export class SensorsService {
     private notificationsService: NotificationsService,
   ) {}
 
-  private shouldLogAlert(deviceId: string, alertType: string, cooldownMs: number): boolean {
-    const key = `${deviceId}_${alertType}`;
-    const lastTime = this.alertCache.get(key) || 0;
-    const now = Date.now();
-    if (now - lastTime > cooldownMs) {
-      this.alertCache.set(key, now);
-      return true;
-    }
-    return false;
-  }
-
   async saveSensorData(macAddress: string, payload: any) {
-    const device = await this.prisma.dEVICES.findUnique({
-      where: { mac_address: macAddress },
-      include: {
-        sensors: {
-          include: {
-            thresholds: true,
-          },
-        },
-        actuators: true,
-      },
-    });
-    if (!device) return null;
+    try {
+      // 1. Tìm thiết bị (Gộp lấy luôn Cảm biến và Máy bơm để dùng sau)
+      const device = await this.prisma.dEVICES.findUnique({
+        where: { mac_address: macAddress },
+        include: { sensors: true, actuators: true },
+      });
 
-    // Đồng bộ trạng thái thiết bị chấp hành báo về từ telemetry
-    if (device.actuators && device.actuators.length > 0) {
-      for (const actuator of device.actuators) {
-        let reportedState = null;
-        if (actuator.type === 'pump' && (payload.pump !== undefined || payload.pumpState !== undefined)) {
-          reportedState = payload.pump ?? payload.pumpState;
-        } else if (actuator.type === 'fan' && (payload.fan !== undefined || payload.fanState !== undefined)) {
-          reportedState = payload.fan ?? payload.fanState;
+      if (!device) return null; // Trả về null để AppController tiến hành Discovery
+
+      const readingsToInsert: { Sensor_ID: string; value: number }[] = [];
+
+      // 2. Map dữ liệu từ ESP32 gửi lên và ép kiểu an toàn
+      for (const sensor of device.sensors) {
+        let val = null;
+        if (sensor.type === 'temperature') val = payload.temp ?? payload.temperature;
+        else if (sensor.type === 'humidity') val = payload.humi ?? payload.humidity ?? payload.hum;
+        else if (sensor.type === 'soil_moisture') val = payload.soil ?? payload.soil_moisture;
+
+        if (val !== null && val !== undefined) {
+          const parsedVal = parseFloat(val);
+          if (!isNaN(parsedVal)) {
+            readingsToInsert.push({ Sensor_ID: sensor.Sensor_ID, value: parsedVal });
+          }
         }
+      }
 
-        if (reportedState !== null) {
-          const lastLog = await this.prisma.aCTUATOR_LOGS.findFirst({
-            where: { Actuator_ID: actuator.Actuator_ID },
-            orderBy: { occurred_at: 'desc' },
-          });
+      if (readingsToInsert.length === 0) return true;
 
-          const currentDbState = lastLog ? (lastLog.action === 'ON') : false;
-          const reportedStateBool = !!reportedState;
+      // 3. TỐI ƯU HÓA 1: Lưu lịch sử và cập nhật thiết bị qua TRANSACTION
+      await this.prisma.$transaction([
+        this.prisma.sENSOR_READINGS.createMany({ data: readingsToInsert }),
+        this.prisma.dEVICES.update({
+          where: { Device_ID: device.Device_ID },
+          data: { status: 'online', last_seen_at: new Date() },
+        })
+      ]);
 
-          if (currentDbState !== reportedStateBool) {
-            console.log(
-              `🔄 [SYNC] Thiết bị báo trạng thái ${actuator.type} là ${reportedStateBool ? 'ON' : 'OFF'} (khác với DB là ${currentDbState ? 'ON' : 'OFF'}). Tiến hành cập nhật log.`
+      // 4. TỐI ƯU HÓA 2: Truy vấn GỘP toàn bộ Threshold bằng 1 lần gọi DB
+      const sensorIds = readingsToInsert.map(r => r.Sensor_ID);
+      const thresholds = await this.prisma.tHRESHOLDS.findMany({
+        where: { Sensor_ID: { in: sensorIds }, is_enabled: true },
+      });
+
+      if (thresholds.length === 0) return true;
+
+      // 5. TỐI ƯU HÓA 3: Tìm trạng thái các Máy bơm bằng 1 lần gọi DB duy nhất
+      const actuatorIds = thresholds.map(t => t.Actuator_ID);
+      const lastLogs = await this.prisma.aCTUATOR_LOGS.findMany({
+        where: { Actuator_ID: { in: actuatorIds } },
+        orderBy: { occurred_at: 'desc' },
+      });
+
+      // Tạo một từ điển (map) chứa trạng thái máy bơm hiện tại để tra cứu siêu tốc
+      const pumpStatusMap = new Map<string, boolean>();
+      for (const log of lastLogs) {
+        if (!pumpStatusMap.has(log.Actuator_ID)) {
+          pumpStatusMap.set(log.Actuator_ID, log.action === 'ON');
+        }
+      }
+
+      // 6. SO SÁNH VÀ ĐIỀU KHIỂN
+      for (const reading of readingsToInsert) {
+        const threshold = thresholds.find(t => t.Sensor_ID === reading.Sensor_ID);
+        if (!threshold) continue;
+
+        const sensorName = device.sensors.find((s) => s.Sensor_ID === reading.Sensor_ID)?.name || 'Cảm biến';
+        const actuatorID = threshold.Actuator_ID;
+        const isCurrentlyOn = pumpStatusMap.get(actuatorID) || false;
+
+        // =====================================
+        // XỬ LÝ VƯỢT NGƯỠNG MAX (QUÁ NÓNG/KHÔ)
+        // =====================================
+        if (reading.value > threshold.max_value) {
+          
+          if (!isCurrentlyOn) {
+            await this.logsService.createSystemLog(
+              device.Device_ID, 'WARNING', 'VƯỢT NGƯỠNG MAX',
+              `Cảnh báo: ${sensorName} vượt Max (${reading.value} > ${threshold.max_value})`
             );
-
-            let triggeredBy = 'DEVICE_PHYSICAL';
-            let actorName = 'Nút bấm vật lý (ESP32)';
-
-            if (payload.autoMode) {
-              triggeredBy = 'AUTO_HARDWARE';
-              actorName = 'Chế độ Tự động (ESP32)';
-            } else if (reportedStateBool) {
-              triggeredBy = 'SCHED_HARDWARE';
-              actorName = 'Lịch hẹn giờ / Nút bấm vật lý';
-            }
-
-            await this.prisma.aCTUATOR_LOGS.create({
-              data: {
-                Actuator_ID: actuator.Actuator_ID,
-                action: reportedStateBool ? 'ON' : 'OFF',
-                triggered_by: triggeredBy,
-              },
-            });
-
-            const eventType = actuator.type === 'pump'
-              ? (reportedStateBool ? 'PUMP_ON' : 'PUMP_OFF')
-              : (reportedStateBool ? 'FAN_ON' : 'FAN_OFF');
-
-            const description = reportedStateBool
-              ? `Thiết bị tự ghi nhận: BẬT ${actuator.name} từ ${actorName}.`
-              : `Thiết bị tự ghi nhận: TẮT ${actuator.name} từ ${actorName}.`;
-
-            await this.prisma.aCTIVITY_LOGS.create({
-              data: {
-                Device_ID: device.Device_ID,
-                event_type: eventType,
-                status: 'success',
-                description,
-              },
-            });
+            await this.actuatorsService.toggle(actuatorID, true, 'AUTO_SYSTEM_MAX');
+            pumpStatusMap.set(actuatorID, true); // Chống gọi bơm liên tục ở vòng lặp kế
           }
-        }
-      }
-    }
 
-    const readingsToInsert: { Sensor_ID: string; value: number }[] = [];
+          // Cảnh báo Telegram (Áp dụng chống Spam)
+          const now = Date.now();
+          const lastAlert = this.alertCache.get(reading.Sensor_ID) || 0;
 
-    for (const sensor of device.sensors) {
-      let val = null;
-      if (sensor.type === 'temperature')
-        val = payload.temp ?? payload.temperature;
-      if (sensor.type === 'humidity')
-        val = payload.humi ?? payload.humidity ?? payload.hum;
-      if (sensor.type === 'soil_moisture')
-        val = payload.soil ?? payload.soil_moisture ?? payload.soilMoisture;
-      if (sensor.type === 'light')
-        val = payload.light ?? payload.lightLux ?? payload.light_lux;
+          if (now - lastAlert > this.ALERT_COOLDOWN_MS) {
+            const msg = 
+              `🚨 <b>CẢNH BÁO QUÁ NHIỆT / VƯỢT NGƯỠNG!</b>\n\n` +
+              `🌱 Vườn: <b>${device.name}</b>\n` +
+              `⚠️ <b>${sensorName}</b>: <b>${reading.value}</b> (Max: ${threshold.max_value})\n\n` +
+              `💦 <i>Hệ thống ${!isCurrentlyOn ? 'đã TỰ ĐỘNG BẬT bơm!' : 'đang duy trì tưới...'}</i>`;
+            
+            await this.notificationsService.sendTelegramMessage(device.User_ID, msg, true);
+            this.alertCache.set(reading.Sensor_ID, now); // Cập nhật mốc thời gian vừa nhắn
+          }
+        } 
+        // =====================================
+        // XỬ LÝ DƯỚI NGƯỠNG MIN (ĐÃ MÁT/ẨM)
+        // =====================================
+        else if (reading.value < threshold.min_value) {
+          
+          if (isCurrentlyOn) {
+            await this.logsService.createSystemLog(
+              device.Device_ID, 'ACTION', 'DƯỚI NGƯỠNG MIN',
+              `Thông báo: ${sensorName} an toàn (${reading.value} < ${threshold.min_value})`
+            );
+            await this.actuatorsService.toggle(actuatorID, false, 'AUTO_SYSTEM_MIN');
+            pumpStatusMap.set(actuatorID, false);
 
-      if (val !== null && val !== undefined) {
-        readingsToInsert.push({
-          Sensor_ID: sensor.Sensor_ID,
-          value: parseFloat(val),
-        });
-      }
-    }
+            // Xóa cache cảnh báo khi hệ thống đã an toàn trở lại
+            this.alertCache.delete(reading.Sensor_ID);
 
-    if (readingsToInsert.length > 0) {
-      await this.prisma.sENSOR_READINGS.createMany({ data: readingsToInsert });
-      await this.prisma.dEVICES.update({
-        where: { mac_address: macAddress },
-        data: { status: 'online', last_seen_at: new Date() },
-      });
-
-      // --- ĐỒNG BỘ TRẠNG THÁI ACTUATORS TỪ TELEMETRY ---
-      // ESP32 đã tự quản lý Auto Mode và Cooldown, Server không nên can thiệp logic Thresholds
-      // Server chỉ cập nhật Activity Logs khi nhận thấy pumpState/fanState thay đổi từ telemetry.
-      
-      if (payload.pumpState !== undefined) {
-        const pumpActuator = device.actuators.find(a => a.name.toLowerCase().includes('bơm'));
-        if (pumpActuator) {
-          const lastLog = await this.prisma.aCTUATOR_LOGS.findFirst({
-            where: { Actuator_ID: pumpActuator.Actuator_ID },
-            orderBy: { occurred_at: 'desc' },
-          });
-          const isCurrentlyOn = lastLog ? lastLog.action === 'ON' : false;
-
-          // Nếu trạng thái thực tế từ ESP khác với Database
-          if (payload.pumpState !== isCurrentlyOn) {
-            const timeSinceLastLog = lastLog ? (new Date().getTime() - lastLog.occurred_at.getTime()) : 999999;
-            // Bỏ qua nếu vừa có lệnh thủ công cách đây < 3 giây (tránh log lặp)
-            if (timeSinceLastLog > 3000) {
-              const newState = payload.pumpState;
-              console.log(`🔄 [SYNC] Máy bơm ESP32 chuyển sang: ${newState ? 'ON' : 'OFF'}`);
-              
-              await this.prisma.aCTUATOR_LOGS.create({
-                data: {
-                  Actuator_ID: pumpActuator.Actuator_ID,
-                  action: newState ? 'ON' : 'OFF',
-                  triggered_by: 'ESP32_AUTO',
-                },
-              });
-              await this.logsService.createSystemLog(
-                device.Device_ID,
-                newState ? 'CẢNH BÁO ĐẤT KHÔ' : 'ĐẤT ĐỦ ẨM',
-                newState ? 'warning' : 'success',
-                newState 
-                  ? 'Mạch tự động BẬT máy bơm do độ ẩm đất giảm xuống dưới mức an toàn (quá khô).' 
-                  : 'Mạch tự động TẮT máy bơm do đất đã đạt đủ độ ẩm an toàn.',
-              );
-            }
+            const msg = 
+              `✅ <b>THÔNG BÁO AN TOÀN</b>\n\n` +
+              `🌱 Vườn: <b>${device.name}</b>\n` +
+              `📉 <b>${sensorName}</b> đã hạ xuống <b>${reading.value}</b> (Min: ${threshold.min_value})\n\n` +
+              `🛑 <i>Hệ thống đã TỰ ĐỘNG TẮT bơm.</i>`;
+            
+            await this.notificationsService.sendTelegramMessage(device.User_ID, msg, false);
           }
         }
       }
 
-      if (payload.fanState !== undefined) {
-        const fanActuator = device.actuators.find(a => a.type === 'fan' || a.name.toLowerCase().includes('quạt'));
-        if (fanActuator) {
-          const lastLog = await this.prisma.aCTUATOR_LOGS.findFirst({
-            where: { Actuator_ID: fanActuator.Actuator_ID },
-            orderBy: { occurred_at: 'desc' },
-          });
-          const isCurrentlyOn = lastLog ? lastLog.action === 'ON' : false;
-
-          if (payload.fanState !== isCurrentlyOn) {
-            const timeSinceLastLog = lastLog ? (new Date().getTime() - lastLog.occurred_at.getTime()) : 999999;
-            if (timeSinceLastLog > 3000) {
-              const newState = payload.fanState;
-              console.log(`🔄 [SYNC] Quạt ESP32 chuyển sang: ${newState ? 'ON' : 'OFF'}`);
-              
-              await this.prisma.aCTUATOR_LOGS.create({
-                data: {
-                  Actuator_ID: fanActuator.Actuator_ID,
-                  action: newState ? 'ON' : 'OFF',
-                  triggered_by: 'ESP32_AUTO',
-                },
-              });
-              await this.logsService.createSystemLog(
-                device.Device_ID,
-                newState ? 'CẢNH BÁO QUÁ NHIỆT' : 'NHIỆT ĐỘ AN TOÀN',
-                newState ? 'warning' : 'success',
-                newState 
-                  ? 'Nhiệt độ môi trường vượt mức an toàn, mạch tự động BẬT quạt làm mát!' 
-                  : 'Nhiệt độ đã giảm xuống mức an toàn, mạch tự động TẮT quạt.',
-              );
-            }
-          }
-        }
-      }
-
-      // --- KIỂM TRA VÀ GHI LOG CẢNH BÁO ĐỘC LẬP TỪ SENSORS ---
-      // Chỉ ghi log tối đa 1 lần mỗi 5 phút (300000ms) để tránh spam database
-      if (payload.alertSoil) {
-        if (this.shouldLogAlert(device.Device_ID, 'alertSoil', 300000)) {
-          const soilVal = payload.soilMoisture ?? payload.soil ?? 0;
-          const displaySoil = Math.max(0, Number(soilVal)).toFixed(0);
-          await this.logsService.createSystemLog(
-            device.Device_ID,
-            'CẢNH BÁO ĐẤT KHÔ',
-            'warning-dark',
-            `Độ ẩm đất hiện tại đang ở mức quá thấp (${displaySoil}%), dưới ngưỡng an toàn!`,
-          );
-        }
-      }
-
-      if (payload.alertTemp) {
-        if (this.shouldLogAlert(device.Device_ID, 'alertTemp', 300000)) {
-          const tempVal = payload.temperature ?? payload.temp ?? 0;
-          const displayTemp = Number(tempVal).toFixed(1);
-          await this.logsService.createSystemLog(
-            device.Device_ID,
-            'CẢNH BÁO QUÁ NHIỆT',
-            'warning',
-            `Nhiệt độ môi trường đang ở mức quá cao (${displayTemp}°C), vượt ngưỡng an toàn!`,
-          );
-        }
-      }
-
-      await this.prisma.dEVICES.update({
-        where: { mac_address: macAddress },
-        data: { status: 'online', last_seen_at: new Date() },
-      });
+      return true;
+    } catch (error) {
+      this.logger.error(`❌ Lỗi xử lý MQTT tại SensorsService: ${error.message}`);
+      return false;
     }
   }
 

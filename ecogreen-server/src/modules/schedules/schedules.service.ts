@@ -1,12 +1,17 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClientProxy } from '@nestjs/microservices';
 import { SaveSchedulesDto } from './dto/save-schedules.dto';
+import { SmartLogicService } from '../smart-logic/smart-logic.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class SchedulesService {
+  private readonly logger = new Logger(SchedulesService.name);
+
   constructor(
     private prisma: PrismaService,
+    private smartLogicService: SmartLogicService,
     @Inject('MQTT_SERVICE') private mqttClient: ClientProxy,
   ) {}
 
@@ -160,5 +165,85 @@ export class SchedulesService {
         };
       }),
     };
+  }
+
+  // =========================================================================
+  // THÊM MỚI: BOT KIỂM TRA THỜI TIẾT TỰ ĐỘNG (CHẠY MỖI GIỜ 1 LẦN)
+  // =========================================================================
+  @Cron(CronExpression.EVERY_HOUR)
+  async handleSmartLogicCron() {
+    this.logger.log('☁️ [SmartLogic] Bắt đầu quét thời tiết để điều chỉnh lịch tưới...');
+
+    // 1. Tìm các cấu hình Smart Logic đang được BẬT
+    const smartConfigs = await this.prisma.sMART_LOGIC_CONFIGS.findMany({
+      where: { is_smart_mode: true },
+      include: {
+        device: {
+          include: {
+            actuators: {
+              where: { type: 'pump' },
+              include: { schedules: true }
+            }
+          }
+        }
+      }
+    });
+
+    for (const config of smartConfigs) {
+      const device = config.device;
+      
+      // Nếu người dùng đã tự tay TẮT toàn bộ lịch tưới (schedule_enabled = false) thì Backend không can thiệp
+      if (!device || !device.schedule_enabled) continue;
+
+      try {
+        // Hỏi ý kiến API Thời tiết: Sắp mưa không?
+        const shouldSkip = await this.smartLogicService.shouldSkipWatering(device.Device_ID);
+        
+        const macFlat = device.mac_address.replace(/:/g, '').toUpperCase();
+        const pumpActuator = device.actuators[0];
+        const rawSchedules = pumpActuator ? pumpActuator.schedules : [];
+
+        // Đóng gói Payload y hệt như lúc lưu, CHỈ KHÁC CỜ `enabled`
+        const mqttPayload = {
+          method: 'setSchedules',
+          params: {
+            // NẾU MƯA (shouldSkip = true) -> Ép ESP32 đổi thành FALSE (Tạm dừng lịch)
+            // NẾU NẮNG (shouldSkip = false) -> Ép ESP32 đổi thành TRUE (Cho tưới bình thường)
+            enabled: !shouldSkip, 
+            schedules: rawSchedules.map((s) => {
+              const hours = String(s.start_time.getUTCHours()).padStart(2, '0');
+              const minutes = String(s.start_time.getUTCMinutes()).padStart(2, '0');
+              return {
+                time: `${hours}:${minutes}`,
+                duration: s.duration_min,
+                days: s.days_of_week ? s.days_of_week.split(',').map(Number) : [],
+                enabled: s.is_enabled,
+              };
+            }),
+          },
+        };
+
+        if (shouldSkip) {
+          this.logger.log(`🛑 [SmartLogic] Phát hiện trời sắp mưa tại ${config.city_name}. TẠM DỪNG lịch tưới của mạch ${macFlat}`);
+          this.mqttClient.emit(`ecogreen/command/${macFlat}`, mqttPayload);
+
+          // Tùy chọn: Ghi Log để người dùng mở web lên thấy vì sao máy bơm không chạy
+          await this.prisma.aCTIVITY_LOGS.create({
+            data: {
+              Device_ID: device.Device_ID,
+              event_type: 'SMART_LOGIC_ACTION',
+              status: 'WARNING',
+              description: `Hệ thống tự động TẠM DỪNG các lịch tưới do dự báo xác suất mưa cao tại ${config.city_name}.`,
+            },
+          });
+        } else {
+          // Bắn lệnh liên tục mỗi giờ để đảm bảo nếu ESP32 vừa mất điện có lại thì vẫn đúng trạng thái Nắng -> Được tưới
+          this.mqttClient.emit(`ecogreen/command/${macFlat}`, mqttPayload);
+        }
+
+      } catch (error) {
+        this.logger.error(`❌ Lỗi xử lý Smart Logic cho thiết bị ${device.Device_ID}: ${error.message}`);
+      }
+    }
   }
 }
