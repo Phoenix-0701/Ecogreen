@@ -5,23 +5,22 @@ import { UpsertSmartLogicDto } from './dto/upsert-smart-logic.dto';
 @Injectable()
 export class SmartLogicService {
   private readonly logger = new Logger(SmartLogicService.name);
-  private readonly WEATHER_CACHE_TTL_MS = 2 * 60 * 60 * 1000; // Cache thời tiết trong 2 giờ
+  private readonly WEATHER_CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 giờ
 
   constructor(private prisma: PrismaService) {}
 
-  // 1. QUẢN LÝ CẤU HÌNH THÔNG MINH
+  // ── 1. QUẢN LÝ CẤU HÌNH ──────────────────────────────────────────────────
   async getConfig(deviceId: string) {
     let config = await this.prisma.sMART_LOGIC_CONFIGS.findUnique({
       where: { Device_ID: deviceId },
     });
 
-    // Tự động tạo cấu hình mặc định nếu chưa có
     if (!config) {
       config = await this.prisma.sMART_LOGIC_CONFIGS.create({
         data: {
           Device_ID: deviceId,
           city_name: 'Ho Chi Minh',
-          rain_prob_threshold: 70, // Mặc định: Mưa > 70% thì không tưới
+          rain_prob_threshold: 70,
           is_smart_mode: false,
         },
       });
@@ -46,33 +45,49 @@ export class SmartLogicService {
     });
   }
 
-  // 2. LẤY DỮ LIỆU THỜI TIẾT (CÓ CACHE)
+  // ── 2. LẤY THỜI TIẾT (có cache) ───────────────────────────────────────────
   async getWeatherForCity(cityName: string) {
     const apiKey = process.env.OPENWEATHER_API_KEY;
     if (!apiKey) return null;
 
-    // A. Kiểm tra trong Database xem có Cache cũ không
     const cached = await this.prisma.wEATHER_CACHE.findFirst({
       where: { city_name: cityName },
     });
 
     const now = new Date();
-    // B. Nếu có cache và chưa quá 2 tiếng -> Dùng luôn cho lẹ, tiết kiệm API
+    // Dùng cache nếu còn trong 2 giờ
     if (cached && now.getTime() - cached.updated_at.getTime() < this.WEATHER_CACHE_TTL_MS) {
       return cached.weather_data;
     }
 
-    // C. Nếu không có hoặc đã hết hạn -> Gọi API OpenWeatherMap
+    return this._callWeatherApi(cityName, cached, now);
+  }
+
+  // ── 3. LẤY THỜI TIẾT FRESH (bỏ qua cache) ────────────────────────────────
+  async fetchFreshWeather(cityName: string) {
+    const apiKey = process.env.OPENWEATHER_API_KEY;
+    if (!apiKey) return null;
+
+    const cached = await this.prisma.wEATHER_CACHE.findFirst({
+      where: { city_name: cityName },
+    });
+
+    return this._callWeatherApi(cityName, cached, new Date());
+  }
+
+  private async _callWeatherApi(cityName: string, cached: any, now: Date) {
+    const apiKey = process.env.OPENWEATHER_API_KEY;
+    if (!apiKey) return null;
+
     try {
-      this.logger.log(`🌥 Đang lấy dữ liệu thời tiết thực tế cho ${cityName}...`);
-      // Lấy dự báo thời tiết (forecast) để lấy xác suất mưa (pop: probability of precipitation)
-      const url = `https://api.openweathermap.org/data/2.5/forecast?q=${cityName}&appid=${apiKey}&units=metric`;
+      this.logger.log(`🌥 Gọi OpenWeatherMap cho: ${cityName}`);
+      const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(cityName)}&appid=${apiKey}&units=metric&lang=vi`;
       const response = await fetch(url);
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.message);
+      if (!response.ok) throw new Error(data.message ?? 'OpenWeatherMap error');
 
-      // Lưu đè vào Cache
+      // Cập nhật cache
       if (cached) {
         await this.prisma.wEATHER_CACHE.update({
           where: { Cache_ID: cached.Cache_ID },
@@ -86,35 +101,49 @@ export class SmartLogicService {
 
       return data;
     } catch (error) {
-      this.logger.error(`❌ Lỗi lấy thời tiết: ${error.message}`);
-      // Lỗi mạng thì đành xài lại cache cũ (nếu có)
-      return cached ? cached.weather_data : null; 
+      this.logger.error(`❌ Lỗi OpenWeatherMap: ${error.message}`);
+      return cached ? cached.weather_data : null;
     }
   }
-  
-  // 3. HÀM KIỂM TRA: CÓ NÊN BỎ QUA TƯỚI KHÔNG?
-  async shouldSkipWatering(deviceId: string): Promise<boolean> {
+
+  // ── 4. QUYẾT ĐỊNH CÓ NÊN Bỏ QUA TƯỚI KHÔNG ─────────────────────────────────
+  async shouldSkipWatering(deviceId: string): Promise<{ skip: boolean; reason: string; rainProbability: number }> {
     const config = await this.getConfig(deviceId);
-    
-    // Nếu chế độ thông minh đang TẮT -> Luôn tưới (Không bỏ qua)
-    if (!config.is_smart_mode) return false;
 
-    // Lấy thời tiết
-    const weatherData: any = await this.getWeatherForCity(config.city_name);
-    if (!weatherData || !weatherData.list) return false;
-
-    // OpenWeatherMap Forecast trả về list dự báo mỗi 3 giờ.
-    // Lấy xác suất mưa (pop) của khung giờ ngay tiếp theo (phần tử 0 hoặc 1)
-    const nextForecast = weatherData.list[0]; 
-    const rainProbability = nextForecast.pop * 100; // pop chạy từ 0 đến 1 -> Nhân 100 lấy %
-
-    this.logger.log(`🌦 Chế độ Smart: Xác suất mưa tại ${config.city_name} sắp tới là ${rainProbability}%`);
-
-    // So sánh với ngưỡng cài đặt. Nếu lớn hơn ngưỡng -> BỎ QUA TƯỚI (return true)
-    if (rainProbability >= config.rain_prob_threshold) {
-      return true;
+    if (!config.is_smart_mode) {
+      return { skip: false, reason: 'Smart Logic đang TắT', rainProbability: 0 };
     }
 
-    return false; // Không đủ khả năng mưa -> Cứ tưới bình thường
+    const weatherData: any = await this.getWeatherForCity(config.city_name);
+    if (!weatherData?.list?.length) {
+      return { skip: false, reason: 'Không có dữ liệu thời tiết', rainProbability: 0 };
+    }
+
+    // Kiểm tra xac suất mưa trong 12 giờ tới (4 slot × 3h)
+    // Dùng giá trị CAO NHẤT để an toàn hơn
+    const slotsToCheck = Math.min(4, weatherData.list.length);
+    let rainProbability = 0;
+    for (let i = 0; i < slotsToCheck; i++) {
+      const slotPop = Math.round((weatherData.list[i].pop ?? 0) * 100);
+      if (slotPop > rainProbability) rainProbability = slotPop;
+    }
+
+    this.logger.log(
+      `🌦 SmartLogic [${deviceId}]: Mưa tối đa ${rainProbability}% trong 12h tới tại ${config.city_name} (ngưỡng ${config.rain_prob_threshold}%)`,
+    );
+
+    if (rainProbability >= config.rain_prob_threshold) {
+      return {
+        skip: true,
+        reason: `Xác suất mưa ${rainProbability}% ≥ ngưỡng ${config.rain_prob_threshold}% (trong 12h tới)`,
+        rainProbability,
+      };
+    }
+
+    return {
+      skip: false,
+      reason: `Xác suất mưa ${rainProbability}% thấp hơn ngưỡng ${config.rain_prob_threshold}%`,
+      rainProbability,
+    };
   }
 }

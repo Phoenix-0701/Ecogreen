@@ -67,6 +67,7 @@ extern bool g_pumpState;
 extern bool g_fanState;
 extern bool g_ledGrowState;
 extern bool g_pumpManual; // true = bơm do lệnh manual, không auto off theo soil
+extern bool g_weatherBlockPump; // true = server báo trời mưa, chặn bơm tự động (không ảnh hưởng manual)
 
 // ============================================================================
 // THỜI GIAN BƠM

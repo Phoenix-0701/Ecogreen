@@ -98,7 +98,7 @@ void setup()
     SCH_Add_Task(Task_AutoSwitchLCDPage, 0, TASK_LCD_PAGE_SWITCH_TICKS); // Task tự động chuyển trang LCD mỗi 5s
     SCH_Add_Task(Task_Heartbeat, 0, TASK_HEARTBEAT_TICKS);               // Task nhẹ, in trạng thái hệ thống mỗi 5s
     SCH_Add_Task(Task_ScanButtons, 0, BTN_DEBOUNCE_TICKS);               // Task quét nút bấm với debounce
-    SCH_Add_Task(Task_SendTelemetry, 0, TASK_TELEMETRY_TICKS);           // Task: gửi telemetry lên cloud mỗi 5s
+    SCH_Add_Task(Task_SendTelemetry, 0, TASK_TELEMETRY_TICKS);           // Task: gửi telemetry lên cloud mỗi 2s
     SCH_Add_Task(Task_ProcessRpc, 0, TASK_RPC_POLL_TICKS);               // Task: poll lệnh RPC từ cloud mỗi 200ms
     SCH_Add_Task(Task_CheckSchedule, 0, TASK_SCHEDULE_CHECK_TICKS);      // Task: kiểm tra lịch tưới mỗi 10s
 }

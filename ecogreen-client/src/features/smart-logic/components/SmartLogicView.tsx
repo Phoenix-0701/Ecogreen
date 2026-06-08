@@ -23,6 +23,21 @@ import { useRealtimeTelemetry } from "@/features/shared/useRealtimeTelemetry";
 import type { SmartLogicState } from "@/types/automation";
 import { useLanguage } from "@/context/LanguageContext";
 
+const PRESET_CITIES = [
+  { value: "Ho Chi Minh, VN", label: "TP. Hồ Chí Minh (Việt Nam)" },
+  { value: "Hanoi, VN", label: "Hà Nội (Việt Nam)" },
+  { value: "Da Nang, VN", label: "Đà Nẵng (Việt Nam)" },
+  { value: "Can Tho, VN", label: "Cần Thơ (Việt Nam)" },
+  { value: "Da Lat, VN", label: "Đà Lạt / Lâm Đồng (Việt Nam)" },
+  { value: "Nha Trang, VN", label: "Nha Trang (Việt Nam)" },
+  { value: "Hai Phong, VN", label: "Hải Phòng (Việt Nam)" },
+  { value: "Beijing, CN", label: "Bắc Kinh (Trung Quốc)" },
+  { value: "Tokyo, JP", label: "Tokyo (Nhật Bản)" },
+  { value: "London, GB", label: "London (Vương Quốc Anh)" },
+  { value: "New York, US", label: "New York (Mỹ)" },
+  { value: "custom", label: "Khác... (Nhập thủ công)" }
+];
+
 export function SmartLogicView() {
   const { t } = useLanguage();
   const { telemetry, connected } = useRealtimeTelemetry();
@@ -31,6 +46,7 @@ export function SmartLogicView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [selectedCityOption, setSelectedCityOption] = useState<string>("");
 
   useEffect(() => {
     let mounted = true;
@@ -42,6 +58,17 @@ export function SmartLogicView() {
 
       setDraft(result);
       setSaved(result);
+      // Determine if current city is preset or custom
+      const isPreset = PRESET_CITIES.some(
+        (c) => c.value.toLowerCase() === result.city.toLowerCase()
+      );
+      setSelectedCityOption(
+        isPreset
+          ? PRESET_CITIES.find(
+              (c) => c.value.toLowerCase() === result.city.toLowerCase()
+            )!.value
+          : "custom"
+      );
       setLoading(false);
     });
 
@@ -49,6 +76,13 @@ export function SmartLogicView() {
       mounted = false;
     };
   }, []);
+
+  const handlePresetCityChange = (val: string) => {
+    setSelectedCityOption(val);
+    if (val !== "custom") {
+      setDraft((prev) => (prev ? { ...prev, city: val } : null));
+    }
+  };
 
   const dirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(saved),
@@ -128,19 +162,35 @@ export function SmartLogicView() {
           </div>
 
           <div className="space-y-5">
-            <FormField
-              label={`${t('smartLogic.apiKeyLabel', 'Khóa dự báo')} ${draft.providerLabel}`}
-              value={draft.apiKey}
-              onChange={(value) => setDraft({ ...draft, apiKey: value })}
-              placeholder={t('smartLogic.apiKeyPlaceholder', 'Nhập khóa dự báo')}
-              type="password"
-            />
-            <FormField
-              label={t('smartLogic.cityLabel', 'Thành phố triển khai')}
-              value={draft.city}
-              onChange={(value) => setDraft({ ...draft, city: value })}
-              placeholder={t('smartLogic.cityPlaceholder', 'Ví dụ: Ho Chi Minh City')}
-            />
+            <div style={{ background: '#f8fafc', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px dashed #cbd5e1', fontSize: '0.8125rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1rem' }}>🔑</span>
+              <span>Khóa API OpenWeatherMap được cấu hình và bảo mật phía Server.</span>
+            </div>
+            <div className="block">
+              <span className="text-sm font-semibold text-[#1d2420]">
+                {t('smartLogic.citySelectLabel', 'Lựa chọn Thành phố')}
+              </span>
+              <select
+                value={selectedCityOption}
+                onChange={(event) => handlePresetCityChange(event.target.value)}
+                className="mt-2 w-full rounded-[1.2rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-4 text-[#1d2420] outline-none transition focus:border-[#0b7a50] focus:bg-white cursor-pointer"
+              >
+                {PRESET_CITIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedCityOption === "custom" && (
+              <FormField
+                label={t('smartLogic.cityLabel', 'Thành phố triển khai')}
+                value={draft.city}
+                onChange={(value) => setDraft({ ...draft, city: value })}
+                placeholder={t('smartLogic.cityPlaceholder', 'Ví dụ: Ho Chi Minh City')}
+              />
+            )}
 
             <div>
               <div className="mb-4 flex items-center justify-between gap-3">
@@ -246,6 +296,18 @@ export function SmartLogicView() {
                 {t('smartLogic.monitoringCity', 'Thành phố đang theo dõi: ')}{draft.city}{t('smartLogic.rainProbText', '. Xác suất mưa gần nhất được ghi nhận là ')}
                 <span className="font-semibold text-white">{draft.lastRainProbability}%</span>.
               </p>
+              {draft.weatherSummary && (
+                <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(255,255,255,0.15)', display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'center' }}>
+                  <p style={{ margin: 0, fontSize: '0.8125rem', opacity: 0.9 }}>
+                    Trạng thái: <span style={{ fontWeight: 700, textTransform: 'capitalize' }}>{draft.weatherSummary}</span>
+                  </p>
+                  {draft.tempC !== undefined && (
+                    <p style={{ margin: 0, fontSize: '0.8125rem', opacity: 0.9 }}>
+                      Nhiệt độ: <span style={{ fontWeight: 700 }}>{draft.tempC}°C</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <DecisionCard
@@ -264,10 +326,12 @@ export function SmartLogicView() {
             />
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-5">
             <MetricTile label={t('smartLogic.metrics.rainProb', 'Xác suất mưa')} value={`${draft.lastRainProbability}%`} />
             <MetricTile label={t('smartLogic.metrics.blockThreshold', 'Ngưỡng chặn')} value={`${draft.rainThreshold}%`} />
             <MetricTile label={t('smartLogic.metrics.decision', 'Quyết định')} value={blockWeather ? t('smartLogic.metrics.skip', "Bỏ qua") : t('smartLogic.metrics.allow', "Cho tưới")} />
+            <MetricTile label="Trạng thái" value={draft.weatherSummary ? (draft.weatherSummary.charAt(0).toUpperCase() + draft.weatherSummary.slice(1)) : "N/A"} />
+            <MetricTile label="Nhiệt độ" value={draft.tempC !== undefined ? `${draft.tempC}°C` : "N/A"} />
           </div>
         </section>
 
@@ -294,7 +358,11 @@ export function SmartLogicView() {
                       ? "bg-[#0b7a50]"
                       : entry.level === "info"
                         ? "bg-[#b7c4bc]"
-                        : "bg-[#6c59c8]"
+                        : entry.level === "warning"
+                          ? "bg-[#d97706]"
+                          : entry.level === "error"
+                            ? "bg-[#ef4444]"
+                            : "bg-[#6c59c8]"
                   }`}
                 />
                 <p className="flex-1 text-sm text-[#33423a]">{entry.message}</p>
@@ -304,14 +372,22 @@ export function SmartLogicView() {
                       ? "bg-[#eef7f1] text-[#0b7a50]"
                       : entry.level === "info"
                         ? "bg-[#f3f6f4] text-[#66756b]"
-                        : "bg-[#f4efff] text-[#6c59c8]"
+                        : entry.level === "warning"
+                          ? "bg-[#fffbeb] text-[#d97706]"
+                          : entry.level === "error"
+                            ? "bg-[#fef2f2] text-[#ef4444]"
+                            : "bg-[#f4efff] text-[#6c59c8]"
                   }`}
                 >
                   {entry.level === "success"
                     ? t('smartLogic.levels.intercepted', "Đã ngăn chặn")
                     : entry.level === "info"
                       ? t('smartLogic.levels.stable', "Ổn định")
-                      : t('smartLogic.levels.system', "Hệ thống")}
+                      : entry.level === "warning"
+                        ? t('smartLogic.levels.warning', "Cảnh báo")
+                        : entry.level === "error"
+                          ? t('smartLogic.levels.error', "Lỗi")
+                          : t('smartLogic.levels.system', "Hệ thống")}
                 </span>
               </div>
             ))}

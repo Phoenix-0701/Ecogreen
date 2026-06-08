@@ -166,6 +166,8 @@ const DEFAULT_SMART_LOGIC_STATE: SmartLogicState = {
   lastRainProbability: 82,
   projectedSavingsPercent: 14,
   decision: "skip",
+  weatherSummary: "mây rải rác",
+  tempC: 30,
   logs: [
     {
       id: "sl-1",
@@ -434,15 +436,26 @@ function mapBackendThresholdState(
     return { ...previous, zone: device.name || previous.zone };
   }
 
+  const tempThreshold = thresholds.find(
+    (item) =>
+      item.sensor &&
+      (item.sensor.type === "temperature" ||
+        item.sensor.name.toLowerCase().includes("nhiệt") ||
+        item.sensor.name.toLowerCase().includes("nhiet"))
+  );
+
   return {
     ...previous,
     zone: device.name || previous.zone,
     dryThreshold: Math.round(threshold.min_value),
     wetThreshold: Math.round(threshold.max_value),
     maxPumpSeconds: threshold.max_pump_sec ?? previous.maxPumpSeconds,
-    cooldownMinutes: threshold.cooldown_sec ? Math.round(threshold.cooldown_sec / 60) : previous.cooldownMinutes,
-    highTempC: threshold.temp_high ?? previous.highTempC,
-    lowTempC: threshold.temp_low ?? previous.lowTempC,
+    // Giữ nguyên 1 chữ số thập phân để tránh mất giá trị nhỏ như 0.5 phút (30 giây)
+    cooldownMinutes: threshold.cooldown_sec != null
+      ? parseFloat((threshold.cooldown_sec / 60).toFixed(1))
+      : previous.cooldownMinutes,
+    highTempC: tempThreshold ? Math.round(tempThreshold.max_value) : (threshold.temp_high ?? previous.highTempC),
+    lowTempC: tempThreshold ? Math.round(tempThreshold.min_value) : (threshold.temp_low ?? previous.lowTempC),
   };
 }
 
@@ -553,18 +566,40 @@ export async function saveThresholdState(nextState: ThresholdState) {
   if (selectedDevice) {
     const { soilSensor, pumpActuator } = findThresholdTargets(selectedDevice);
 
+    // 1. Lưu ngưỡng độ ẩm đất → máy bơm
     if (soilSensor && pumpActuator) {
       await requestJson<BackendThreshold>("/v1/thresholds", {
         method: "POST",
         body: JSON.stringify({
           Sensor_ID: soilSensor.Sensor_ID,
           Actuator_ID: pumpActuator.Actuator_ID,
-          min_value: nextState.dryThreshold,
-          max_value: nextState.wetThreshold,
+          min_value: nextState.dryThreshold,   // bơm BẬT khi < min (đất khô)
+          max_value: nextState.wetThreshold,   // bơm TẮT khi > max (đất ướt)
           max_pump_sec: nextState.maxPumpSeconds,
           cooldown_sec: Math.round(nextState.cooldownMinutes * 60),
           temp_high: nextState.highTempC,
           temp_low: nextState.lowTempC,
+          is_enabled: true,
+        }),
+      });
+    }
+
+    // 2. Lưu ngưỡng nhiệt độ → quạt (tạo record riêng biệt!)
+    const tempSensor = selectedDevice.sensors?.find(
+      (s) => s.type === "temperature" || s.name.toLowerCase().includes("nhiệt")
+    );
+    const fanActuator = selectedDevice.actuators?.find(
+      (a) => a.type === "fan" || a.name.toLowerCase().includes("quạt")
+    );
+
+    if (tempSensor && fanActuator) {
+      await requestJson<BackendThreshold>("/v1/thresholds", {
+        method: "POST",
+        body: JSON.stringify({
+          Sensor_ID: tempSensor.Sensor_ID,
+          Actuator_ID: fanActuator.Actuator_ID,
+          min_value: nextState.lowTempC,    // quạt TẮT khi < min (đã mát)
+          max_value: nextState.highTempC,   // quạt BẬT khi > max (quá nóng)
           is_enabled: true,
         }),
       });
@@ -575,30 +610,68 @@ export async function saveThresholdState(nextState: ThresholdState) {
   return nextState;
 }
 
+
 export async function loadSmartLogicState() {
   const fallback = readStorage(STORAGE_KEYS.smartLogic, DEFAULT_SMART_LOGIC_STATE);
   const devices = await loadBackendDevices();
   const selectedDevice = selectDevice(devices);
 
   if (selectedDevice) {
+    // 1. Lấy cấu hình thực tế từ Backend
+    const config = await requestJson<{
+      message?: string;
+      data?: {
+        city_name: string;
+        rain_prob_threshold: number;
+        is_smart_mode: boolean;
+        last_weather_data?: any;
+      };
+    }>(`/v1/smart-logic/devices/${selectedDevice.Device_ID}`);
+
+    // 2. Lấy logs hoạt động của thiết bị
     const logs = await requestJson<BackendActivityLog[]>(
       `/v1/devices/${selectedDevice.Device_ID}/logs?limit=8`,
     );
 
-    if (Array.isArray(logs) && logs.length > 0) {
-      const resolved = {
-        ...fallback,
-        logs: logs.map(mapBackendLog),
-      };
-      writeStorage(STORAGE_KEYS.smartLogic, resolved);
-      return resolved;
-    }
+    const resolved = {
+      ...fallback,
+      enabled: config?.data ? config.data.is_smart_mode : fallback.enabled,
+      city: config?.data ? config.data.city_name : fallback.city,
+      rainThreshold: config?.data ? config.data.rain_prob_threshold : fallback.rainThreshold,
+      // Lấy thông tin thời tiết thực tế từ API nếu có
+      lastRainProbability: config?.data?.last_weather_data?.list?.[0]?.pop 
+        ? Math.round(config.data.last_weather_data.list[0].pop * 100)
+        : fallback.lastRainProbability,
+      weatherSummary: config?.data?.last_weather_data?.list?.[0]?.weather?.[0]?.description ?? fallback.weatherSummary,
+      tempC: config?.data?.last_weather_data?.list?.[0]?.main?.temp ?? fallback.tempC,
+      logs: Array.isArray(logs) ? logs.map(mapBackendLog) : fallback.logs,
+    };
+    
+    writeStorage(STORAGE_KEYS.smartLogic, resolved);
+    return resolved;
   }
 
   return fallback;
 }
 
 export async function saveSmartLogicState(nextState: SmartLogicState) {
+  const devices = await loadBackendDevices();
+  const selectedDevice = selectDevice(devices);
+
+  if (selectedDevice) {
+    await requestJson(`/v1/smart-logic/devices/${selectedDevice.Device_ID}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        city_name: nextState.city,
+        rain_prob_threshold: nextState.rainThreshold,
+        is_smart_mode: nextState.enabled,
+      }),
+    });
+  }
+
   writeStorage(STORAGE_KEYS.smartLogic, nextState);
   return nextState;
 }
@@ -607,30 +680,72 @@ export async function evaluateSmartLogic(
   nextState: SmartLogicState,
   telemetry: TelemetrySnapshot,
 ) {
-  const offset = (telemetry.humi - telemetry.soil) * 0.45 + telemetry.temp * 0.35;
-  const generatedProbability = Math.max(
-    12,
-    Math.min(96, Math.round(nextState.rainThreshold - 6 + offset)),
-  );
-  const decision = generatedProbability >= nextState.rainThreshold ? "skip" : "execute";
-  const message =
-    decision === "skip"
-      ? `Dự báo mưa ${generatedProbability}% vượt ngưỡng ${nextState.rainThreshold}%, chu kỳ tưới sẽ bị đánh chặn.`
-      : `Dự báo mưa ${generatedProbability}% thấp hơn ngưỡng ${nextState.rainThreshold}%, chu kỳ tưới được giữ nguyên.`;
+  const devices = await loadBackendDevices();
+  const selectedDevice = selectDevice(devices);
 
-  const resolved: SmartLogicState = {
-    ...nextState,
-    lastRainProbability: generatedProbability,
-    decision,
-    logs: [
-      createLog("Yêu cầu kiểm tra thời tiết đã được mô phỏng trên frontend.", "system"),
-      createLog(message, "success"),
-      ...nextState.logs,
-    ].slice(0, 8),
-  };
+  if (!selectedDevice) {
+    return nextState;
+  }
 
-  writeStorage(STORAGE_KEYS.smartLogic, resolved);
-  return resolved;
+  try {
+    const response = await requestJson<{
+      success: boolean;
+      message: string;
+      rainProbability: number;
+      rainThreshold: number;
+      decision: "skip" | "execute";
+      shouldSkip: boolean;
+      city: string;
+      weatherSummary: string | null;
+      tempC: number | null;
+    }>(`/v1/smart-logic/devices/${selectedDevice.Device_ID}/check-weather`, {
+      method: "POST",
+    });
+
+    if (response && response.success) {
+      const generatedProbability = response.rainProbability;
+      const decision = response.decision;
+      const message = response.message;
+      const weatherText = `Thời tiết hiện tại: ${response.weatherSummary ?? "Không rõ"}, Nhiệt độ: ${response.tempC ?? "N/A"}°C.`;
+
+      const resolved: SmartLogicState = {
+        ...nextState,
+        lastRainProbability: generatedProbability,
+        decision,
+        weatherSummary: response.weatherSummary ?? undefined,
+        tempC: response.tempC ?? undefined,
+        logs: [
+          createLog(`Lấy thông tin thời tiết thành công cho ${response.city}.`, "system"),
+          createLog(weatherText, "system"),
+          createLog(message, decision === "skip" ? "warning" : "success"),
+          ...nextState.logs,
+        ].slice(0, 8),
+      };
+
+      writeStorage(STORAGE_KEYS.smartLogic, resolved);
+      return resolved;
+    } else {
+      const resolved: SmartLogicState = {
+        ...nextState,
+        logs: [
+          createLog(response?.message ?? "Không thể lấy thông tin thời tiết thực tế.", "error"),
+          ...nextState.logs,
+        ].slice(0, 8),
+      };
+      writeStorage(STORAGE_KEYS.smartLogic, resolved);
+      return resolved;
+    }
+  } catch (error: any) {
+    const resolved: SmartLogicState = {
+      ...nextState,
+      logs: [
+        createLog(`Lỗi gọi API thời tiết: ${error.message || error}`, "error"),
+        ...nextState.logs,
+      ].slice(0, 8),
+    };
+    writeStorage(STORAGE_KEYS.smartLogic, resolved);
+    return resolved;
+  }
 }
 
 export async function loadScheduleState() {

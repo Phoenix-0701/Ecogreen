@@ -282,6 +282,13 @@ static void onLocalMessage(char *topic, byte *payload, unsigned int length)
         Serial.printf("[MQTT-LOCAL] setSchedules: %d entries, enabled=%s\n",
                       newCount, enabled ? "YES" : "NO");
     }
+    // Chặn bơm tự động khi trời mưa (server kiểm tra thời tiết, không ảnh hưởng manual)
+    else if (strcmp(method, "setWeatherBlock") == 0)
+    {
+        bool block = doc["params"].as<bool>();
+        g_weatherBlockPump = block;
+        Serial.printf("[MQTT-LOCAL] setWeatherBlock → %s\n", block ? "BLOCKED (mưa)" : "CLEAR");
+    }
     else
     {
         Serial.printf("[MQTT-LOCAL] Unknown method: %s\n", method);

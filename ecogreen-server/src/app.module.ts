@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
@@ -17,6 +18,7 @@ import { SmartLogicModule } from './modules/smart-logic/smart-logic.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     UsersModule,
     AuthModule,
     PrismaModule,

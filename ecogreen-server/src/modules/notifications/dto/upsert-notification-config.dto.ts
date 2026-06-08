@@ -26,4 +26,19 @@ export class UpsertNotificationConfigDto {
   @IsBoolean()
   @IsOptional()
   notify_on_action?: boolean;
+
+  @ApiProperty({ description: 'Nhận thông báo khi cập nhật ngưỡng hoặc lịch tưới', required: false, example: false })
+  @IsBoolean()
+  @IsOptional()
+  notify_on_config?: boolean;
+
+  @ApiProperty({ description: 'Bot Token của Telegram', required: false })
+  @IsString()
+  @IsOptional()
+  tg_bot_token?: string;
+
+  @ApiProperty({ description: 'Mật khẩu SMTP', required: false })
+  @IsString()
+  @IsOptional()
+  smtp_password?: string;
 }

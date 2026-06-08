@@ -158,6 +158,29 @@ void Task_CheckSchedule(void)
     if (currentMinute == s_lastTriggeredMinute)
         return;
 
+    // Chặn lịch tưới tự động nếu g_weatherBlockPump = true (mưa)
+    if (g_weatherBlockPump)
+    {
+        for (uint8_t i = 0; i < count; i++)
+        {
+            ScheduleEntry_t &s = tmp[i];
+            if (!s.enabled)
+                continue;
+            if (!(s.days & (1 << now.dayOfTheWeek())))
+                continue;
+            if (s.hour != now.hour())
+                continue;
+            if (s.minute != now.minute())
+                continue;
+
+            Serial.printf("[SCHED] Weather block active - skip scheduled entry %d (%02d:%02d)\n",
+                          i, s.hour, s.minute);
+            s_lastTriggeredMinute = currentMinute;
+            break;
+        }
+        return;
+    }
+
     for (uint8_t i = 0; i < count; i++)
     {
         ScheduleEntry_t &s = tmp[i]; // ← dùng bản sao

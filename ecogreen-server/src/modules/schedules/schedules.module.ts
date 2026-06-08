@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { SchedulesService } from './schedules.service';
 import { SchedulesController } from './schedules.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { Serializer, OutgoingEvent } from '@nestjs/microservices';
 import { SmartLogicModule } from '../smart-logic/smart-logic.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 class RawMqttSerializer implements Serializer {
   serialize(value: OutgoingEvent): any {
@@ -25,7 +26,8 @@ class RawMqttSerializer implements Serializer {
         },
       },
     ]),
-    SmartLogicModule,
+    forwardRef(() => SmartLogicModule),
+    NotificationsModule,
   ],
   controllers: [SchedulesController],
   providers: [SchedulesService],

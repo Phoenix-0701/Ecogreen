@@ -7,7 +7,12 @@ Write-Host ""
 Write-Host "=== ECOGREEN STARTUP ===" -ForegroundColor Green
 Write-Host ""
 
-# -- Fetch LAN IP --
+# -- 0. Run environment and IP configuration check --
+Write-Host "[0/5] Checking environment files and updating LAN IP configurations..." -ForegroundColor Cyan
+.\update-ip.ps1
+Write-Host ""
+
+# -- Fetch LAN IP for display --
 $allIps = Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
     $_.IPAddress -notlike "127.*" -and
     $_.IPAddress -notlike "169.*" -and

@@ -64,6 +64,7 @@ export interface NotificationConfig {
   smtp_password_encrypted: string | null;
   notify_on_error: boolean;
   notify_on_action: boolean;
+  notify_on_config: boolean;
 }
 
 export interface SaveNotificationPayload {
@@ -73,6 +74,7 @@ export interface SaveNotificationPayload {
   smtp_password?: string;
   notify_on_error: boolean;
   notify_on_action: boolean;
+  notify_on_config: boolean;
 }
 
 // ===== AUTH =====

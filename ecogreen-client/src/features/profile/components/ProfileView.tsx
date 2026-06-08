@@ -33,16 +33,18 @@ export function ProfileView() {
   const { user, updateUser } = useAuth();
   const { t, changeLanguage } = useLanguage();
   const isGoogleUser = !!user?.avatar_url;
-  
+
   // Tab State
-  const [activeTab, setActiveTab] = useState<"general" | "preferences" | "security" | "activity">("general");
+  const [activeTab, setActiveTab] = useState<
+    "general" | "preferences" | "security" | "activity"
+  >("general");
 
   // Profile Form State
   const [fullName, setFullName] = useState(user?.full_name || "");
   const [username, setUsername] = useState(user?.username || "");
   const [email, setEmail] = useState(user?.email || "");
   const [userId, setUserId] = useState(user?.User_ID || "");
-  
+
   // Custom Avatar Emoji State
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [showAvatarSelector, setShowAvatarSelector] = useState(false);
@@ -50,8 +52,10 @@ export function ProfileView() {
   // Preference State
   const [tempUnit, setTempUnit] = useState<"C" | "F">("C");
   const [language, setLanguage] = useState<"vi" | "en">("vi");
-  const [refreshInterval, setRefreshInterval] = useState<number>(5);
-  const [selectedGreenhouse, setSelectedGreenhouse] = useState<string>("Nhà kính A (Cây rau)");
+  const [refreshInterval, setRefreshInterval] = useState<number>(2);
+  const [selectedGreenhouse, setSelectedGreenhouse] = useState<string>(
+    "Nhà kính A (Cây rau)",
+  );
 
   // Password / Security State
   const [currentPassword, setCurrentPassword] = useState("");
@@ -74,26 +78,80 @@ export function ProfileView() {
 
   // Predefined Custom Emojis for Smart Farm Profile
   const plantAvatars = [
-    { id: "sprout", emoji: "🌱", label: t('profile.avatar.sprout', "Mầm non") },
-    { id: "tree", emoji: "🌳", label: t('profile.avatar.tree', "Cây lớn") },
-    { id: "flower", emoji: "🌸", label: t('profile.avatar.flower', "Hoa tươi") },
-    { id: "sun", emoji: "☀️", label: t('profile.avatar.sun', "Mặt trời") },
-    { id: "leaf", emoji: "🍃", label: t('profile.avatar.leaf', "Lá xanh") },
-    { id: "apple", emoji: "🍎", label: t('profile.avatar.apple', "Trái cây") },
-    { id: "tomato", emoji: "🍅", label: t('profile.avatar.tomato', "Cà chua") },
-    { id: "farmer", emoji: "🧑‍🌾", label: t('profile.avatar.farmer', "Nông dân") },
+    { id: "sprout", emoji: "🌱", label: t("profile.avatar.sprout", "Mầm non") },
+    { id: "tree", emoji: "🌳", label: t("profile.avatar.tree", "Cây lớn") },
+    {
+      id: "flower",
+      emoji: "🌸",
+      label: t("profile.avatar.flower", "Hoa tươi"),
+    },
+    { id: "sun", emoji: "☀️", label: t("profile.avatar.sun", "Mặt trời") },
+    { id: "leaf", emoji: "🍃", label: t("profile.avatar.leaf", "Lá xanh") },
+    { id: "apple", emoji: "🍎", label: t("profile.avatar.apple", "Trái cây") },
+    { id: "tomato", emoji: "🍅", label: t("profile.avatar.tomato", "Cà chua") },
+    {
+      id: "farmer",
+      emoji: "🧑‍🌾",
+      label: t("profile.avatar.farmer", "Nông dân"),
+    },
   ];
 
   // Prepopulated activity logs for the user
   const activities = [
-    { id: 1, action: t('profile.activityLog.login', "Đăng nhập hệ thống"), ip: "192.168.1.14", time: t('profile.activityLog.today', "Hôm nay") + ", 12:33", status: "success" },
-    { id: 2, action: t('profile.activityLog.updateThresholds', "Cập nhật ngưỡng nhiệt độ"), ip: "192.168.1.14", time: t('profile.activityLog.yesterday', "Hôm qua") + ", 18:45", status: "success" },
-    { id: 3, action: t('profile.activityLog.manualWatering', "Kích hoạt tưới nước thủ công"), ip: "192.168.1.14", time: "28/05/2026, 09:15", status: "success" },
-    { id: 4, action: t('profile.activityLog.changeSettings', "Thay đổi cài đặt thông báo"), ip: "192.168.1.14", time: "26/05/2026, 14:20", status: "success" },
-    { id: 5, action: t('profile.activityLog.loginFailed', "Đăng nhập thất bại (Sai mật khẩu)"), ip: "192.168.1.25", time: "25/05/2026, 21:10", status: "failed" },
+    {
+      id: 1,
+      action: t("profile.activityLog.login", "Đăng nhập hệ thống"),
+      ip: "192.168.1.14",
+      time: t("profile.activityLog.today", "Hôm nay") + ", 12:33",
+      status: "success",
+    },
+    {
+      id: 2,
+      action: t(
+        "profile.activityLog.updateThresholds",
+        "Cập nhật ngưỡng nhiệt độ",
+      ),
+      ip: "192.168.1.14",
+      time: t("profile.activityLog.yesterday", "Hôm qua") + ", 18:45",
+      status: "success",
+    },
+    {
+      id: 3,
+      action: t(
+        "profile.activityLog.manualWatering",
+        "Kích hoạt tưới nước thủ công",
+      ),
+      ip: "192.168.1.14",
+      time: "28/05/2026, 09:15",
+      status: "success",
+    },
+    {
+      id: 4,
+      action: t(
+        "profile.activityLog.changeSettings",
+        "Thay đổi cài đặt thông báo",
+      ),
+      ip: "192.168.1.14",
+      time: "26/05/2026, 14:20",
+      status: "success",
+    },
+    {
+      id: 5,
+      action: t(
+        "profile.activityLog.loginFailed",
+        "Đăng nhập thất bại (Sai mật khẩu)",
+      ),
+      ip: "192.168.1.25",
+      time: "25/05/2026, 21:10",
+      status: "failed",
+    },
   ];
 
-  const showNotification = (type: "success" | "error", title: string, message: string) => {
+  const showNotification = (
+    type: "success" | "error",
+    title: string,
+    message: string,
+  ) => {
     setToast({ show: true, type, title, message });
   };
 
@@ -149,10 +207,10 @@ export function ProfileView() {
 
     const savedUnit = localStorage.getItem("pref_temp_unit") as "C" | "F";
     if (savedUnit) setTempUnit(savedUnit);
-    
+
     const savedLang = localStorage.getItem("pref_language") as "vi" | "en";
     if (savedLang) setLanguage(savedLang);
-    
+
     const savedInterval = localStorage.getItem("pref_refresh_interval");
     if (savedInterval) setRefreshInterval(Number(savedInterval));
 
@@ -171,35 +229,54 @@ export function ProfileView() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
-      showNotification("error", t('profile.notification.errorTitle', "Lỗi nhập liệu"), t('profile.notification.usernameRequired', "Tên đăng nhập không được để trống."));
+      showNotification(
+        "error",
+        t("profile.notification.errorTitle", "Lỗi nhập liệu"),
+        t(
+          "profile.notification.usernameRequired",
+          "Tên đăng nhập không được để trống.",
+        ),
+      );
       return;
     }
-    
+
     setSaving(true);
     try {
       const res = (await updateMyProfile({
         full_name: fullName.trim(),
         username: username.trim(),
-      })) as { data?: Partial<UserType>; User_ID?: string; username?: string; email?: string; full_name?: string | null };
-      
+      })) as {
+        data?: Partial<UserType>;
+        User_ID?: string;
+        username?: string;
+        email?: string;
+        full_name?: string | null;
+      };
+
       const updatedProfile = (res.data || res) as UserType;
       if (updatedProfile) {
         updateUser(updatedProfile);
         setFullName(updatedProfile.full_name || "");
         setUsername(updatedProfile.username || "");
       }
-      
+
       showNotification(
         "success",
-        t('profile.notification.saveSuccessTitle', "Cập nhật thành công"),
-        t('profile.notification.saveSuccessMsg', "Thông tin hồ sơ cá nhân của bạn đã được cập nhật.")
+        t("profile.notification.saveSuccessTitle", "Cập nhật thành công"),
+        t(
+          "profile.notification.saveSuccessMsg",
+          "Thông tin hồ sơ cá nhân của bạn đã được cập nhật.",
+        ),
       );
     } catch (err) {
       console.error("Lỗi cập nhật hồ sơ:", err);
       showNotification(
         "error",
-        t('profile.notification.saveFailTitle', "Cập nhật thất bại"),
-        t('profile.notification.saveFailMsg', "Không thể cập nhật hồ sơ. Vui lòng kiểm tra lại kết nối hoặc tên đăng nhập bị trùng.")
+        t("profile.notification.saveFailTitle", "Cập nhật thất bại"),
+        t(
+          "profile.notification.saveFailMsg",
+          "Không thể cập nhật hồ sơ. Vui lòng kiểm tra lại kết nối hoặc tên đăng nhập bị trùng.",
+        ),
       );
     } finally {
       setSaving(false);
@@ -212,25 +289,53 @@ export function ProfileView() {
     localStorage.setItem("pref_temp_unit", tempUnit);
     localStorage.setItem("pref_refresh_interval", String(refreshInterval));
     localStorage.setItem("pref_default_greenhouse", selectedGreenhouse);
-    
+
     changeLanguage(language);
-    
-    showNotification("success", t('profile.notification.savePrefTitle', "Đã lưu cài đặt"), t('profile.notification.savePrefMsg', "Tùy chỉnh hệ thống của bạn đã được lưu lại thành công."));
+
+    showNotification(
+      "success",
+      t("profile.notification.savePrefTitle", "Đã lưu cài đặt"),
+      t(
+        "profile.notification.savePrefMsg",
+        "Tùy chỉnh hệ thống của bạn đã được lưu lại thành công.",
+      ),
+    );
   };
 
   // Save new password (mocked)
   const handleSavePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword) {
-      showNotification("error", t('profile.notification.missingPasswordTitle', "Thiếu thông tin"), t('profile.notification.missingPasswordMsg', "Vui lòng nhập mật khẩu hiện tại."));
+      showNotification(
+        "error",
+        t("profile.notification.missingPasswordTitle", "Thiếu thông tin"),
+        t(
+          "profile.notification.missingPasswordMsg",
+          "Vui lòng nhập mật khẩu hiện tại.",
+        ),
+      );
       return;
     }
     if (newPassword.length < 6) {
-      showNotification("error", t('profile.notification.weakPasswordTitle', "Mật khẩu yếu"), t('profile.notification.weakPasswordMsg', "Mật khẩu mới phải từ 6 ký tự trở lên."));
+      showNotification(
+        "error",
+        t("profile.notification.weakPasswordTitle", "Mật khẩu yếu"),
+        t(
+          "profile.notification.weakPasswordMsg",
+          "Mật khẩu mới phải từ 6 ký tự trở lên.",
+        ),
+      );
       return;
     }
     if (newPassword !== confirmPassword) {
-      showNotification("error", t('profile.notification.passwordMismatchTitle', "Mật khẩu không khớp"), t('profile.notification.passwordMismatchMsg', "Xác nhận mật khẩu mới không trùng khớp."));
+      showNotification(
+        "error",
+        t("profile.notification.passwordMismatchTitle", "Mật khẩu không khớp"),
+        t(
+          "profile.notification.passwordMismatchMsg",
+          "Xác nhận mật khẩu mới không trùng khớp.",
+        ),
+      );
       return;
     }
 
@@ -240,7 +345,17 @@ export function ProfileView() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      showNotification("success", t('profile.notification.passwordChangedTitle', "Đổi mật khẩu thành công"), t('profile.notification.passwordChangedMsg', "Mật khẩu tài khoản đã được thay đổi thành công!"));
+      showNotification(
+        "success",
+        t(
+          "profile.notification.passwordChangedTitle",
+          "Đổi mật khẩu thành công",
+        ),
+        t(
+          "profile.notification.passwordChangedMsg",
+          "Mật khẩu tài khoản đã được thay đổi thành công!",
+        ),
+      );
     }, 1000);
   };
 
@@ -251,8 +366,21 @@ export function ProfileView() {
     localStorage.setItem("security_2fa_enabled", String(nextState));
     showNotification(
       "success",
-      nextState ? t('profile.notification.toggle2FaSuccessTitle', "Bật 2FA thành công") : t('profile.notification.toggle2FaDisabledTitle', "Tắt 2FA thành công"),
-      nextState ? t('profile.notification.toggle2FaSuccessMsg', "Bảo mật hai lớp qua điện thoại đã được kích hoạt.") : t('profile.notification.toggle2FaDisabledMsg', "Hệ thống bảo mật hai lớp đã bị tắt.")
+      nextState
+        ? t("profile.notification.toggle2FaSuccessTitle", "Bật 2FA thành công")
+        : t(
+            "profile.notification.toggle2FaDisabledTitle",
+            "Tắt 2FA thành công",
+          ),
+      nextState
+        ? t(
+            "profile.notification.toggle2FaSuccessMsg",
+            "Bảo mật hai lớp qua điện thoại đã được kích hoạt.",
+          )
+        : t(
+            "profile.notification.toggle2FaDisabledMsg",
+            "Hệ thống bảo mật hai lớp đã bị tắt.",
+          ),
     );
   };
 
@@ -266,7 +394,14 @@ export function ProfileView() {
     }
     window.dispatchEvent(new Event("ecogreen_avatar_updated"));
     setShowAvatarSelector(false);
-    showNotification("success", t('profile.notification.avatarTitle', "Thay đổi ảnh đại diện"), t('profile.notification.avatarMsg', "Ảnh đại diện mới đã được lưu thành công."));
+    showNotification(
+      "success",
+      t("profile.notification.avatarTitle", "Thay đổi ảnh đại diện"),
+      t(
+        "profile.notification.avatarMsg",
+        "Ảnh đại diện mới đã được lưu thành công.",
+      ),
+    );
   };
 
   // Get initials for profile avatar fallback
@@ -281,7 +416,14 @@ export function ProfileView() {
 
   // Real-time password strength computation
   const getPasswordStrength = (pwd: string) => {
-    if (!pwd) return { label: t('profile.form.pwdStrengthEmpty', "Chưa nhập"), color: "bg-slate-200", textColor: "text-slate-400", width: "w-0", score: 0 };
+    if (!pwd)
+      return {
+        label: t("profile.form.pwdStrengthEmpty", "Chưa nhập"),
+        color: "bg-slate-200",
+        textColor: "text-slate-400",
+        width: "w-0",
+        score: 0,
+      };
     let score = 0;
     if (pwd.length >= 6) score += 1;
     if (pwd.length >= 10) score += 1;
@@ -290,11 +432,29 @@ export function ProfileView() {
     if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
 
     if (score <= 2) {
-      return { label: t('profile.form.pwdStrengthWeak', "Yếu"), color: "bg-red-500", textColor: "text-red-500", width: "w-1/3", score };
+      return {
+        label: t("profile.form.pwdStrengthWeak", "Yếu"),
+        color: "bg-red-500",
+        textColor: "text-red-500",
+        width: "w-1/3",
+        score,
+      };
     } else if (score <= 4) {
-      return { label: t('profile.form.pwdStrengthMedium', "Trung bình"), color: "bg-yellow-500", textColor: "text-yellow-600", width: "w-2/3", score };
+      return {
+        label: t("profile.form.pwdStrengthMedium", "Trung bình"),
+        color: "bg-yellow-500",
+        textColor: "text-yellow-600",
+        width: "w-2/3",
+        score,
+      };
     } else {
-      return { label: t('profile.form.pwdStrengthStrong', "Mạnh"), color: "bg-emerald-500", textColor: "text-emerald-600", width: "w-full", score };
+      return {
+        label: t("profile.form.pwdStrengthStrong", "Mạnh"),
+        color: "bg-emerald-500",
+        textColor: "text-emerald-600",
+        width: "w-full",
+        score,
+      };
     }
   };
 
@@ -305,7 +465,7 @@ export function ProfileView() {
       <div className="flex min-h-[60vh] items-center justify-center rounded-[2rem] bg-white border border-slate-200/80 shadow-sm">
         <div className="flex items-center gap-3 text-sm font-medium text-[#5d6c63]">
           <Loader2 className="size-4 animate-spin" />
-          {t('profile.loading', "Đang tải thông tin cá nhân...")}
+          {t("profile.loading", "Đang tải thông tin cá nhân...")}
         </div>
       </div>
     );
@@ -317,11 +477,16 @@ export function ProfileView() {
       <section className="profile-header">
         <div className="profile-header-left">
           <span className="profile-badge-pill">
-            <User size={13} /> {t('profile.badge', "Hồ sơ cá nhân")}
+            <User size={13} /> {t("profile.badge", "Hồ sơ cá nhân")}
           </span>
-          <h1 className="profile-title">{t('profile.title', "Thông tin tài khoản")}</h1>
+          <h1 className="profile-title">
+            {t("profile.title", "Thông tin tài khoản")}
+          </h1>
           <p className="profile-subtitle">
-            {t('profile.subtitle', "Quản lý thông tin cá nhân, cấu hình hệ thống và thiết lập bảo mật của bạn.")}
+            {t(
+              "profile.subtitle",
+              "Quản lý thông tin cá nhân, cấu hình hệ thống và thiết lập bảo mật của bạn.",
+            )}
           </p>
         </div>
       </section>
@@ -333,8 +498,12 @@ export function ProfileView() {
             <Shield className="size-5" />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t('profile.role', "Vai trò")}</span>
-            <span className="text-sm font-extrabold text-slate-800 mt-0.5 block">{t('profile.adminRole', "Quản trị viên")}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              {t("profile.role", "Vai trò")}
+            </span>
+            <span className="text-sm font-extrabold text-slate-800 mt-0.5 block">
+              {t("profile.adminRole", "Quản trị viên")}
+            </span>
           </div>
         </div>
 
@@ -343,8 +512,12 @@ export function ProfileView() {
             <Cpu className="size-5" />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t('profile.monitoredDevices', "Thiết bị giám sát")}</span>
-            <span className="text-sm font-extrabold text-slate-800 mt-0.5 block">{t('profile.devicesCount', "6 Cảm biến")}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              {t("profile.monitoredDevices", "Thiết bị giám sát")}
+            </span>
+            <span className="text-sm font-extrabold text-slate-800 mt-0.5 block">
+              {t("profile.devicesCount", "6 Cảm biến")}
+            </span>
           </div>
         </div>
 
@@ -353,8 +526,12 @@ export function ProfileView() {
             <Clock className="size-5" />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t('profile.activation', "Kích hoạt")}</span>
-            <span className="text-sm font-extrabold text-slate-800 mt-0.5 block">{t('profile.activationValue', "98 ngày trước")}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              {t("profile.activation", "Kích hoạt")}
+            </span>
+            <span className="text-sm font-extrabold text-slate-800 mt-0.5 block">
+              {t("profile.activationValue", "98 ngày trước")}
+            </span>
           </div>
         </div>
 
@@ -363,9 +540,12 @@ export function ProfileView() {
             <Activity className="size-5" />
           </div>
           <div>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{t('profile.system', "Hệ thống")}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              {t("profile.system", "Hệ thống")}
+            </span>
             <span className="text-sm font-extrabold text-emerald-600 mt-0.5 block flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> {t('common.stable', "Ổn định")}
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />{" "}
+              {t("common.stable", "Ổn định")}
             </span>
           </div>
         </div>
@@ -373,31 +553,38 @@ export function ProfileView() {
 
       {/* Main Content Split Area */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        
         {/* Left Column: Profile Card & Actions */}
         <div className="md:col-span-4 space-y-6">
-          
           {/* Avatar Card */}
           <div className="bg-white border border-slate-200/80 rounded-[24px] p-6 flex flex-col items-center justify-center shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden">
             {/* Background design accents */}
             <div className="absolute top-0 inset-x-0 h-20 bg-gradient-to-r from-emerald-500/10 to-green-500/5 z-0" />
-            
+
             <div className="relative group z-10 mt-4">
               <div className="w-28 h-28 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center text-4xl font-extrabold shadow-lg shadow-emerald-500/20 mb-4 border-4 border-white overflow-hidden relative cursor-pointer">
                 {selectedAvatar ? (
-                  <span className="text-5xl select-none leading-none">{selectedAvatar}</span>
+                  <span className="text-5xl select-none leading-none">
+                    {selectedAvatar}
+                  </span>
                 ) : user?.avatar_url ? (
-                  <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img
+                    src={user.avatar_url}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
                 ) : (
                   initials
                 )}
-                
-                <div 
+
+                <div
                   onClick={() => setShowAvatarSelector(!showAvatarSelector)}
                   className="absolute inset-0 bg-black/45 text-white opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all duration-200"
                 >
                   <Sparkles className="size-4 mb-1 animate-pulse" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider">{t('profile.avatar.change', "Đổi ảnh")}</span>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider">
+                    {t("profile.avatar.change", "Đổi ảnh")}
+                  </span>
                 </div>
               </div>
             </div>
@@ -406,8 +593,10 @@ export function ProfileView() {
             {showAvatarSelector && (
               <div className="w-full bg-slate-50 border border-slate-200/80 rounded-2xl p-4.5 mb-4 z-10 animate-fade-in">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold text-slate-700">{t('profile.avatar.select', "Chọn ảnh đại diện nông trại")}</span>
-                  <button 
+                  <span className="text-xs font-bold text-slate-700">
+                    {t("profile.avatar.select", "Chọn ảnh đại diện nông trại")}
+                  </span>
+                  <button
                     onClick={() => setShowAvatarSelector(false)}
                     className="text-slate-400 hover:text-slate-600 transition"
                   >
@@ -432,7 +621,7 @@ export function ProfileView() {
                       type="button"
                       className="col-span-4 h-10 mt-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-sm font-bold text-slate-600 transition"
                     >
-                      {t('profile.avatar.useGoogle', "Dùng ảnh gốc của Google")}
+                      {t("profile.avatar.useGoogle", "Dùng ảnh gốc của Google")}
                     </button>
                   )}
                 </div>
@@ -440,32 +629,50 @@ export function ProfileView() {
             )}
 
             <h2 className="text-lg font-extrabold text-slate-900 text-center truncate max-w-full z-10">
-              {fullName || t('profile.defaultUser', "Người dùng EcoGreen")}
+              {fullName || t("profile.defaultUser", "Người dùng EcoGreen")}
             </h2>
-            <p className="text-sm text-slate-400 mt-1 z-10">@{username || "username"}</p>
-            
+            <p className="text-sm text-slate-400 mt-1 z-10">
+              @{username || "username"}
+            </p>
+
             <div className="w-full mt-6 pt-6 border-t border-slate-100 space-y-4">
               <div className="flex items-center gap-3 text-slate-600">
                 <Shield className="size-4.5 text-emerald-600 bg-emerald-50 p-0.5 rounded" />
-                <span className="text-xs font-bold">{t('profile.avatar.adminMember', "Thành viên quản trị")}</span>
+                <span className="text-xs font-bold">
+                  {t("profile.avatar.adminMember", "Thành viên quản trị")}
+                </span>
               </div>
               <div className="flex items-center gap-3 text-slate-600">
                 <UserCheck className="size-4.5 text-emerald-600 bg-emerald-50 p-0.5 rounded" />
-                <span className="text-xs font-bold">{t('profile.avatar.activatedAccount', "Tài khoản đã kích hoạt")}</span>
+                <span className="text-xs font-bold">
+                  {t(
+                    "profile.avatar.activatedAccount",
+                    "Tài khoản đã kích hoạt",
+                  )}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Security Checklist Widget */}
           <div className="bg-white border border-slate-200/80 rounded-[24px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] space-y-4">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">{t('profile.securityCheck.title', "Trạng thái bảo mật")}</h3>
-            
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
+              {t("profile.securityCheck.title", "Trạng thái bảo mật")}
+            </h3>
+
             <div className="space-y-3">
               <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="size-4 text-emerald-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800">{t('profile.securityCheck.email', "Xác thực Email")}</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{t('profile.securityCheck.emailDesc', "Địa chỉ email đã được xác minh thành công.")}</p>
+                  <h4 className="text-xs font-bold text-slate-800">
+                    {t("profile.securityCheck.email", "Xác thực Email")}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {t(
+                      "profile.securityCheck.emailDesc",
+                      "Địa chỉ email đã được xác minh thành công.",
+                    )}
+                  </p>
                 </div>
               </div>
 
@@ -476,9 +683,22 @@ export function ProfileView() {
                   <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
                 )}
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800">{t('profile.securityCheck.twoFactor', "Bảo mật hai lớp (2FA)")}</h4>
+                  <h4 className="text-xs font-bold text-slate-800">
+                    {t(
+                      "profile.securityCheck.twoFactor",
+                      "Bảo mật hai lớp (2FA)",
+                    )}
+                  </h4>
                   <p className="text-[10px] text-slate-400 mt-0.5">
-                    {twoFactorEnabled ? t('profile.securityCheck.twoFactorEnabled', "Kích hoạt giúp tài khoản an toàn tối đa.") : t('profile.securityCheck.twoFactorDisabled', "Chưa kích hoạt. Nên bật để bảo mật tốt hơn.")}
+                    {twoFactorEnabled
+                      ? t(
+                          "profile.securityCheck.twoFactorEnabled",
+                          "Kích hoạt giúp tài khoản an toàn tối đa.",
+                        )
+                      : t(
+                          "profile.securityCheck.twoFactorDisabled",
+                          "Chưa kích hoạt. Nên bật để bảo mật tốt hơn.",
+                        )}
                   </p>
                 </div>
               </div>
@@ -486,8 +706,18 @@ export function ProfileView() {
               <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="size-4 text-emerald-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800">{t('profile.securityCheck.deviceLock', "Khóa liên kết thiết bị")}</h4>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{t('profile.securityCheck.deviceLockDesc', "Mạch ESP32 đang sử dụng giao thức an toàn SSL/TLS.")}</p>
+                  <h4 className="text-xs font-bold text-slate-800">
+                    {t(
+                      "profile.securityCheck.deviceLock",
+                      "Khóa liên kết thiết bị",
+                    )}
+                  </h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {t(
+                      "profile.securityCheck.deviceLockDesc",
+                      "Mạch ESP32 đang sử dụng giao thức an toàn SSL/TLS.",
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
@@ -496,7 +726,6 @@ export function ProfileView() {
 
         {/* Right Column: Tab View & Forms */}
         <div className="md:col-span-8 bg-white border border-slate-200/80 rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.02)] overflow-hidden">
-          
           {/* Tabs Navigation Header */}
           <div className="flex border-b border-slate-100 overflow-x-auto scrollbar-none bg-slate-50/50">
             <button
@@ -508,7 +737,7 @@ export function ProfileView() {
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {t('profile.tabs.general', "Thông tin chung")}
+              {t("profile.tabs.general", "Thông tin chung")}
             </button>
             <button
               type="button"
@@ -519,7 +748,7 @@ export function ProfileView() {
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {t('profile.tabs.preferences', "Tùy chỉnh hệ thống")}
+              {t("profile.tabs.preferences", "Tùy chỉnh hệ thống")}
             </button>
             <button
               type="button"
@@ -530,7 +759,7 @@ export function ProfileView() {
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {t('profile.tabs.security', "Bảo mật & Mật khẩu")}
+              {t("profile.tabs.security", "Bảo mật & Mật khẩu")}
             </button>
             <button
               type="button"
@@ -541,28 +770,45 @@ export function ProfileView() {
                   : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {t('profile.tabs.activity', "Lịch sử hoạt động")}
+              {t("profile.tabs.activity", "Lịch sử hoạt động")}
             </button>
           </div>
 
           {/* Tab Content Panels */}
           <div className="p-6">
-            
             {/* 1. GENERAL INFORMATION TAB */}
             {activeTab === "general" && (
-              <form onSubmit={handleSaveProfile} className="space-y-6 animate-fade-in">
+              <form
+                onSubmit={handleSaveProfile}
+                className="space-y-6 animate-fade-in"
+              >
                 <div className="border-b border-slate-100 pb-3">
-                  <h3 className="text-base font-extrabold text-slate-900">{t('profile.form.generalTitle', "Thông tin cá nhân")}</h3>
-                  <p className="text-xs text-slate-400 mt-1">{t('profile.form.generalDesc', "Cập nhật thông tin cơ bản để hiển thị trên hệ thống.")}</p>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    {t("profile.form.generalTitle", "Thông tin cá nhân")}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {t(
+                      "profile.form.generalDesc",
+                      "Cập nhật thông tin cơ bản để hiển thị trên hệ thống.",
+                    )}
+                  </p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-2">
-                    <label htmlFor="full_name" className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.fullName', "Họ và tên")}</label>
+                    <label
+                      htmlFor="full_name"
+                      className="text-xs font-bold uppercase tracking-wider text-slate-500 block"
+                    >
+                      {t("profile.form.fullName", "Họ và tên")}
+                    </label>
                     <input
                       id="full_name"
                       type="text"
-                      placeholder={t('profile.form.fullNamePlaceholder', "VD: Phạm Công Vỡ")}
+                      placeholder={t(
+                        "profile.form.fullNamePlaceholder",
+                        "VD: Phạm Công Vỡ",
+                      )}
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-350 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
@@ -570,11 +816,19 @@ export function ProfileView() {
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="username" className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.username', "Tên đăng nhập")}</label>
+                    <label
+                      htmlFor="username"
+                      className="text-xs font-bold uppercase tracking-wider text-slate-500 block"
+                    >
+                      {t("profile.form.username", "Tên đăng nhập")}
+                    </label>
                     <input
                       id="username"
                       type="text"
-                      placeholder={t('profile.form.usernamePlaceholder', "VD: vopham")}
+                      placeholder={t(
+                        "profile.form.usernamePlaceholder",
+                        "VD: vopham",
+                      )}
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-355 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
@@ -583,7 +837,12 @@ export function ProfileView() {
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.email', "Địa chỉ Email")}</label>
+                    <label
+                      htmlFor="email"
+                      className="text-xs font-bold uppercase tracking-wider text-slate-500 block"
+                    >
+                      {t("profile.form.email", "Địa chỉ Email")}
+                    </label>
                     <div className="relative">
                       <input
                         id="email"
@@ -594,11 +853,21 @@ export function ProfileView() {
                       />
                       <Mail className="absolute left-3.5 top-3.5 size-4 text-slate-400" />
                     </div>
-                    <p className="text-[10px] text-slate-450 mt-1">{t('profile.form.emailDesc', "Liên hệ quản trị viên để thay đổi địa chỉ email.")}</p>
+                    <p className="text-[10px] text-slate-450 mt-1">
+                      {t(
+                        "profile.form.emailDesc",
+                        "Liên hệ quản trị viên để thay đổi địa chỉ email.",
+                      )}
+                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="user_id" className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.userId', "Mã định danh (User ID)")}</label>
+                    <label
+                      htmlFor="user_id"
+                      className="text-xs font-bold uppercase tracking-wider text-slate-500 block"
+                    >
+                      {t("profile.form.userId", "Mã định danh (User ID)")}
+                    </label>
                     <div className="relative">
                       <input
                         id="user_id"
@@ -623,7 +892,9 @@ export function ProfileView() {
                     ) : (
                       <Save className="size-4" />
                     )}
-                    {saving ? t('common.saving', "Đang lưu...") : t('profile.form.saveChanges', "Lưu thay đổi")}
+                    {saving
+                      ? t("common.saving", "Đang lưu...")
+                      : t("profile.form.saveChanges", "Lưu thay đổi")}
                   </button>
                 </div>
               </form>
@@ -631,15 +902,27 @@ export function ProfileView() {
 
             {/* 2. SYSTEM PREFERENCES TAB */}
             {activeTab === "preferences" && (
-              <form onSubmit={handleSavePreferences} className="space-y-6 animate-fade-in">
+              <form
+                onSubmit={handleSavePreferences}
+                className="space-y-6 animate-fade-in"
+              >
                 <div className="border-b border-slate-100 pb-3">
-                  <h3 className="text-base font-extrabold text-slate-900">{t('profile.form.prefTitle', "Tùy chỉnh hệ thống")}</h3>
-                  <p className="text-xs text-slate-400 mt-1">{t('profile.form.prefDesc', "Cấu hình các cài đặt hiển thị cá nhân cho tài khoản.")}</p>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    {t("profile.form.prefTitle", "Tùy chỉnh hệ thống")}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {t(
+                      "profile.form.prefDesc",
+                      "Cấu hình các cài đặt hiển thị cá nhân cho tài khoản.",
+                    )}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.tempUnit', "Đơn vị đo nhiệt độ")}</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                      {t("profile.form.tempUnit", "Đơn vị đo nhiệt độ")}
+                    </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
@@ -650,7 +933,7 @@ export function ProfileView() {
                             : "border-slate-200 text-slate-500 hover:bg-slate-50"
                         }`}
                       >
-                        {t('profile.form.tempUnitC', "Nhiệt độ °C (Celsius)")}
+                        {t("profile.form.tempUnitC", "Nhiệt độ °C (Celsius)")}
                       </button>
                       <button
                         type="button"
@@ -661,54 +944,106 @@ export function ProfileView() {
                             : "border-slate-200 text-slate-500 hover:bg-slate-50"
                         }`}
                       >
-                        {t('profile.form.tempUnitF', "Nhiệt độ °F (Fahrenheit)")}
+                        {t(
+                          "profile.form.tempUnitF",
+                          "Nhiệt độ °F (Fahrenheit)",
+                        )}
                       </button>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.langLabel', "Ngôn ngữ hiển thị")}</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                      {t("profile.form.langLabel", "Ngôn ngữ hiển thị")}
+                    </label>
                     <div className="relative">
                       <select
                         value={language}
-                        onChange={(e) => setLanguage(e.target.value as "vi" | "en")}
+                        onChange={(e) =>
+                          setLanguage(e.target.value as "vi" | "en")
+                        }
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50 appearance-none"
                       >
-                        <option value="vi">{t('profile.form.langVi', "Tiếng Việt (Mặc định)")}</option>
-                        <option value="en">{t('profile.form.langEn', "English (Tiếng Anh)")}</option>
+                        <option value="vi">
+                          {t("profile.form.langVi", "Tiếng Việt (Mặc định)")}
+                        </option>
+                        <option value="en">
+                          {t("profile.form.langEn", "English (Tiếng Anh)")}
+                        </option>
                       </select>
                       <Languages className="absolute right-3.5 top-3.5 size-4 text-slate-450 pointer-events-none" />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.greenhouseLabel', "Khu vực nhà kính mặc định")}</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                      {t(
+                        "profile.form.greenhouseLabel",
+                        "Khu vực nhà kính mặc định",
+                      )}
+                    </label>
                     <div className="relative">
                       <select
                         value={selectedGreenhouse}
                         onChange={(e) => setSelectedGreenhouse(e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50 appearance-none"
                       >
-                        <option value="Nhà kính A (Cây rau)">{t('profile.form.greenhouseA', "Nhà kính A (Khu vực cây rau)")}</option>
-                        <option value="Nhà kính B (Cây ăn quả)">{t('profile.form.greenhouseB', "Nhà kính B (Khu vực ăn quả)")}</option>
-                        <option value="Nhà kính C (Ươm cây giống)">{t('profile.form.greenhouseC', "Nhà kính C (Ươm giống hoa)")}</option>
+                        <option value="Nhà kính A (Cây rau)">
+                          {t(
+                            "profile.form.greenhouseA",
+                            "Nhà kính A (Khu vực cây rau)",
+                          )}
+                        </option>
+                        <option value="Nhà kính B (Cây ăn quả)">
+                          {t(
+                            "profile.form.greenhouseB",
+                            "Nhà kính B (Khu vực ăn quả)",
+                          )}
+                        </option>
+                        <option value="Nhà kính C (Ươm cây giống)">
+                          {t(
+                            "profile.form.greenhouseC",
+                            "Nhà kính C (Ươm giống hoa)",
+                          )}
+                        </option>
                       </select>
                       <Settings className="absolute right-3.5 top-3.5 size-4 text-slate-450 pointer-events-none" />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.intervalLabel', "Tần suất làm mới dữ liệu")}</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+                      {t(
+                        "profile.form.intervalLabel",
+                        "Tần suất làm mới dữ liệu",
+                      )}
+                    </label>
                     <div className="relative">
                       <select
                         value={refreshInterval}
-                        onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                        onChange={(e) =>
+                          setRefreshInterval(Number(e.target.value))
+                        }
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-700 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50 appearance-none"
                       >
-                        <option value={2}>{t('profile.form.interval2s', "Mỗi 2 giây (Cực nhanh)")}</option>
-                        <option value={5}>{t('profile.form.interval5s', "Mỗi 5 giây (Khuyên dùng)")}</option>
-                        <option value={15}>{t('profile.form.interval15s', "Mỗi 15 giây")}</option>
-                        <option value={30}>{t('profile.form.interval30s', "Mỗi 30 giây")}</option>
+                        <option value={2}>
+                          {t(
+                            "profile.form.interval2s",
+                            "Mỗi 2 giây (Cực nhanh)",
+                          )}
+                        </option>
+                        <option value={5}>
+                          {t(
+                            "profile.form.interval5s",
+                            "Mỗi 5 giây (Khuyên dùng)",
+                          )}
+                        </option>
+                        <option value={15}>
+                          {t("profile.form.interval15s", "Mỗi 15 giây")}
+                        </option>
+                        <option value={30}>
+                          {t("profile.form.interval30s", "Mỗi 30 giây")}
+                        </option>
                       </select>
                       <Clock className="absolute right-3.5 top-3.5 size-4 text-slate-450 pointer-events-none" />
                     </div>
@@ -721,7 +1056,7 @@ export function ProfileView() {
                     className="flex items-center gap-2 rounded-xl bg-[#0b7a50] px-7 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(11,122,80,0.22)] transition hover:translate-y-[-1px] hover:shadow-[0_12px_24px_rgba(11,122,80,0.28)]"
                   >
                     <Save className="size-4" />
-                    {t('profile.form.saveSettings', "Lưu thiết lập")}
+                    {t("profile.form.saveSettings", "Lưu thiết lập")}
                   </button>
                 </div>
               </form>
@@ -732,42 +1067,69 @@ export function ProfileView() {
               <div className="space-y-6 animate-fade-in">
                 <form onSubmit={handleSavePassword} className="space-y-5">
                   <div className="border-b border-slate-100 pb-3">
-                    <h3 className="text-base font-extrabold text-slate-900">{t('profile.form.secTitle', "Thay đổi mật khẩu")}</h3>
-                    <p className="text-xs text-slate-400 mt-1">{t('profile.form.secDesc', "Đảm bảo mật khẩu của bạn có ít nhất 6 ký tự và có tính bảo mật cao.")}</p>
+                    <h3 className="text-base font-extrabold text-slate-900">
+                      {t("profile.form.secTitle", "Thay đổi mật khẩu")}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {t(
+                        "profile.form.secDesc",
+                        "Đảm bảo mật khẩu của bạn có ít nhất 6 ký tự và có tính bảo mật cao.",
+                      )}
+                    </p>
                   </div>
 
                   {isGoogleUser && (
                     <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl flex items-start gap-3">
                       <AlertTriangle className="size-5 text-orange-500 shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="text-sm font-bold text-orange-800">Tài khoản Google liên kết</h4>
+                        <h4 className="text-sm font-bold text-orange-800">
+                          Tài khoản Google liên kết
+                        </h4>
                         <p className="text-xs text-orange-700 mt-1 leading-relaxed">
-                          Tài khoản của bạn được đăng nhập thông qua Google. Hệ thống không lưu trữ mật khẩu nên bạn không thể thay đổi mật khẩu tại đây.
+                          Tài khoản của bạn được đăng nhập thông qua Google. Hệ
+                          thống không lưu trữ mật khẩu nên bạn không thể thay
+                          đổi mật khẩu tại đây.
                         </p>
                       </div>
                     </div>
                   )}
 
-                  <div className={`space-y-4 ${isGoogleUser ? 'opacity-50 pointer-events-none select-none grayscale-[0.2]' : ''}`}>
+                  <div
+                    className={`space-y-4 ${isGoogleUser ? "opacity-50 pointer-events-none select-none grayscale-[0.2]" : ""}`}
+                  >
                     {/* Current Password */}
                     <div className="space-y-2">
-                      <label htmlFor="curr_pwd" className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.currentPassword', "Mật khẩu hiện tại")}</label>
+                      <label
+                        htmlFor="curr_pwd"
+                        className="text-xs font-bold uppercase tracking-wider text-slate-500 block"
+                      >
+                        {t("profile.form.currentPassword", "Mật khẩu hiện tại")}
+                      </label>
                       <div className="relative">
                         <input
                           id="curr_pwd"
                           type={showCurrentPassword ? "text" : "password"}
                           value={currentPassword}
                           onChange={(e) => setCurrentPassword(e.target.value)}
-                          placeholder={t('profile.form.currPwdPlaceholder', "Nhập mật khẩu đang sử dụng")}
+                          placeholder={t(
+                            "profile.form.currPwdPlaceholder",
+                            "Nhập mật khẩu đang sử dụng",
+                          )}
                           className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pl-10 pr-10 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
                         />
                         <Lock className="absolute left-3.5 top-3.5 size-4 text-slate-400" />
                         <button
                           type="button"
-                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          onClick={() =>
+                            setShowCurrentPassword(!showCurrentPassword)
+                          }
                           className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition"
                         >
-                          {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                          {showCurrentPassword ? (
+                            <EyeOff size={16} />
+                          ) : (
+                            <Eye size={16} />
+                          )}
                         </button>
                       </div>
                     </div>
@@ -775,14 +1137,22 @@ export function ProfileView() {
                     {/* New Password & Strength Meter */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label htmlFor="new_pwd" className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.newPassword', "Mật khẩu mới")}</label>
+                        <label
+                          htmlFor="new_pwd"
+                          className="text-xs font-bold uppercase tracking-wider text-slate-500 block"
+                        >
+                          {t("profile.form.newPassword", "Mật khẩu mới")}
+                        </label>
                         <div className="relative">
                           <input
                             id="new_pwd"
                             type={showNewPassword ? "text" : "password"}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder={t('profile.form.newPwdPlaceholder', "Tối thiểu 6 ký tự")}
+                            placeholder={t(
+                              "profile.form.newPwdPlaceholder",
+                              "Tối thiểu 6 ký tự",
+                            )}
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pl-10 pr-10 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
                           />
                           <Key className="absolute left-3.5 top-3.5 size-4 text-slate-400" />
@@ -791,29 +1161,50 @@ export function ProfileView() {
                             onClick={() => setShowNewPassword(!showNewPassword)}
                             className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition"
                           >
-                            {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            {showNewPassword ? (
+                              <EyeOff size={16} />
+                            ) : (
+                              <Eye size={16} />
+                            )}
                           </button>
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <label htmlFor="conf_pwd" className="text-xs font-bold uppercase tracking-wider text-slate-500 block">{t('profile.form.confirmPassword', "Xác nhận mật khẩu mới")}</label>
+                        <label
+                          htmlFor="conf_pwd"
+                          className="text-xs font-bold uppercase tracking-wider text-slate-500 block"
+                        >
+                          {t(
+                            "profile.form.confirmPassword",
+                            "Xác nhận mật khẩu mới",
+                          )}
+                        </label>
                         <div className="relative">
                           <input
                             id="conf_pwd"
                             type={showConfirmPassword ? "text" : "password"}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder={t('profile.form.confPwdPlaceholder', "Nhập lại mật khẩu mới")}
+                            placeholder={t(
+                              "profile.form.confPwdPlaceholder",
+                              "Nhập lại mật khẩu mới",
+                            )}
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pl-10 pr-10 text-sm font-medium text-slate-800 outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-50"
                           />
                           <Key className="absolute left-3.5 top-3.5 size-4 text-slate-400" />
                           <button
                             type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            onClick={() =>
+                              setShowConfirmPassword(!showConfirmPassword)
+                            }
                             className="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600 transition"
                           >
-                            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            {showConfirmPassword ? (
+                              <EyeOff size={16} />
+                            ) : (
+                              <Eye size={16} />
+                            )}
                           </button>
                         </div>
                       </div>
@@ -823,11 +1214,22 @@ export function ProfileView() {
                     {newPassword && (
                       <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5 transition">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-slate-500">{t('profile.form.pwdComplexity', "Độ phức tạp mật khẩu:")}</span>
-                          <span className={`font-extrabold ${pwdStrength.textColor}`}>{pwdStrength.label}</span>
+                          <span className="font-bold text-slate-500">
+                            {t(
+                              "profile.form.pwdComplexity",
+                              "Độ phức tạp mật khẩu:",
+                            )}
+                          </span>
+                          <span
+                            className={`font-extrabold ${pwdStrength.textColor}`}
+                          >
+                            {pwdStrength.label}
+                          </span>
                         </div>
                         <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                          <div className={`h-full ${pwdStrength.color} ${pwdStrength.width} transition-all duration-300`} />
+                          <div
+                            className={`h-full ${pwdStrength.color} ${pwdStrength.width} transition-all duration-300`}
+                          />
                         </div>
                       </div>
                     )}
@@ -837,25 +1239,41 @@ export function ProfileView() {
                     <button
                       type="submit"
                       disabled={saving || isGoogleUser}
-                      className={`flex items-center gap-2 rounded-xl px-7 py-2.5 text-sm font-bold text-white transition ${isGoogleUser ? 'bg-slate-300 cursor-not-allowed shadow-none text-slate-500' : 'bg-[#0b7a50] shadow-[0_8px_20px_rgba(11,122,80,0.22)] hover:translate-y-[-1px] hover:shadow-[0_12px_24px_rgba(11,122,80,0.28)]'}`}
+                      className={`flex items-center gap-2 rounded-xl px-7 py-2.5 text-sm font-bold text-white transition ${isGoogleUser ? "bg-slate-300 cursor-not-allowed shadow-none text-slate-500" : "bg-[#0b7a50] shadow-[0_8px_20px_rgba(11,122,80,0.22)] hover:translate-y-[-1px] hover:shadow-[0_12px_24px_rgba(11,122,80,0.28)]"}`}
                     >
-                      {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                      {saving ? t('common.saving', "Đang lưu...") : t('profile.form.updatePassword', "Cập nhật mật khẩu")}
+                      {saving ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Save className="size-4" />
+                      )}
+                      {saving
+                        ? t("common.saving", "Đang lưu...")
+                        : t("profile.form.updatePassword", "Cập nhật mật khẩu")}
                     </button>
                   </div>
                 </form>
 
                 {/* 2-Factor Authentication Widget */}
-                <div className={`border-t border-slate-100 pt-6 ${isGoogleUser ? 'opacity-50 pointer-events-none select-none grayscale-[0.2]' : ''}`}>
+                <div
+                  className={`border-t border-slate-100 pt-6 ${isGoogleUser ? "opacity-50 pointer-events-none select-none grayscale-[0.2]" : ""}`}
+                >
                   <div className="flex items-center justify-between bg-slate-50/50 border border-slate-100 rounded-2xl p-4.5">
                     <div className="flex items-start gap-3">
                       <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
                         <Smartphone className="size-5" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-slate-800">{t('profile.securityCheck.twoFactor', "Xác thực hai yếu tố (2FA)")}</h4>
+                        <h4 className="text-sm font-bold text-slate-800">
+                          {t(
+                            "profile.securityCheck.twoFactor",
+                            "Xác thực hai yếu tố (2FA)",
+                          )}
+                        </h4>
                         <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                          {t('profile.securityCheck.twoFactorDesc', "Tăng cường bảo vệ tài khoản bằng việc yêu cầu mã xác nhận OTP từ ứng dụng xác thực trên điện thoại khi đăng nhập.")}
+                          {t(
+                            "profile.securityCheck.twoFactorDesc",
+                            "Tăng cường bảo vệ tài khoản bằng việc yêu cầu mã xác nhận OTP từ ứng dụng xác thực trên điện thoại khi đăng nhập.",
+                          )}
                         </p>
                       </div>
                     </div>
@@ -882,35 +1300,64 @@ export function ProfileView() {
               <div className="space-y-4 animate-fade-in">
                 <div className="border-b border-slate-100 pb-3 flex justify-between items-center">
                   <div>
-                    <h3 className="text-base font-extrabold text-slate-900">{t('profile.activityLog.title', "Lịch sử đăng nhập & Thao tác")}</h3>
-                    <p className="text-xs text-slate-400 mt-1">{t('profile.activityLog.desc', "Danh sách 5 hoạt động gần đây nhất từ tài khoản của bạn.")}</p>
+                    <h3 className="text-base font-extrabold text-slate-900">
+                      {t(
+                        "profile.activityLog.title",
+                        "Lịch sử đăng nhập & Thao tác",
+                      )}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {t(
+                        "profile.activityLog.desc",
+                        "Danh sách 5 hoạt động gần đây nhất từ tài khoản của bạn.",
+                      )}
+                    </p>
                   </div>
                   <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-150 px-2 py-0.5 rounded-full">
-                    {t('profile.activityLog.realtime', "Thời gian thực")}
+                    {t("profile.activityLog.realtime", "Thời gian thực")}
                   </span>
                 </div>
 
                 <div className="divide-y divide-slate-100">
                   {activities.map((log) => (
-                    <div key={log.id} className="py-3.5 flex items-center justify-between hover:bg-slate-50/30 transition px-1 rounded-xl">
+                    <div
+                      key={log.id}
+                      className="py-3.5 flex items-center justify-between hover:bg-slate-50/30 transition px-1 rounded-xl"
+                    >
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl ${
-                          log.status === "success" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
-                        }`}>
+                        <div
+                          className={`p-2 rounded-xl ${
+                            log.status === "success"
+                              ? "bg-emerald-50 text-emerald-600"
+                              : "bg-red-50 text-red-500"
+                          }`}
+                        >
                           <Activity size={16} />
                         </div>
                         <div>
-                          <h4 className="text-xs font-bold text-slate-800">{log.action}</h4>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">Địa chỉ IP: {log.ip}</span>
+                          <h4 className="text-xs font-bold text-slate-800">
+                            {log.action}
+                          </h4>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                            Địa chỉ IP: {log.ip}
+                          </span>
                         </div>
                       </div>
-                      
+
                       <div className="text-right">
-                        <span className="text-[10px] font-semibold text-slate-450 block">{log.time}</span>
-                        <span className={`inline-flex items-center text-[9px] font-bold mt-1 uppercase tracking-wider ${
-                          log.status === "success" ? "text-emerald-600" : "text-red-500"
-                        }`}>
-                          {log.status === "success" ? t('common.success', "Thành công") : t('common.failed', "Thất bại")}
+                        <span className="text-[10px] font-semibold text-slate-450 block">
+                          {log.time}
+                        </span>
+                        <span
+                          className={`inline-flex items-center text-[9px] font-bold mt-1 uppercase tracking-wider ${
+                            log.status === "success"
+                              ? "text-emerald-600"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {log.status === "success"
+                            ? t("common.success", "Thành công")
+                            : t("common.failed", "Thất bại")}
                         </span>
                       </div>
                     </div>
@@ -918,10 +1365,8 @@ export function ProfileView() {
                 </div>
               </div>
             )}
-
           </div>
         </div>
-
       </div>
 
       {/* Notifications Toast */}
@@ -937,7 +1382,9 @@ export function ProfileView() {
             </div>
           )}
           <div className="flex-1 pt-0.5">
-            <h4 className={`text-sm font-extrabold tracking-tight ${toast.type === "success" ? "text-emerald-900" : "text-red-950"}`}>
+            <h4
+              className={`text-sm font-extrabold tracking-tight ${toast.type === "success" ? "text-emerald-900" : "text-red-950"}`}
+            >
               {toast.title}
             </h4>
             <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
@@ -996,7 +1443,7 @@ export function ProfileView() {
           border-radius: 24px;
           border: 1.5px solid #e2e8f0;
           padding: 1.75rem 2rem;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
           display: flex;
           align-items: center;
           justify-content: space-between;

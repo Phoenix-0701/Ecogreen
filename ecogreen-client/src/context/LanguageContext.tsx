@@ -104,7 +104,10 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (clean === "FAN_START") return "Fan Started";
     if (clean === "FAN_STOP") return "Fan Stopped";
     if (clean === "SCHEDULE_UPDATE") return "Schedule Updated";
+    if (clean === "SCHEDULE_WATERING") return "Scheduled Watering";
     if (clean === "THRESHOLD_UPDATE") return "Thresholds Updated";
+    if (clean === "PUMP_ON") return "Pump On";
+    if (clean === "PUMP_OFF") return "Pump Off";
     if (clean === "WARNING") return "Warning";
     if (clean === "INFO") return "Info";
     if (clean === "SUCCESS") return "Success";
@@ -167,6 +170,18 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // ===== Schedule / Threshold update logs =====
     if (lower.includes("lịch tưới") && lower.includes("cập nhật")) return "Watering schedule updated.";
     if (lower.includes("ngưỡng") && lower.includes("cập nhật")) return "Threshold configuration updated.";
+
+    // ===== Scheduled watering logs =====
+    if (lower.includes("bắt đầu tưới theo lịch")) {
+      const titleMatch = clean.match(/lịch "([^"]+)"/);
+      const title = titleMatch ? titleMatch[1] : "schedule";
+      return `Started watering: "${title}".`;
+    }
+    if (lower.includes("hoàn thành tưới theo lịch")) {
+      const titleMatch = clean.match(/lịch "([^"]+)"/);
+      const title = titleMatch ? titleMatch[1] : "schedule";
+      return `Completed watering: "${title}".`;
+    }
 
     return clean;
   };

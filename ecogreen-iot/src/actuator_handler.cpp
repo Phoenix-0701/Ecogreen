@@ -191,6 +191,17 @@ void autoControlPump()
         return;
     if (g_pumpManual)
         return; // Bơm đang do lệnh manual, không can thiệp
+    if (g_weatherBlockPump)
+    {
+        // Server báo trời mưa: chặn bơm tự động (manual vẫn hoạt động bình thường)
+        Serial.println("[AUTO] Weather block active - pump auto suppressed");
+        if (g_pumpState)
+        {
+            Serial.println("[AUTO] Weather block active - force OFF running pump");
+            pumpOff();
+        }
+        return;
+    }
 
     if (!g_pumpState)
     {

@@ -884,8 +884,8 @@ export default function Home() {
                         <div className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest font-mono">
                           {t("landing.roi.waterSaved", "Nước tiết kiệm / Ngày")}
                         </div>
-                        <div className="text-2xl font-black tracking-tight mt-0.5">
-                          {waterSavedPerDay.toLocaleString()} {t("landing.roi.liters", "Lít")}
+                        <div className="text-2xl font-black tracking-tight mt-0.5" suppressHydrationWarning>
+                          {waterSavedPerDay.toLocaleString(language === "vi" ? "vi-VN" : "en-US")} {t("landing.roi.liters", "Lít")}
                         </div>
                       </div>
                     </div>
@@ -899,8 +899,8 @@ export default function Home() {
                         <div className="text-[10px] font-bold text-emerald-300 uppercase tracking-widest font-mono">
                           {t("landing.roi.powerSaved", "Điện năng tiết kiệm / Tháng")}
                         </div>
-                        <div className="text-2xl font-black tracking-tight mt-0.5">
-                          {electricitySavedPerMonth.toLocaleString()} {t("landing.roi.kwh", "kWh")}
+                        <div className="text-2xl font-black tracking-tight mt-0.5" suppressHydrationWarning>
+                          {electricitySavedPerMonth.toLocaleString(language === "vi" ? "vi-VN" : "en-US")} {t("landing.roi.kwh", "kWh")}
                         </div>
                       </div>
                     </div>
@@ -925,7 +925,7 @@ export default function Home() {
                         <div className="text-xs text-emerald-400/80 font-bold mb-1">
                           {t("landing.roi.moneySaved", "Tiết kiệm ước tính / Tháng")}
                         </div>
-                        <div className="text-3xl font-black text-emerald-300 tracking-tight glow-green">
+                        <div className="text-3xl font-black text-emerald-300 tracking-tight glow-green" suppressHydrationWarning>
                           {formattedSavings}
                         </div>
                       </div>

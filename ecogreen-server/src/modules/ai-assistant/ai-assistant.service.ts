@@ -22,12 +22,8 @@ export class AiAssistantService {
       throw new BadRequestException('GEMINI_API_KEY is not configured. Please set it in the server .env file to use the smart AI.');
     }
 
-    const model = this.genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-flash-lite',
-      generationConfig: { responseMimeType: "application/json" }
-    });
-
-    const prompt = `
+    try {
+      const prompt = `
 Bạn là "Eco", bộ não AI của hệ thống nhà kính thông minh EcoGreen.
 Nhiệm vụ của bạn là lắng nghe câu lệnh (bằng Tiếng Việt) của người dùng và quyết định xem có cần điều khiển thiết bị nào không.
 Hệ thống hiện tại có 2 thiết bị: "pump" (Máy bơm nước tưới cây) và "fan" (Quạt thông gió tản nhiệt).
@@ -51,12 +47,45 @@ Trả về kết quả DƯỚI DẠNG CHUỖI JSON DUY NHẤT (không bọc tron
 CHÚ Ý: Người dùng nói Tiếng Việt, nhưng bạn BẮT BUỘC phải trả lời bằng Tiếng Anh.
 `;
 
-    try {
-      const result = await model.generateContent(prompt);
-      const textResponse = result.response.text();
-      const cleanedText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
-      const parsedData = JSON.parse(cleanedText);
-      console.log('Gemini Parsed Data:', parsedData);
+    // Ưu tiên chạy Model cấu hình trong .env, nếu lỗi sẽ lần lượt thử các model dự phòng
+    const primaryModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+    const fallbacks = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-flash'];
+    
+    // Tạo danh sách các model duy nhất
+    const modelsToTry: string[] = [primaryModel];
+    for (const fb of fallbacks) {
+      if (!modelsToTry.includes(fb)) {
+        modelsToTry.push(fb);
+      }
+    }
+
+    let parsedData: any = null;
+    let lastError: any = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`[AI-Assistant] Đang thử kết nối tới model: ${modelName}`);
+        const modelInstance = this.genAI.getGenerativeModel({ 
+          model: modelName,
+          generationConfig: { responseMimeType: "application/json" }
+        });
+        
+        const result = await modelInstance.generateContent(prompt);
+        const textResponse = result.response.text();
+        const cleanedText = textResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+        parsedData = JSON.parse(cleanedText);
+        console.log(`[AI-Assistant] Xử lý thành công bằng model: ${modelName}. Dữ liệu:`, parsedData);
+        break; // Thoát vòng lặp khi thành công
+      } catch (error) {
+        console.warn(`[AI-Assistant] Model ${modelName} gặp lỗi:`, error?.message || error);
+        lastError = error;
+      }
+    }
+
+    if (!parsedData) {
+      console.error("Tất cả các model Gemini dự phòng đều thất bại.", lastError);
+      throw new BadRequestException('Sorry, my AI brain is having some connection issues, please try again later!');
+    }
 
       // Nếu AI quyết định điều khiển thiết bị
       if (parsedData.action !== 'none' && parsedData.device !== 'none') {

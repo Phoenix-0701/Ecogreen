@@ -11,7 +11,7 @@ export class SensorsService {
   // 🟢 Bộ nhớ đệm chống Spam tin nhắn Telegram
   // Key: Sensor_ID, Value: Thời gian gửi tin nhắn cảnh báo cuối cùng (millisecond)
   private alertCache: Map<string, number> = new Map();
-  private readonly ALERT_COOLDOWN_MS = 5 * 60 * 1000; // Khoảng cách giữa 2 lần spam (5 phút)
+  private readonly ALERT_COOLDOWN_MS = 1 * 60 * 1000; // Khoảng cách giữa 2 lần spam (5 phút)
 
   constructor(
     private prisma: PrismaService,
@@ -35,14 +35,26 @@ export class SensorsService {
       // 2. Map dữ liệu từ ESP32 gửi lên và ép kiểu an toàn
       for (const sensor of device.sensors) {
         let val = null;
-        if (sensor.type === 'temperature') val = payload.temp ?? payload.temperature;
-        else if (sensor.type === 'humidity') val = payload.humi ?? payload.humidity ?? payload.hum;
-        else if (sensor.type === 'soil_moisture') val = payload.soil ?? payload.soil_moisture;
+        if (sensor.type === 'temperature')
+          val = payload.temp ?? payload.temperature;
+        else if (sensor.type === 'humidity')
+          val = payload.humi ?? payload.humidity ?? payload.hum;
+        else if (sensor.type === 'soil_moisture')
+          val = payload.soil ?? payload.soil_moisture ?? payload.soilMoisture;
+        else if (sensor.type === 'light')
+          val =
+            payload.light ??
+            payload.lightLux ??
+            payload.light_lux ??
+            payload.lux;
 
         if (val !== null && val !== undefined) {
           const parsedVal = parseFloat(val);
           if (!isNaN(parsedVal)) {
-            readingsToInsert.push({ Sensor_ID: sensor.Sensor_ID, value: parsedVal });
+            readingsToInsert.push({
+              Sensor_ID: sensor.Sensor_ID,
+              value: parsedVal,
+            });
           }
         }
       }
@@ -55,25 +67,42 @@ export class SensorsService {
         this.prisma.dEVICES.update({
           where: { Device_ID: device.Device_ID },
           data: { status: 'online', last_seen_at: new Date() },
-        })
+        }),
       ]);
 
-      // 4. TỐI ƯU HÓA 2: Truy vấn GỘP toàn bộ Threshold bằng 1 lần gọi DB
-      const sensorIds = readingsToInsert.map(r => r.Sensor_ID);
+      // Kiểm tra chế độ AUTO/MANUAL từ payload ESP32
+      // ESP32 có thể gửi: autoMode=false, autoMode="MAN", auto_mode="MANUAL", hoặc không gửi gì
+      const rawMode = payload.autoMode ?? payload.auto_mode ?? payload.mode;
+      const isAutoMode =
+        rawMode !== false &&
+        rawMode !== 'MAN' &&
+        rawMode !== 'MANUAL' &&
+        rawMode !== 0;
+      this.logger.log(
+        `[THRESHOLD-DEBUG] rawMode="${rawMode}" | isAutoMode=${isAutoMode}`,
+      );
+
+      // 4. Truy vấn toàn bộ Threshold bằng 1 lần gọi DB
+      const sensorIds = readingsToInsert.map((r) => r.Sensor_ID);
+      this.logger.log(
+        `[THRESHOLD-DEBUG] Readings: ${JSON.stringify(readingsToInsert.map((r) => ({ id: r.Sensor_ID.slice(-6), val: r.value })))}`,
+      );
       const thresholds = await this.prisma.tHRESHOLDS.findMany({
         where: { Sensor_ID: { in: sensorIds }, is_enabled: true },
       });
 
+      this.logger.log(
+        `[THRESHOLD-DEBUG] Found ${thresholds.length} threshold(s)`,
+      );
       if (thresholds.length === 0) return true;
 
-      // 5. TỐI ƯU HÓA 3: Tìm trạng thái các Máy bơm bằng 1 lần gọi DB duy nhất
-      const actuatorIds = thresholds.map(t => t.Actuator_ID);
+      // 5. Tìm trạng thái thiết bị chấp hành hiện tại
+      const actuatorIds = thresholds.map((t) => t.Actuator_ID);
       const lastLogs = await this.prisma.aCTUATOR_LOGS.findMany({
         where: { Actuator_ID: { in: actuatorIds } },
         orderBy: { occurred_at: 'desc' },
       });
 
-      // Tạo một từ điển (map) chứa trạng thái máy bơm hiện tại để tra cứu siêu tốc
       const pumpStatusMap = new Map<string, boolean>();
       for (const log of lastLogs) {
         if (!pumpStatusMap.has(log.Actuator_ID)) {
@@ -81,74 +110,152 @@ export class SensorsService {
         }
       }
 
-      // 6. SO SÁNH VÀ ĐIỀU KHIỂN
+      // 6. SO SÁNH NGƯỠNG, GỬI CẢNH BÁO, VÀ TỰ ĐỘNG ĐIỀU KHIỂN
       for (const reading of readingsToInsert) {
-        const threshold = thresholds.find(t => t.Sensor_ID === reading.Sensor_ID);
+        const threshold = thresholds.find(
+          (t) => t.Sensor_ID === reading.Sensor_ID,
+        );
         if (!threshold) continue;
 
-        const sensorName = device.sensors.find((s) => s.Sensor_ID === reading.Sensor_ID)?.name || 'Cảm biến';
+        const sensorName =
+          device.sensors.find((s) => s.Sensor_ID === reading.Sensor_ID)?.name ||
+          'Cảm biến';
         const actuatorID = threshold.Actuator_ID;
         const isCurrentlyOn = pumpStatusMap.get(actuatorID) || false;
+        const actuatorInfo = device.actuators.find(
+          (a) => a.Actuator_ID === actuatorID,
+        );
+        const actuatorName = actuatorInfo?.name || 'Thiết bị';
+        const actuatorType = actuatorInfo?.type || 'pump';
+        const isFan = actuatorType === 'fan';
+        const actuatorIcon = isFan ? '🌀' : '💧';
+        const actuatorLabel = isFan ? 'QUẠT' : 'MÁY BƠM';
 
-        // =====================================
-        // XỬ LÝ VƯỢT NGƯỠNG MAX (QUÁ NÓNG/KHÔ)
-        // =====================================
-        if (reading.value > threshold.max_value) {
-          
-          if (!isCurrentlyOn) {
+        this.logger.log(
+          `[THRESHOLD-DEBUG] "${sensorName}"=${reading.value} Min=${threshold.min_value} Max=${threshold.max_value} ` +
+            `type=${actuatorType} isOn=${isCurrentlyOn} isAuto=${isAutoMode}`,
+        );
+
+        /**
+         * ┌──────────────┬───────────────────────────┬───────────────────────────┐
+         * │              │  Vượt MAX (quá nóng/sáng) │  Dưới MIN (quá khô/tối)  │
+         * ├──────────────┼───────────────────────────┼───────────────────────────┤
+         * │ 🌀 QUẠT      │  BẬT (làm mát)            │  TẮT (đã mát)            │
+         * │ 💧 MÁY BƠM   │  TẮT (đủ nước rồi)        │  BẬT (cần tưới)          │
+         * └──────────────┴───────────────────────────┴───────────────────────────┘
+         */
+
+        // ── Điều kiện BẬT: fan > max | pump < min ──────────────────────────────
+        const shouldTurnOn = isFan
+          ? reading.value > threshold.max_value // Quạt: bật khi QUÁ NÓNG
+          : reading.value < threshold.min_value; // Bơm: bật khi QUÁ KHÔ
+
+        // ── Điều kiện TẮT: fan < min | pump > max ──────────────────────────────
+        const shouldTurnOff = isFan
+          ? reading.value < threshold.min_value // Quạt: tắt khi đã mát
+          : reading.value > threshold.max_value; // Bơm: tắt khi đủ nước
+
+        if (shouldTurnOn) {
+          const alertLabel = isFan
+            ? `nhiệt độ/ánh sáng QUÁ CAO (${reading.value} > Max ${threshold.max_value})`
+            : `độ ẩm/đất QUÁ THẤP (${reading.value} < Min ${threshold.min_value})`;
+          const alertEmoji = isFan ? '🔥' : '🏜️';
+
+          this.logger.log(
+            `[THRESHOLD-DEBUG] ⚡ SHOULD_ON (${actuatorType}): ${alertLabel}`,
+          );
+
+          // Chỉ tự BẬT khi AUTO và đang TẮT
+          if (isAutoMode && !isCurrentlyOn) {
             await this.logsService.createSystemLog(
-              device.Device_ID, 'WARNING', 'VƯỢT NGƯỠNG MAX',
-              `Cảnh báo: ${sensorName} vượt Max (${reading.value} > ${threshold.max_value})`
+              device.Device_ID,
+              'WARNING',
+              `CẢNH BÁO ${actuatorLabel}`,
+              `${sensorName} ${alertLabel} → Tự động BẬT ${actuatorLabel}`,
             );
-            await this.actuatorsService.toggle(actuatorID, true, 'AUTO_SYSTEM_MAX');
-            pumpStatusMap.set(actuatorID, true); // Chống gọi bơm liên tục ở vòng lặp kế
+            await this.actuatorsService.toggle(actuatorID, true, 'AUTO_SYSTEM');
+            pumpStatusMap.set(actuatorID, true);
           }
 
-          // Cảnh báo Telegram (Áp dụng chống Spam)
+          // Gửi Telegram dù MANUAL hay AUTO (chống spam cooldown)
           const now = Date.now();
           const lastAlert = this.alertCache.get(reading.Sensor_ID) || 0;
+          this.logger.log(
+            `[THRESHOLD-DEBUG] CacheAge=${now - lastAlert}ms willSend=${now - lastAlert > this.ALERT_COOLDOWN_MS}`,
+          );
 
           if (now - lastAlert > this.ALERT_COOLDOWN_MS) {
-            const msg = 
-              `🚨 <b>CẢNH BÁO QUÁ NHIỆT / VƯỢT NGƯỠNG!</b>\n\n` +
+            const modeNote = isAutoMode
+              ? ''
+              : '\n🕹️ <i>Chế độ Thủ công — bạn cần tự bật thiết bị.</i>';
+            const actionStatus =
+              isAutoMode && !isCurrentlyOn
+                ? 'Đã TỰ ĐỘNG BẬT!'
+                : isAutoMode
+                  ? 'Đang duy trì hoạt động...'
+                  : 'Cần bật thủ công!';
+
+            const msg =
+              `${alertEmoji} <b>CẢNH BÁO VƯỢT NGƯỠNG!</b>\n\n` +
               `🌱 Vườn: <b>${device.name}</b>\n` +
-              `⚠️ <b>${sensorName}</b>: <b>${reading.value}</b> (Max: ${threshold.max_value})\n\n` +
-              `💦 <i>Hệ thống ${!isCurrentlyOn ? 'đã TỰ ĐỘNG BẬT bơm!' : 'đang duy trì tưới...'}</i>`;
-            
-            await this.notificationsService.sendTelegramMessage(device.User_ID, msg, true);
-            this.alertCache.set(reading.Sensor_ID, now); // Cập nhật mốc thời gian vừa nhắn
-          }
-        } 
-        // =====================================
-        // XỬ LÝ DƯỚI NGƯỠNG MIN (ĐÃ MÁT/ẨM)
-        // =====================================
-        else if (reading.value < threshold.min_value) {
-          
-          if (isCurrentlyOn) {
-            await this.logsService.createSystemLog(
-              device.Device_ID, 'ACTION', 'DƯỚI NGƯỠNG MIN',
-              `Thông báo: ${sensorName} an toàn (${reading.value} < ${threshold.min_value})`
+              `⚠️ <b>${sensorName}</b>: <b>${reading.value}</b> (Ngưỡng ${isFan ? 'Max' : 'Min'}: ${isFan ? threshold.max_value : threshold.min_value})\n\n` +
+              `${actuatorIcon} ${actuatorLabel} <b>${actuatorName}</b>: <i>${actionStatus}</i>` +
+              modeNote;
+
+            const sent = await this.notificationsService.sendTelegramMessage(
+              device.User_ID,
+              msg,
+              true,
             );
-            await this.actuatorsService.toggle(actuatorID, false, 'AUTO_SYSTEM_MIN');
+            this.logger.log(`[THRESHOLD-DEBUG] Telegram sent=${sent}`);
+            this.alertCache.set(reading.Sensor_ID, now);
+          }
+        } else if (shouldTurnOff) {
+          const safeLabel = isFan
+            ? `đã hạ xuống ${reading.value} (< Min ${threshold.min_value})`
+            : `đã tăng lên ${reading.value} (> Max ${threshold.max_value})`;
+
+          this.logger.log(
+            `[THRESHOLD-DEBUG] ✅ SHOULD_OFF (${actuatorType}): ${safeLabel}`,
+          );
+
+          // Chỉ tự TẮT khi AUTO và đang BẬT
+          if (isAutoMode && isCurrentlyOn) {
+            await this.logsService.createSystemLog(
+              device.Device_ID,
+              'ACTION',
+              `AN TOÀN — TẮT ${actuatorLabel}`,
+              `${sensorName} ${safeLabel} → Tự động TẮT ${actuatorLabel}`,
+            );
+            await this.actuatorsService.toggle(
+              actuatorID,
+              false,
+              'AUTO_SYSTEM',
+            );
             pumpStatusMap.set(actuatorID, false);
 
-            // Xóa cache cảnh báo khi hệ thống đã an toàn trở lại
             this.alertCache.delete(reading.Sensor_ID);
 
-            const msg = 
+            const msg =
               `✅ <b>THÔNG BÁO AN TOÀN</b>\n\n` +
               `🌱 Vườn: <b>${device.name}</b>\n` +
-              `📉 <b>${sensorName}</b> đã hạ xuống <b>${reading.value}</b> (Min: ${threshold.min_value})\n\n` +
-              `🛑 <i>Hệ thống đã TỰ ĐỘNG TẮT bơm.</i>`;
-            
-            await this.notificationsService.sendTelegramMessage(device.User_ID, msg, false);
+              `📉 <b>${sensorName}</b> ${safeLabel}\n\n` +
+              `${actuatorIcon} ${actuatorLabel} <b>${actuatorName}</b>: <i>Đã TỰ ĐỘNG TẮT.</i>`;
+
+            await this.notificationsService.sendTelegramMessage(
+              device.User_ID,
+              msg,
+              false,
+            );
           }
         }
       }
 
       return true;
     } catch (error) {
-      this.logger.error(`❌ Lỗi xử lý MQTT tại SensorsService: ${error.message}`);
+      this.logger.error(
+        `❌ Lỗi xử lý MQTT tại SensorsService: ${error.message}`,
+      );
       return false;
     }
   }

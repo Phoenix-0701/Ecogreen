@@ -5,7 +5,7 @@ const nextConfig = {
     root: path.join(process.cwd()),
   },
   allowedDevOrigins: [
-    "192.168.1.25", // phone hotspot
+    "192.168.1.16", // phone hotspot
   ],
 };
 

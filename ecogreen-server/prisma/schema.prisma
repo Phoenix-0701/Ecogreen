@@ -175,6 +175,7 @@ model NOTIFICATION_CONFIGS {
   smtp_password_encrypted String?
   notify_on_error         Boolean @default(true)
   notify_on_action        Boolean @default(false)
+  notify_on_config        Boolean @default(false)
 
   // Quan hệ
   user USERS @relation(fields: [User_ID], references: [User_ID], onDelete: Cascade)

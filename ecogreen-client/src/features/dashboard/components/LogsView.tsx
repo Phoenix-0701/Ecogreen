@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   ShieldAlert,
   SlidersHorizontal,
+  CalendarCheck,
 } from "lucide-react";
 import { getDevices } from "@/services/device.service";
 import { requestJson } from "@/services/api";
@@ -125,6 +126,13 @@ export function LogsView() {
         icon: <Wind size={16} />,
         textColor: "#0d9488", // Teal
         bgColor: "#f0fdfa",
+      };
+    }
+    if (type.includes("SCHEDULE_WATERING")) {
+      return {
+        icon: <CalendarCheck size={16} />,
+        textColor: "#059669", // Emerald
+        bgColor: "#ecfdf5",
       };
     }
     if (type.includes("SCHEDULE_UPDATE") || type.includes("SCHEDULE")) {

@@ -33,4 +33,14 @@ export class SchedulesController {
       data,
     };
   }
+
+  @Post('smart-logic/trigger')
+  @ApiOperation({ summary: 'Kích hoạt ngay SmartLogic cho tất cả thiết bị (không đợi cron hàng giờ)' })
+  async triggerSmartLogic() {
+    const result = await this.schedulesService.runSmartLogicForAllDevices();
+    return {
+      message: `Đã chạy SmartLogic cho ${result.processed} thiết bị`,
+      data: result,
+    };
+  }
 }

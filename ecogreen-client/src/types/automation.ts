@@ -77,7 +77,7 @@ export interface SmartLogicLog {
   id: string;
   time: string;
   message: string;
-  level: "success" | "info" | "system";
+  level: "success" | "info" | "system" | "warning" | "error";
 }
 
 export interface SmartLogicState {
@@ -90,6 +90,8 @@ export interface SmartLogicState {
   projectedSavingsPercent: number;
   decision: SmartLogicDecision;
   logs: SmartLogicLog[];
+  weatherSummary?: string;
+  tempC?: number;
 }
 
 export interface ScheduleRule {

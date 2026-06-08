@@ -57,7 +57,7 @@ export function VoiceAssistantButton() {
 
       const updateLevel = () => {
         if (!analyserRef.current || !dataArrayRef.current) return;
-        analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+        analyserRef.current.getByteFrequencyData(dataArrayRef.current as any);
         
         let sum = 0;
         for (let i = 0; i < dataArrayRef.current.length; i++) {

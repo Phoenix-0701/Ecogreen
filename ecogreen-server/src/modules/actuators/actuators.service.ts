@@ -1,12 +1,14 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClientProxy } from '@nestjs/microservices';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ActuatorsService {
   constructor(
     private prisma: PrismaService,
     @Inject('MQTT_SERVICE') private mqttClient: ClientProxy,
+    private notificationsService: NotificationsService,
   ) {}
 
   // Lấy danh sách máy bơm/quạt của 1 thiết bị
@@ -77,6 +79,21 @@ export class ActuatorsService {
       },
     });
 
+    // 📱 Gửi thông báo Telegram khi người dùng bật/tắt thủ công
+    if (!triggeredBy.startsWith('AUTO_SYSTEM')) {
+      const deviceName = actuator.device.name;
+      const icon = actuator.type === 'pump' ? '💧' : '🌀';
+      const stateLabel = state ? 'BẬT' : 'TẮT';
+      const actorLabel = triggeredBy.startsWith('USER: ') ? triggeredBy.replace('USER: ', '') : triggeredBy;
+      const msg =
+        `${icon} <b>ĐIỀU KHIỂN THỦ CÔNG</b>\n\n` +
+        `🌱 Vườn: <b>${deviceName}</b>\n` +
+        `⚙️ <b>${actuator.name}</b> đã được <b>${stateLabel}</b>\n` +
+        `👤 Người thực hiện: <i>${actorLabel}</i>`;
+      // isError=false → chỉ gửi nếu notify_on_action = true
+      this.notificationsService.sendNotificationToDeviceOwner(actuator.Device_ID, msg, false);
+    }
+
     return {
       message: state
         ? 'Đã bật thiết bị thành công!'
@@ -118,6 +135,17 @@ export class ActuatorsService {
         description,
       },
     });
+
+    // 📱 Gửi thông báo Telegram khi đổi chế độ
+    const modeIcon = isAuto ? '🤖' : '🕹️';
+    const modeLabel = isAuto ? 'Tự động (AUTO)' : 'Thủ công (MANUAL)';
+    const msg =
+      `${modeIcon} <b>ĐỔI CHẾ ĐỘ ĐIỀU KHIỂN</b>\n\n` +
+      `🌱 Vườn: <b>${device.name}</b>\n` +
+      `⚙️ Đã chuyển sang: <b>${modeLabel}</b>\n` +
+      `👤 Người thực hiện: <i>${triggeredBy}</i>`;
+    // isError=false → chỉ gửi nếu notify_on_action = true
+    this.notificationsService.sendNotificationToDeviceOwner(deviceId, msg, false);
 
     return {
       message: `Đã chuyển sang chế độ ${isAuto ? 'Tự động' : 'Thủ công'} thành công!`,

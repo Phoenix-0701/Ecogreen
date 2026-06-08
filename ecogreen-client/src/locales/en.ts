@@ -31,15 +31,16 @@ export const en = {
       LOG: "Activity Logs",
       "SMART LOGIC": "Smart Logic Rules",
       PROFILE: "Personal Profile",
-    }
+    },
   },
 
   // Profile View
   profile: {
     badge: "Personal Profile",
     title: "Account Profile",
-    subtitle: "Manage your personal information, system preferences, and security settings.",
-    
+    subtitle:
+      "Manage your personal information, system preferences, and security settings.",
+
     // Stats
     role: "System Role",
     adminRole: "System Admin",
@@ -72,7 +73,8 @@ export const en = {
       emailDesc: "Email address has been successfully verified.",
       twoFactor: "Two-Factor Authentication (2FA)",
       twoFactorEnabled: "Activated for maximum account security.",
-      twoFactorDisabled: "Not activated. Recommended to enable for better security.",
+      twoFactorDisabled:
+        "Not activated. Recommended to enable for better security.",
       deviceLock: "Device Connection Lock",
       deviceLockDesc: "ESP32 circuit is using SSL/TLS secure protocol.",
     },
@@ -112,7 +114,8 @@ export const en = {
 
       // Security
       secTitle: "Change Password",
-      secDesc: "Ensure your password is at least 6 characters and has high complexity.",
+      secDesc:
+        "Ensure your password is at least 6 characters and has high complexity.",
       currentPassword: "Current Password",
       currPwdPlaceholder: "Enter current password",
       newPassword: "New Password",
@@ -134,7 +137,8 @@ export const en = {
       saveSuccessTitle: "Update Successful",
       saveSuccessMsg: "Your personal profile information has been updated.",
       saveFailTitle: "Update Failed",
-      saveFailMsg: "Failed to update profile. Please check your connection or username conflict.",
+      saveFailMsg:
+        "Failed to update profile. Please check your connection or username conflict.",
       savePrefTitle: "Settings Saved",
       savePrefMsg: "Your system preferences have been saved successfully.",
       missingPasswordTitle: "Missing Information",
@@ -147,8 +151,10 @@ export const en = {
       passwordChangedMsg: "Account password changed successfully!",
       toggle2FaSuccessTitle: "2FA Enabled Successfully",
       toggle2FaDisabledTitle: "2FA Disabled Successfully",
-      toggle2FaSuccessMsg: "Two-factor authentication via phone has been activated.",
-      toggle2FaDisabledMsg: "Two-factor authentication system has been disabled.",
+      toggle2FaSuccessMsg:
+        "Two-factor authentication via phone has been activated.",
+      toggle2FaDisabledMsg:
+        "Two-factor authentication system has been disabled.",
       avatarTitle: "Change Avatar",
       avatarMsg: "New avatar has been saved successfully.",
     },
@@ -164,25 +170,28 @@ export const en = {
       loginFailed: "Failed Login (Incorrect Password)",
       today: "Today",
       yesterday: "Yesterday",
-    }
+    },
   },
   smartLogic: {
     loading: "Loading Smart Logic...",
     badge: "Smart Irrigation",
     title: "Smart Logic - Smart Irrigation",
-    subtitle: "Allows AI to override the watering schedule when weather forecast conditions are met.",
+    subtitle:
+      "Allows AI to override the watering schedule when weather forecast conditions are met.",
     systemStatus: "System Status",
     optimizing: "Optimizing",
     paused: "Paused",
     waitingData: "Waiting for data",
     autonomousSystem: "Autonomous System",
-    autonomousDesc: "Allows AI to override the schedule when rain forecast is high enough.",
+    autonomousDesc:
+      "Allows AI to override the schedule when rain forecast is high enough.",
     apiKeyLabel: "Forecast Key",
     apiKeyPlaceholder: "Enter forecast key",
     cityLabel: "Deployment City",
     cityPlaceholder: "e.g. Ho Chi Minh City",
     rainThresholdLabel: "Rain Probability Threshold",
-    rainThresholdDesc: "Above this level, the system will prioritize overriding the watering cycle.",
+    rainThresholdDesc:
+      "Above this level, the system will prioritize overriding the watering cycle.",
     alwaysWater: "Always Water",
     onlyDrought: "Only During Drought",
     applySettings: "Apply Settings",
@@ -192,10 +201,11 @@ export const en = {
       prefix: "With rain threshold ",
       soil: "% and current soil moisture of ",
       estimate: "%, the system estimates it can reduce about ",
-      suffix: " of wasted water over the next 72 hours."
+      suffix: " of wasted water over the next 72 hours.",
     },
     interceptionFlow: "Interception Flow",
-    interceptionDesc: "Visual description of real-time decisions from sensors and forecast sources.",
+    interceptionDesc:
+      "Visual description of real-time decisions from sensors and forecast sources.",
     inputA1: "Input A1",
     soilText: "Soil ",
     weatherInterception: "Weather Interception",
@@ -204,14 +214,14 @@ export const en = {
     decisionCard: {
       title: "Result",
       run: "Perform Cycle",
-      wait: "Wait for Rain"
+      wait: "Wait for Rain",
     },
     metrics: {
       rainProb: "Rain Probability",
       blockThreshold: "Interception Threshold",
       decision: "Decision",
       skip: "Skip",
-      allow: "Allow Watering"
+      allow: "Allow Watering",
     },
     liveLog: "Live Execution Log",
     monitoring: "Monitoring",
@@ -219,8 +229,8 @@ export const en = {
     levels: {
       intercepted: "Intercepted",
       stable: "Stable",
-      system: "System"
-    }
+      system: "System",
+    },
   },
   activityLogs: {
     monitoringSystem: "Monitoring System",
@@ -230,7 +240,7 @@ export const en = {
       total: "Total Events",
       healthy: "Good Operation",
       warning: "Warnings",
-      error: "System Errors"
+      error: "System Errors",
     },
     searchPlaceholder: "Search events, descriptions...",
     loading: "Loading activity logs...",
@@ -243,15 +253,15 @@ export const en = {
       prevTitle: "Previous Page",
       prev: "Prev",
       nextTitle: "Next Page",
-      next: "Next"
+      next: "Next",
     },
     status: {
       all: "All",
       success: "Success",
       warning: "Warning",
       error: "Error",
-      info: "Info"
-    }
+      info: "Info",
+    },
   },
   notificationsConfig: {
     loading: "Loading configuration...",
@@ -265,8 +275,8 @@ export const en = {
     tg: {
       hint: {
         create: "Create bot via ",
-        getId: " and get Chat ID via "
-      }
+        getId: " and get Chat ID via ",
+      },
     },
     sendTestMsg: "Send test message",
     emailAddr: "Email Address",
@@ -275,50 +285,64 @@ export const en = {
     email: {
       hint: {
         prefix: "Use ",
-        suffix: " instead of normal Gmail password (2FA needs to be enabled first)."
-      }
+        suffix:
+          " instead of normal Gmail password (2FA needs to be enabled first).",
+      },
     },
     sendTestEmail: "Send test email",
     triggerTitle: "Notification Triggers",
     triggerError: "On error / incident",
-    triggerErrorDesc: "Notify when sensors disconnect, device goes offline, or values exceed thresholds.",
+    triggerErrorDesc:
+      "Notify when sensors disconnect, device goes offline, or values exceed thresholds.",
     triggerAction: "On automated actions",
-    triggerActionDesc: "Notify when the system automatically turns on/off pumps, fans, or other devices.",
+    triggerActionDesc:
+      "Notify when the system automatically turns on/off pumps, fans, or other devices.",
     saveConfig: "Save Configuration",
     guideTitle: "Integration Guide",
     tgSetup: "Telegram Bot Setup",
     tgSteps: {
-      step1: "<strong>Step 1:</strong> Chat with <a href=\"https://t.me/BotFather\" target=\"_blank\" rel=\"noopener noreferrer\">@BotFather</a>, send command <code>/newbot</code> to create and receive <strong>Bot Token</strong>.",
-      step2: "<strong>Step 2:</strong> Click on the created bot link and press <strong>Start (/start)</strong> to activate.",
-      step3: "<strong>Step 3:</strong> Chat or forward any message to <a href=\"https://t.me/userinfobot\" target=\"_blank\" rel=\"noopener noreferrer\">@userinfobot</a> to get your <strong>Chat ID</strong>.",
-      step4: "<strong>Step 4:</strong> Fill in the form and click <strong>Send test message</strong> to verify."
+      step1:
+        '<strong>Step 1:</strong> Chat with <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer">@BotFather</a>, send command <code>/newbot</code> to create and receive <strong>Bot Token</strong>.',
+      step2:
+        "<strong>Step 2:</strong> Click on the created bot link and press <strong>Start (/start)</strong> to activate.",
+      step3:
+        '<strong>Step 3:</strong> Chat or forward any message to <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer">@userinfobot</a> to get your <strong>Chat ID</strong>.',
+      step4:
+        "<strong>Step 4:</strong> Fill in the form and click <strong>Send test message</strong> to verify.",
     },
     emailSetup: "Email (SMTP) Setup",
     emailSteps: {
-      step1: "<strong>Step 1:</strong> Access your Google Account, make sure <strong>2-Step Verification</strong> is enabled.",
-      step2: "<strong>Step 2:</strong> Go to the <a href=\"https://myaccount.google.com/apppasswords\" target=\"_blank\" rel=\"noopener noreferrer\">App Passwords</a> page.",
-      step3: "<strong>Step 3:</strong> Create a new app password with a descriptive name (e.g. <em>EcoGreen App</em>).",
-      step4: "<strong>Step 4:</strong> Copy the generated 16-digit password and paste it into the <strong>App Password</strong> field on the left."
+      step1:
+        "<strong>Step 1:</strong> Access your Google Account, make sure <strong>2-Step Verification</strong> is enabled.",
+      step2:
+        '<strong>Step 2:</strong> Go to the <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer">App Passwords</a> page.',
+      step3:
+        "<strong>Step 3:</strong> Create a new app password with a descriptive name (e.g. <em>EcoGreen App</em>).",
+      step4:
+        "<strong>Step 4:</strong> Copy the generated 16-digit password and paste it into the <strong>App Password</strong> field on the left.",
     },
     alertProcess: "Alert Delivery Flow",
     errorAlert: "Error Alert",
     processFilter: "Process & Filter",
     toast: {
       saveSuccessTitle: "Configuration Saved",
-      saveSuccessMsg: "Notification channel and alert parameters have been saved to the system.",
+      saveSuccessMsg:
+        "Notification channel and alert parameters have been saved to the system.",
       saveFailTitle: "Save Failed",
-      saveFailMsg: "Cannot save notification configuration. Please check your connection.",
+      saveFailMsg:
+        "Cannot save notification configuration. Please check your connection.",
       testSuccessTitle: "Test Sent Successfully",
       testTgMsg: "Test message sent via Telegram.",
       testFailTitle: "Test Send Failed",
-      testEmailMsg: "Test email sent to the SMTP mailbox."
-    }
+      testEmailMsg: "Test email sent to the SMTP mailbox.",
+    },
   },
   thresholdsLogic: {
     loading: "Loading watering thresholds...",
     envControl: "Environmental Control",
     title: "Watering Thresholds & Logic",
-    subtitle: "Configure soil moisture thresholds and safety parameters for the automatic irrigation system.",
+    subtitle:
+      "Configure soil moisture thresholds and safety parameters for the automatic irrigation system.",
     cancel: "Cancel",
     saveChanges: "Save Changes",
     soilMoistureLogic: "Soil Moisture Logic",
@@ -330,7 +354,8 @@ export const en = {
     dryThresholdLabel: "Dry Threshold (ON)",
     dryThresholdDesc: "Pump starts when moisture falls below this level",
     wetThresholdLabel: "Wet Threshold (OFF)",
-    wetThresholdDesc: "Pump stops when soil moisture reaches this saturation level",
+    wetThresholdDesc:
+      "Pump stops when soil moisture reaches this saturation level",
     visualPreview: "Visual Threshold Preview",
     dryThresholdPrefix: "Dry Threshold ",
     wetThresholdPrefix: "Wet Threshold ",
@@ -338,10 +363,11 @@ export const en = {
     moistureNotes: {
       dry: "Soil moisture is below dry threshold, pump should be prioritized.",
       wet: "Soil moisture has exceeded wet threshold, pump cycle can be temporarily locked.",
-      safe: "Moisture is within the safe range, system can continue on schedule."
+      safe: "Moisture is within the safe range, system can continue on schedule.",
     },
     timeSafety: "Time & Safety Parameters",
-    timeSafetyDesc: "Time limit per pump session and delay between two waterings.",
+    timeSafetyDesc:
+      "Time limit per pump session and delay between two waterings.",
     maxPumpDuration: "Max Pump Duration",
     maxPumpDesc: "Limit per watering session",
     seconds: "seconds",
@@ -353,34 +379,41 @@ export const en = {
     startThreshold: "Start Threshold",
     stopThreshold: "Stop Threshold",
     tempRegulation: "Temperature Regulation",
-    fanControlDesc: "Automatically turn on fan at {high}°C and turn off at {low}°C.",
+    fanControlDesc:
+      "Automatically turn on fan at {high}°C and turn off at {low}°C.",
     fanControlTitle: "Fan Control Thresholds",
-    fanControlSubtitle: "Automatically turn on/off fan according to greenhouse temperature.",
+    fanControlSubtitle:
+      "Automatically turn on/off fan according to greenhouse temperature.",
     fanTurnOnLabel: "Fan Turn-on Threshold",
     fanTurnOnDesc: "Turn on fan when temperature exceeds this level",
     fanTurnOffLabel: "Fan Turn-off Threshold",
     fanTurnOffDesc: "Turn off fan when temperature drops below level",
     toast: {
       saveSuccessTitle: "Configuration Saved",
-      saveSuccessMsg: "Watering thresholds and safety parameters have been updated successfully.",
+      saveSuccessMsg:
+        "Watering thresholds and safety parameters have been updated successfully.",
       saveFailTitle: "Save Failed",
-      saveFailMsg: "Cannot connect to the server to save configuration. Please try again later."
-    }
+      saveFailMsg:
+        "Cannot connect to the server to save configuration. Please try again later.",
+    },
   },
-  
+
   // Schedule View (Watering Schedules)
   schedule: {
     loading: "Loading watering schedules...",
     overlapTitle: "Schedule Overlap",
-    overlapMsg: "Cannot {mode} because there is already an overlapping schedule at {time} on the selected days.",
+    overlapMsg:
+      "Cannot {mode} because there is already an overlapping schedule at {time} on the selected days.",
     updateSuccessTitle: "Update Successful",
     addSuccessTitle: "Add Schedule Successful",
     updateSuccessMsg: 'Schedule "{title}" has been updated in draft.',
     addSuccessMsg: 'Schedule "{title}" has been added in draft successfully.',
     saveSuccessTitle: "Save Schedules Successful",
-    saveSuccessMsg: "Automatic watering configuration has been saved to the system.",
+    saveSuccessMsg:
+      "Automatic watering configuration has been saved to the system.",
     saveFailTitle: "Save Schedules Error",
-    saveFailMsg: "Unable to save schedules to the server. Please check your connection.",
+    saveFailMsg:
+      "Unable to save schedules to the server. Please check your connection.",
     autoWatering: "Automatic Watering",
     title: "Watering Schedules",
     subtitle: "Set up automatic watering cycles for farming areas.",
@@ -392,10 +425,12 @@ export const en = {
     addNew: "Add New Schedule",
     mins: "minutes",
     minutesLabel: "mins",
-    aiOptimization: "Optimize schedule based on AI predictions of local climate.",
+    aiOptimization:
+      "Optimize schedule based on AI predictions of local climate.",
     applySuggestion: "Apply Suggestion",
     consumptionForecast: "Consumption Forecast",
-    consumptionDesc: "Liters of water per hour based on current schedule over the last 7 days.",
+    consumptionDesc:
+      "Liters of water per hour based on current schedule over the last 7 days.",
     totalVolume: "Total Volume",
     savings: "Savings",
     moistureWarning: "Moisture Warning",
@@ -431,7 +466,7 @@ export const en = {
       thu: "Thu",
       fri: "Fri",
       sat: "Sat",
-    }
+    },
   },
 
   // History View (Historical Data)
@@ -470,15 +505,16 @@ export const en = {
       temp: "Temperature",
       humi: "Air Humidity",
       soil: "Soil Moisture",
-      light: "Light Intensity"
-    }
+      light: "Light Intensity",
+    },
   },
 
   // Chart View (Analytics Charts)
   charts: {
     telemetryRealtime: "Telemetry Realtime",
     title: "Sensor Charts by ESP",
-    subtitle: "Historical data loaded from readings API, new points updated via realtime-data socket.",
+    subtitle:
+      "Historical data loaded from readings API, new points updated via realtime-data socket.",
     espDevice: "ESP Device",
     dataPoints: "Data Points Count",
     pointsSuffix: " points",
@@ -503,36 +539,44 @@ export const en = {
       active: "Active",
       disconnected: "Disconnected",
       loading: "Loading...",
-      connectionError: "Sensor connection error"
+      connectionError: "Sensor connection error",
     },
     noData: "No data",
     status: {
       ledState: "LED Indicator:",
       normal: "Ideal Ecosystem",
-      normalDesc: "All environmental indices (Temp: {temp}, Air Humi: {humi}%, Soil Moisture: {soil}%, Light: {light} lux) are in the excellent optimal range. LED indicator status is good.",
+      normalDesc:
+        "All environmental indices (Temp: {temp}, Air Humi: {humi}%, Soil Moisture: {soil}%, Light: {light} lux) are in the excellent optimal range. LED indicator status is good.",
       critical: "WARNING: High Temperature!",
-      criticalDesc: "The current temperature has exceeded 35°C ({temp}). This is extremely dangerous for crop growth. Please activate the cooling fan and check the shading net immediately!",
+      criticalDesc:
+        "The current temperature has exceeded 35°C ({temp}). This is extremely dangerous for crop growth. Please activate the cooling fan and check the shading net immediately!",
       pumpFan: "Active Irrigation & Cooling",
-      pumpFanDesc: "The system is simultaneously operating the water pump to balance soil moisture and the ventilation fan to dissipate heat for the greenhouse.",
+      pumpFanDesc:
+        "The system is simultaneously operating the water pump to balance soil moisture and the ventilation fan to dissipate heat for the greenhouse.",
       pumping: "Irrigation Cycle Active",
-      pumpingDesc: "The water pump is running to supply necessary soil moisture. The system automatically monitors saturation levels.",
+      pumpingDesc:
+        "The water pump is running to supply necessary soil moisture. The system automatically monitors saturation levels.",
       fanManual: "Manual Cooling Active",
-      fanManualDesc: "The ventilation fan is being operated manually by the administrator. Automation logic is temporarily overridden.",
+      fanManualDesc:
+        "The ventilation fan is being operated manually by the administrator. Automation logic is temporarily overridden.",
       lowLight: "Insufficient Natural Light",
-      lowLightDesc: "Light intensity dropped below the minimum threshold ({light} lux). Grow lights have been automatically turned on to supplement plant radiation.",
+      lowLightDesc:
+        "Light intensity dropped below the minimum threshold ({light} lux). Grow lights have been automatically turned on to supplement plant radiation.",
       warning: "Moderate Environmental Alert",
-      warningDesc: "Environmental deviation detected: {reasons}. It is recommended to adjust system settings to keep crops in top health.",
+      warningDesc:
+        "Environmental deviation detected: {reasons}. It is recommended to adjust system settings to keep crops in top health.",
       warnTemp: "Warming Temperature ({temp})",
       warnHumi: "Low Air Humidity ({humi}%)",
-      warnSoil: "Drying Soil ({soil}%)"
-    }
+      warnSoil: "Drying Soil ({soil}%)",
+    },
   },
 
   // Device Manager (DeviceListView.tsx)
   deviceList: {
     headerBadge: "Hardware Manager",
     headerTitle: "Device Manager",
-    headerSubtitle: "Monitor IoT device list, network connection status, configure sensors, and control actuators in real-time.",
+    headerSubtitle:
+      "Monitor IoT device list, network connection status, configure sensors, and control actuators in real-time.",
     stats: {
       totalDevices: "Total Devices",
       onlineDevices: "Online Devices",
@@ -555,8 +599,10 @@ export const en = {
     },
     mode: {
       title: "Operation Mode",
-      autoDesc: "Automatic Mode (AUTO): Device adjusts automatically based on sensors & schedules.",
-      manualDesc: "Manual Mode (MANUAL): Allows turning devices on/off using direct button controls.",
+      autoDesc:
+        "Automatic Mode (AUTO): Device adjusts automatically based on sensors & schedules.",
+      manualDesc:
+        "Manual Mode (MANUAL): Allows turning devices on/off using direct button controls.",
       auto: "Automatic",
       manual: "Manual",
       toastSuccess: "Success",
@@ -596,10 +642,11 @@ export const en = {
     deleteModal: {
       title: "Delete Device",
       confirmMsg: "Are you sure you want to delete this device?",
-      warningMsg: "All sensor data, activity history, and related configurations will be permanently deleted. This action cannot be undone!",
+      warningMsg:
+        "All sensor data, activity history, and related configurations will be permanently deleted. This action cannot be undone!",
       cancel: "Cancel",
       submit: "Delete Device",
-    }
+    },
   },
 
   // Dashboard (DashboardView.tsx)
@@ -640,11 +687,12 @@ export const en = {
     hero: {
       badge: "Smart Farming IoT Platform",
       title: "Smart Agriculture, Starting from Simplicity",
-      subtitle: "EcoGreen helps optimize crop yields, automate irrigation, and monitor your farm's microclimate in real-time using cutting-edge IoT technology.",
+      subtitle:
+        "EcoGreen helps optimize crop yields, automate irrigation, and monitor your farm's microclimate in real-time using cutting-edge IoT technology.",
       startBtn: "Get Started Now",
       viewDocs: "View Technical Docs",
       activeUsers: "1,200+ Active Farms",
-      realtimeSync: "Real-time sync"
+      realtimeSync: "Real-time sync",
     },
     nav: {
       features: "Features",
@@ -653,23 +701,29 @@ export const en = {
       technology: "Technology",
       login: "Login / Try System",
       dashboard: "Go to Dashboard",
-      logout: "Log Out"
+      logout: "Log Out",
     },
     features: {
       title: "High-Tech IoT Features",
-      subtitle: "Fully integrated hardware and software solution to maximize farm efficiency.",
+      subtitle:
+        "Fully integrated hardware and software solution to maximize farm efficiency.",
       monitor: "Real-Time Telemetry",
-      monitorDesc: "Track temperature, soil moisture, light, and air humidity with sub-second latency.",
+      monitorDesc:
+        "Track temperature, soil moisture, light, and air humidity with sub-second latency.",
       auto: "Smart Automation",
-      autoDesc: "Set thresholds and let the AI trigger water pumps or cooling fans automatically.",
+      autoDesc:
+        "Set thresholds and let the AI trigger water pumps or cooling fans automatically.",
       analytics: "Historical Analytics",
-      analyticsDesc: "Identify crop growth trends with detailed charts, data exports, and averages.",
+      analyticsDesc:
+        "Identify crop growth trends with detailed charts, data exports, and averages.",
       smartLogic: "Weather Interception",
-      smartLogicDesc: "Intelligent rain-prediction algorithm delays irrigation to save up to 30% of water."
+      smartLogicDesc:
+        "Intelligent rain-prediction algorithm delays irrigation to save up to 30% of water.",
     },
     roi: {
       title: "Interactive Savings Calculator",
-      subtitle: "Estimate the monthly resources saved by transitioning to EcoGreen smart farming.",
+      subtitle:
+        "Estimate the monthly resources saved by transitioning to EcoGreen smart farming.",
       farmSize: "Farm Area",
       waterSaved: "Water Saved / Day",
       powerSaved: "Electricity Saved / Month",
@@ -678,11 +732,13 @@ export const en = {
       liters: "Liters",
       kwh: "kWh",
       currency: "VND",
-      calcNote: "* Estimated values based on high-precision drip irrigation and ventilation optimization."
+      calcNote:
+        "* Estimated values based on high-precision drip irrigation and ventilation optimization.",
     },
     preview: {
       title: "Interactive IoT Node Preview",
-      subtitle: "Interact with our virtual ESP32 controller node to see how actuators modify sensor data in real-time.",
+      subtitle:
+        "Interact with our virtual ESP32 controller node to see how actuators modify sensor data in real-time.",
       nodeName: "Virtual Node: ESP32-ZONE_A",
       statusOnline: "Connected (Live)",
       temp: "Air Temperature",
@@ -694,19 +750,24 @@ export const en = {
       statusOff: "Standby",
       wateringMsg: "Watering crop soil... Moisture rising!",
       coolingMsg: "Fan spinning... Heat dissipating!",
-      normalMsg: "Ecosystem stable. Monitoring sensors..."
+      normalMsg: "Ecosystem stable. Monitoring sensors...",
     },
     stats: {
       title: "Reliability & Numbers",
-      subtitle: "EcoGreen is built for 24/7 mission-critical greenhouse operations.",
+      subtitle:
+        "EcoGreen is built for 24/7 mission-critical greenhouse operations.",
       uptime: "Uptime SLA",
-      uptimeDesc: "Reliable connection and continuous offline local automation fallback.",
+      uptimeDesc:
+        "Reliable connection and continuous offline local automation fallback.",
       waterSaved: "Water Resource Savings",
-      waterSavedDesc: "Minimized runoff water using target-based saturation sensor feedback.",
+      waterSavedDesc:
+        "Minimized runoff water using target-based saturation sensor feedback.",
       yield: "Average Yield Boost",
-      yieldDesc: "Optimized climate and moisture thresholds avoid plant stress cycles.",
+      yieldDesc:
+        "Optimized climate and moisture thresholds avoid plant stress cycles.",
       latency: "IoT Command Latency",
-      latencyDesc: "Real-time socket.io communication between web panel and ESP32 nodes."
+      latencyDesc:
+        "Real-time socket.io communication between web panel and ESP32 nodes.",
     },
     footer: {
       tagline: "Cultivating the future of sustainable high-yield agriculture.",
@@ -714,7 +775,7 @@ export const en = {
       company: "Company",
       support: "Support",
       contact: "Contact Us",
-      copyright: "© 2026 EcoGreen. All rights reserved."
-    }
-  }
+      copyright: "© 2026 EcoGreen. All rights reserved.",
+    },
+  },
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -144,34 +144,15 @@ interface DashboardLayoutProps {
   pageTitle?: string;
 }
 
-export default function DashboardLayout({
-  children,
-  activeMenu,
-  pageTitle,
-}: DashboardLayoutProps) {
-  const pathname = usePathname() ?? "";
-  const router = useRouter();
+function TokenCapturer() {
   const searchParams = useSearchParams();
-  const { user, logout, updateUser } = useAuth();
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
-  const { t: contextT } = useLanguage();
-  const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const { updateUser } = useAuth();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: read localStorage after hydration
-    setMounted(true);
-    const saved = localStorage.getItem("sidebar_collapsed");
-    if (saved !== null) {
-      setIsCollapsed(saved === "true");
-    }
-
-    // Capture token from URL if redirected from Google Login
     const tokenFromUrl = searchParams?.get("token");
     if (tokenFromUrl) {
       localStorage.setItem("access_token", tokenFromUrl);
-      
+
       // Fetch user profile to populate Context
       getMyProfile()
         .then((res: any) => {
@@ -188,6 +169,32 @@ export default function DashboardLayout({
     }
   }, [searchParams, updateUser]);
 
+  return null;
+}
+
+export default function DashboardLayout({
+  children,
+  activeMenu,
+  pageTitle,
+}: DashboardLayoutProps) {
+  const pathname = usePathname() ?? "";
+  const router = useRouter();
+  const { user, logout, updateUser } = useAuth();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const { t: contextT } = useLanguage();
+  const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: read localStorage after hydration
+    setMounted(true);
+    const saved = localStorage.getItem("sidebar_collapsed");
+    if (saved !== null) {
+      setIsCollapsed(saved === "true");
+    }
+  }, []);
+
   useEffect(() => {
     const updateAvatar = () => {
       setAvatarEmoji(localStorage.getItem("user_avatar_emoji"));
@@ -202,44 +209,86 @@ export default function DashboardLayout({
   const t = (key: string) => {
     const keyMap: Record<string, { key: string; def: string }> = {
       "Tổng quan": { key: "layout.menu.DASHBOARD", def: "Tổng quan" },
-      "Quản lý thiết bị": { key: "layout.menu.DEVICE", def: "Quản lý thiết bị" },
+      "Quản lý thiết bị": {
+        key: "layout.menu.DEVICE",
+        def: "Quản lý thiết bị",
+      },
       "Biểu đồ": { key: "layout.menu.CHART", def: "Biểu đồ" },
       "Lịch sử dữ liệu": { key: "layout.menu.HISTORY", def: "Lịch sử dữ liệu" },
-      "Lịch trình tưới": { key: "layout.menu.SCHEDULE", def: "Lịch trình tưới" },
-      "Ngưỡng tưới & Logic": { key: "layout.menu.THRESHOLDS", def: "Ngưỡng tưới & Logic" },
-      "Cấu hình thông báo": { key: "layout.menu.NOTIFICATION", def: "Cấu hình thông báo" },
+      "Lịch trình tưới": {
+        key: "layout.menu.SCHEDULE",
+        def: "Lịch trình tưới",
+      },
+      "Ngưỡng tưới & Logic": {
+        key: "layout.menu.THRESHOLDS",
+        def: "Ngưỡng tưới & Logic",
+      },
+      "Cấu hình thông báo": {
+        key: "layout.menu.NOTIFICATION",
+        def: "Cấu hình thông báo",
+      },
       "Nhật ký hoạt động": { key: "layout.menu.LOG", def: "Nhật ký hoạt động" },
-      "Logic thông minh": { key: "layout.menu.SMART LOGIC", def: "Logic thông minh" },
-      "Thông tin cá nhân": { key: "layout.menu.PROFILE", def: "Thông tin cá nhân" },
+      "Logic thông minh": {
+        key: "layout.menu.SMART LOGIC",
+        def: "Logic thông minh",
+      },
+      "Thông tin cá nhân": {
+        key: "layout.menu.PROFILE",
+        def: "Thông tin cá nhân",
+      },
       DASHBOARD: { key: "layout.menu.DASHBOARD", def: "Tổng quan" },
       DEVICE: { key: "layout.menu.DEVICE", def: "Quản lý thiết bị" },
       CHART: { key: "layout.menu.CHART", def: "Biểu đồ" },
       HISTORY: { key: "layout.menu.HISTORY", def: "Lịch sử dữ liệu" },
       SCHEDULE: { key: "layout.menu.SCHEDULE", def: "Lịch trình tưới" },
       THRESHOLDS: { key: "layout.menu.THRESHOLDS", def: "Ngưỡng tưới & Logic" },
-      NOTIFICATION: { key: "layout.menu.NOTIFICATION", def: "Cấu hình thông báo" },
+      NOTIFICATION: {
+        key: "layout.menu.NOTIFICATION",
+        def: "Cấu hình thông báo",
+      },
       LOG: { key: "layout.menu.LOG", def: "Nhật ký hoạt động" },
-      "SMART LOGIC": { key: "layout.menu.SMART LOGIC", def: "Logic thông minh" },
+      "SMART LOGIC": {
+        key: "layout.menu.SMART LOGIC",
+        def: "Logic thông minh",
+      },
       PROFILE: { key: "layout.menu.PROFILE", def: "Thông tin cá nhân" },
       logout: { key: "common.logout", def: "Đăng xuất" },
-      smartFarming: { key: "layout.smartFarming", def: "Nông nghiệp thông minh" },
-      searchPlaceholder: { key: "layout.searchPlaceholder", def: "Tìm kiếm thông tin, thiết bị..." },
+      smartFarming: {
+        key: "layout.smartFarming",
+        def: "Nông nghiệp thông minh",
+      },
+      searchPlaceholder: {
+        key: "layout.searchPlaceholder",
+        def: "Tìm kiếm thông tin, thiết bị...",
+      },
       timeTitle: { key: "layout.accountProfile", def: "Thông tin tài khoản" },
-      logoutConfirm: { key: "layout.logoutConfirm", def: "Bạn có chắc chắn muốn đăng xuất khỏi hệ thống EcoGreen không?" },
+      logoutConfirm: {
+        key: "layout.logoutConfirm",
+        def: "Bạn có chắc chắn muốn đăng xuất khỏi hệ thống EcoGreen không?",
+      },
       cancel: { key: "common.cancel", def: "Hủy bỏ" },
       activeStatus: { key: "common.activeStatus", def: "Đang hoạt động" },
       editProfile: { key: "profile.avatar.change", def: "Chỉnh sửa hồ sơ" },
-      detailTitle: { key: "profile.securityCheck.title", def: "Thông tin chi tiết" },
+      detailTitle: {
+        key: "profile.securityCheck.title",
+        def: "Thông tin chi tiết",
+      },
       emailLabel: { key: "profile.form.email", def: "Địa chỉ Email" },
-      userIdLabel: { key: "profile.form.userId", def: "Mã người dùng (User ID)" },
+      userIdLabel: {
+        key: "profile.form.userId",
+        def: "Mã người dùng (User ID)",
+      },
       roleLabel: { key: "profile.role", def: "Quyền hạn hệ thống" },
       adminRole: { key: "profile.adminRole", def: "Thành viên quản trị" },
       noEmail: { key: "common.n_a", def: "Chưa thiết lập" },
       notAvailable: { key: "common.n_a", def: "Chưa cập nhật" },
       logoutTitle: { key: "layout.logoutTitle", def: "Đăng xuất tài khoản" },
-      collapseTitle: { key: "layout.collapseTitle", def: "Thu gọn/Mở rộng menu" },
+      collapseTitle: {
+        key: "layout.collapseTitle",
+        def: "Thu gọn/Mở rộng menu",
+      },
       supportTitle: { key: "layout.supportTitle", def: "Hỗ trợ" },
-      notifTitle: { key: "layout.notifTitle", def: "Thông báo" }
+      notifTitle: { key: "layout.notifTitle", def: "Thông báo" },
     };
 
     const mapping = keyMap[key];
@@ -249,11 +298,10 @@ export default function DashboardLayout({
     return contextT(key, key);
   };
 
-
   const translatedNavItems = navItems.map((item) => ({
     ...item,
     label: t(item.key),
-    title: t(item.key)
+    title: t(item.key),
   }));
 
   const toggleCollapse = () => {
@@ -266,10 +314,12 @@ export default function DashboardLayout({
 
   // Find active menu item
   const currentItem =
-    (activeMenu ? translatedNavItems.find((item) => item.key === activeMenu) : null) ??
+    (activeMenu
+      ? translatedNavItems.find((item) => item.key === activeMenu)
+      : null) ??
     translatedNavItems.find(
       (item) =>
-        item.href === pathname || Boolean(item.aliases?.includes(pathname))
+        item.href === pathname || Boolean(item.aliases?.includes(pathname)),
     ) ??
     translatedNavItems[0];
 
@@ -281,7 +331,10 @@ export default function DashboardLayout({
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  const initials = mounted && user ? getInitials(user.full_name || user.username || "User") : "US";
+  const initials =
+    mounted && user
+      ? getInitials(user.full_name || user.username || "User")
+      : "US";
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
@@ -300,6 +353,9 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-[#f8fafc] text-slate-800 font-sans">
+      <Suspense fallback={null}>
+        <TokenCapturer />
+      </Suspense>
       {/* Sidebar (Thanh dọc) */}
       <aside
         className={`bg-[#09120D] border-r border-emerald-955/10 flex flex-col transition-all duration-300 ease-in-out shadow-2xl relative z-20 ${
@@ -312,7 +368,10 @@ export default function DashboardLayout({
             isCollapsed ? "justify-center px-2" : "px-6"
           }`}
         >
-          <Link href="/" className="flex items-center gap-2.5 min-w-0 hover:opacity-95 active:scale-98 transition-all cursor-pointer">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 min-w-0 hover:opacity-95 active:scale-98 transition-all cursor-pointer"
+          >
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 flex-shrink-0">
               <Leaf size={18} className="animate-pulse fill-white/10" />
             </div>
@@ -347,15 +406,22 @@ export default function DashboardLayout({
         <div className="p-3 border-t border-white/10 mt-auto">
           {isCollapsed ? (
             <div className="flex flex-col items-center gap-3">
-              <div 
+              <div
                 onClick={() => setShowProfileDrawer(true)}
                 className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-sm font-bold text-white shadow-inner cursor-pointer transition-all overflow-hidden"
                 title={t("timeTitle")}
               >
                 {avatarEmoji ? (
-                  <span className="text-xl leading-none select-none">{avatarEmoji}</span>
+                  <span className="text-xl leading-none select-none">
+                    {avatarEmoji}
+                  </span>
                 ) : mounted && user?.avatar_url ? (
-                  <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img
+                    src={user.avatar_url}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
                 ) : (
                   initials
                 )}
@@ -371,22 +437,31 @@ export default function DashboardLayout({
             </div>
           ) : (
             <div className="flex items-center justify-between p-2 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all duration-200">
-              <div 
+              <div
                 onClick={() => setShowProfileDrawer(true)}
                 className="flex items-center gap-3 cursor-pointer min-w-0"
               >
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/80 to-green-600/80 text-white flex items-center justify-center text-sm font-bold shadow-md shadow-emerald-500/5 select-none hover:from-emerald-500 hover:to-green-600 transition-all flex-shrink-0 overflow-hidden">
                   {avatarEmoji ? (
-                    <span className="text-xl leading-none select-none">{avatarEmoji}</span>
+                    <span className="text-xl leading-none select-none">
+                      {avatarEmoji}
+                    </span>
                   ) : mounted && user?.avatar_url ? (
-                    <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <img
+                      src={user.avatar_url}
+                      alt="Avatar"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
                   ) : (
                     initials
                   )}
                 </div>
                 <div className="text-left min-w-0">
                   <p className="text-xs font-bold text-white leading-tight truncate">
-                    {mounted && user ? (user.full_name || user.username || "User") : "User"}
+                    {mounted && user
+                      ? user.full_name || user.username || "User"
+                      : "User"}
                   </p>
                   <p className="text-[10px] text-emerald-300/80 leading-none mt-1 font-semibold tracking-wider">
                     {t("adminRole")}
@@ -463,23 +538,35 @@ export default function DashboardLayout({
             <span className="h-6 border-l border-white/20 mx-1"></span>
 
             {/* User Profile info */}
-            <div 
+            <div
               onClick={() => setShowProfileDrawer(true)}
               className="flex items-center gap-3 pl-2 cursor-pointer hover:opacity-90 transition-opacity"
             >
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-semibold text-white leading-tight">
-                  {mounted && user ? (user.full_name || user.username || "User") : "User"}
+                  {mounted && user
+                    ? user.full_name || user.username || "User"
+                    : "User"}
                 </p>
                 <p className="text-[10px] text-emerald-100/70 leading-none mt-0.5">
-                  {mounted && user ? (user.email || "") : ""}
+                  {mounted && user ? user.email || "" : ""}
                 </p>
               </div>
-              <div className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-sm font-bold text-white shadow-inner select-none hover:bg-white/20 transition-all overflow-hidden" suppressHydrationWarning>
+              <div
+                className="w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-sm font-bold text-white shadow-inner select-none hover:bg-white/20 transition-all overflow-hidden"
+                suppressHydrationWarning
+              >
                 {avatarEmoji ? (
-                  <span className="text-lg leading-none select-none">{avatarEmoji}</span>
+                  <span className="text-lg leading-none select-none">
+                    {avatarEmoji}
+                  </span>
                 ) : mounted && user?.avatar_url ? (
-                  <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  <img
+                    src={user.avatar_url}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
                 ) : (
                   initials
                 )}
@@ -497,18 +584,20 @@ export default function DashboardLayout({
         {showProfileDrawer && (
           <div className="fixed inset-0 z-50 overflow-hidden select-none">
             {/* Backdrop */}
-            <div 
+            <div
               className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity animate-fade-in"
               onClick={() => setShowProfileDrawer(false)}
             />
-            
+
             {/* Drawer Content */}
             <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl flex flex-col animate-slide-in-right border-l border-slate-100">
               {/* Drawer Header */}
               <div className="h-16 flex items-center justify-between px-6 border-b border-slate-100 bg-slate-50">
                 <div className="flex items-center gap-2">
                   <User className="text-emerald-600 size-5" />
-                  <span className="text-base font-extrabold text-slate-800">{t("timeTitle")}</span>
+                  <span className="text-base font-extrabold text-slate-800">
+                    {t("timeTitle")}
+                  </span>
                 </div>
                 <button
                   onClick={() => setShowProfileDrawer(false)}
@@ -524,9 +613,16 @@ export default function DashboardLayout({
                 <div className="flex flex-col items-center p-6 bg-gradient-to-b from-emerald-50/50 to-transparent rounded-3xl border border-emerald-500/10">
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center text-3xl font-extrabold shadow-lg shadow-emerald-500/20 mb-4 border-4 border-white overflow-hidden">
                     {avatarEmoji ? (
-                      <span className="text-4xl select-none leading-none">{avatarEmoji}</span>
+                      <span className="text-4xl select-none leading-none">
+                        {avatarEmoji}
+                      </span>
                     ) : mounted && user?.avatar_url ? (
-                      <img src={user.avatar_url} alt="Avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <img
+                        src={user.avatar_url}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
                     ) : (
                       initials
                     )}
@@ -537,7 +633,7 @@ export default function DashboardLayout({
                   <p className="text-sm text-slate-500 mt-1">
                     @{user?.username || "username"}
                   </p>
-                  
+
                   {/* Status Pill */}
                   <span className="mt-3.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -547,11 +643,15 @@ export default function DashboardLayout({
 
                 {/* Details Section */}
                 <div className="space-y-4">
-                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 px-1">{t("detailTitle")}</h4>
-                  
+                  <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 px-1">
+                    {t("detailTitle")}
+                  </h4>
+
                   <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4.5 space-y-4">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">{t("emailLabel")}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        {t("emailLabel")}
+                      </span>
                       <span className="text-sm font-semibold text-slate-800 mt-0.5 block truncate">
                         {user?.email || t("noEmail")}
                       </span>
@@ -560,7 +660,9 @@ export default function DashboardLayout({
                     <div className="h-px bg-slate-200/60" />
 
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">{t("userIdLabel")}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        {t("userIdLabel")}
+                      </span>
                       <span className="text-sm font-mono font-medium text-slate-500 mt-0.5 block truncate">
                         {user?.User_ID || t("notAvailable")}
                       </span>
@@ -569,7 +671,9 @@ export default function DashboardLayout({
                     <div className="h-px bg-slate-200/60" />
 
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">{t("roleLabel")}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        {t("roleLabel")}
+                      </span>
                       <span className="text-sm font-semibold text-slate-800 mt-0.5 block">
                         {t("adminRole")}
                       </span>

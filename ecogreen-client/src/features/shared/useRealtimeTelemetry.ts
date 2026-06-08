@@ -63,11 +63,22 @@ function parseRealtimeTelemetry(payload: unknown): TelemetrySnapshot | null {
       temp: toNumber("temp", "temperature") ?? 0,
       humi: toNumber("humi", "humidity", "hum") ?? 0,
       soil: toNumber("soil", "soil_moisture", "soilMoisture") ?? 0,
-      light: toNumber("light", "lux", "brightness", "lightLux", "light_lux") ?? 0,
-      autoMode: typeof candidate.autoMode === "boolean" ? candidate.autoMode : true,
-      cooldownRemain: typeof candidate.cooldownRemain === "number" ? candidate.cooldownRemain : 0,
-      pumpState: typeof candidate.pumpState === "boolean" ? candidate.pumpState : undefined,
-      fanState: typeof candidate.fanState === "boolean" ? candidate.fanState : undefined,
+      light:
+        toNumber("light", "lux", "brightness", "lightLux", "light_lux") ?? 0,
+      autoMode:
+        typeof candidate.autoMode === "boolean" ? candidate.autoMode : true,
+      cooldownRemain:
+        typeof candidate.cooldownRemain === "number"
+          ? candidate.cooldownRemain
+          : 0,
+      pumpState:
+        typeof candidate.pumpState === "boolean"
+          ? candidate.pumpState
+          : undefined,
+      fanState:
+        typeof candidate.fanState === "boolean"
+          ? candidate.fanState
+          : undefined,
       updatedAt: new Date().toISOString(),
       source: "socket",
     };
@@ -80,7 +91,9 @@ export function useRealtimeTelemetry() {
   const [telemetry, setTelemetry] = useState<TelemetrySnapshot>(() =>
     getStoredTelemetry(),
   );
-  const [telemetryByMac, setTelemetryByMac] = useState<Record<string, TelemetrySnapshot>>({});
+  const [telemetryByMac, setTelemetryByMac] = useState<
+    Record<string, TelemetrySnapshot>
+  >({});
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -108,7 +121,7 @@ export function useRealtimeTelemetry() {
       }
 
       const now = Date.now();
-      let currentInterval = 5; // default to 5 seconds
+      let currentInterval = 2; // default to 2 seconds
       try {
         const saved = localStorage.getItem("pref_refresh_interval");
         if (saved) {

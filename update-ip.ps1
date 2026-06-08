@@ -42,42 +42,85 @@ PORT=3001
 HOST=0.0.0.0
 
 # Database (PostgreSQL + Prisma)
+
+# --- OPTION 1: Local Docker Database (Active by default) ---
 DATABASE_URL="postgresql://admin:admin123@localhost:5433/ecogreendb"
+DIRECT_URL="postgresql://admin:admin123@localhost:5433/ecogreendb"
+
+# --- OPTION 2: Supabase Cloud Database (Commented out) ---
+# Connect to Postgres via the shared transaction-mode pooler (IPv4-only)
+# DATABASE_URL="postgresql://postgres.your_supabase_project:your_password@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+# Connect to Postgres via the shared session-mode pooler (used for migrations)
+# DIRECT_URL="postgresql://postgres.your_supabase_project:your_password@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres"
 
 # JWT
 JWT_SECRET=ecogreen_super_secret_key_change_me_in_production_2026
 
 # Google OAuth 2.0
-# INSTRUCTIONS: Go to Google Cloud Console and create credentials (Web Application)
-# URL: https://console.cloud.google.com/apis/credentials
-# NOTE: Add http://localhost:3001 to Authorized JavaScript origins and Authorized redirect URIs.
-# GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
-# GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-# GOOGLE_CALLBACK_URL=http://localhost:3001/v1/auth/google/callback
-
-GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+# Google OAuth credentials for authentication
+GOOGLE_CLIENT_ID="your_google_client_id_here.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your_google_client_secret_here"
 GOOGLE_CALLBACK_URL=http://localhost:3001/v1/auth/google/callback
 
 # Frontend URL
-CLIENT_URL=http://${ip}:3000
+# --- OPTION 1: Local Dev (localhost) ---
+CLIENT_URL=http://localhost:3000
+
+# --- OPTION 2: LAN IP Dev (for phone / external testing) ---
+# CLIENT_URL=http://${ip}:3000
 
 # MQTT Broker
 MQTT_URL=mqtt://broker.emqx.io:1883
 
-# OpenWeather API (optional)
-OPENWEATHER_API_KEY=your_openweather_api_key_here
+# Telegram Bot Token & OpenWeather API
+TELEGRAM_BOT_TOKEN="your_telegram_bot_token_here"
+OPENWEATHER_API_KEY="your_openweather_api_key_here"
 
-# Gemini AI API Key
+# Gemini AI API Key & Model Configuration
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# --- OPTION 1: Gemini 2.5 Flash Lite (Default, fast) ---
+GEMINI_MODEL=gemini-2.5-flash-lite
+
+# --- OPTION 2: Gemini 1.5 Flash 8B (High rate limits, backup) ---
+# GEMINI_MODEL=gemini-1.5-flash-8b
+
+# --- OPTION 3: Gemini 2.5 Flash (Smarter, fast) ---
+# GEMINI_MODEL=gemini-2.5-flash
+
+# --- OPTION 4: Gemini 1.5 Flash (Stable backup) ---
+# GEMINI_MODEL=gemini-1.5-flash
 "@ | Set-Content $serverEnv -Encoding UTF8
 } else {
     $envContent = (Get-Content $serverEnv) -join "`n"
+    
+    # Check and append missing configuration keys
+    if ($envContent -notmatch "DIRECT_URL") {
+        $envContent += "`n`n# Direct connection for migrations`nDIRECT_URL=`"postgresql://admin:admin123@localhost:5433/ecogreendb`""
+    }
+    if ($envContent -notmatch "TELEGRAM_BOT_TOKEN") {
+        $envContent += "`n`n# Telegram Bot Token`nTELEGRAM_BOT_TOKEN=`"your_telegram_bot_token_here`""
+    }
     if ($envContent -notmatch "GEMINI_API_KEY") {
         $envContent += "`n`n# Gemini AI API Key`nGEMINI_API_KEY=your_gemini_api_key_here"
     }
-    $envContent -replace 'CLIENT_URL=http://[^\r\n]+', "CLIENT_URL=http://${ip}:3000" |
-        Set-Content $serverEnv -Encoding UTF8
+    if ($envContent -notmatch "OPTION 1: Gemini 2.5 Flash Lite") {
+        $geminiOptions = "`n# --- OPTION 1: Gemini 2.5 Flash Lite (Default, fast) ---`nGEMINI_MODEL=gemini-2.5-flash-lite`n`n# --- OPTION 2: Gemini 1.5 Flash 8B (High rate limits, backup) ---`n# GEMINI_MODEL=gemini-1.5-flash-8b`n`n# --- OPTION 3: Gemini 2.5 Flash (Smarter, fast) ---`n# GEMINI_MODEL=gemini-2.5-flash`n`n# --- OPTION 4: Gemini 1.5 Flash (Stable backup) ---`n# GEMINI_MODEL=gemini-1.5-flash"
+        if ($envContent -match "GEMINI_MODEL=gemini-2.5-flash-lite") {
+            $envContent = $envContent -replace 'GEMINI_MODEL=gemini-2.5-flash-lite', $geminiOptions
+        } else {
+            $envContent += "`n" + $geminiOptions
+        }
+    }
+    
+    # Update CLIENT_URL options structure if missing, otherwise update LAN IP
+    if ($envContent -notmatch "OPTION 1: Local Dev") {
+        $optionsBlock = "`n# --- OPTION 1: Local Dev (localhost) ---`nCLIENT_URL=http://localhost:3000`n`n# --- OPTION 2: LAN IP Dev (for phone / external testing) ---`n# CLIENT_URL=http://${ip}:3000"
+        $envContent = $envContent -replace 'CLIENT_URL=http://[^\r\n]+', $optionsBlock
+    } else {
+        $envContent = $envContent -replace '(?m)^(#\s*)?CLIENT_URL=http://(?:\d{1,3}\.){3}\d{1,3}:3000', "`$1CLIENT_URL=http://${ip}:3000"
+    }
+    $envContent | Set-Content $serverEnv -Encoding UTF8
 }
 Write-Host "    Updated: $serverEnv" -ForegroundColor Cyan
 
@@ -91,14 +134,23 @@ if (-not (Test-Path $clientEnv)) {
 # ECOGREEN CLIENT -- Environment Variables
 # ================================
 
-NEXT_PUBLIC_API_URL=http://${ip}:3001
+# --- OPTION 1: Local Dev (localhost) ---
+NEXT_PUBLIC_API_URL=http://localhost:3001
+
+# --- OPTION 2: LAN IP Dev (for phone / external testing) ---
+# NEXT_PUBLIC_API_URL=http://${ip}:3001
 
 # NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
 "@ | Set-Content $clientEnv -Encoding UTF8
 } else {
-    (Get-Content $clientEnv) `
-        -replace 'NEXT_PUBLIC_API_URL=http://[^\r\n]+', "NEXT_PUBLIC_API_URL=http://${ip}:3001" |
-        Set-Content $clientEnv -Encoding UTF8
+    $envContent = (Get-Content $clientEnv) -join "`n"
+    if ($envContent -notmatch "OPTION 1: Local Dev") {
+        $optionsBlock = "`n# --- OPTION 1: Local Dev (localhost) ---`nNEXT_PUBLIC_API_URL=http://localhost:3001`n`n# --- OPTION 2: LAN IP Dev (for phone / external testing) ---`n# NEXT_PUBLIC_API_URL=http://${ip}:3001"
+        $envContent = $envContent -replace 'NEXT_PUBLIC_API_URL=http://[^\r\n]+', $optionsBlock
+    } else {
+        $envContent = $envContent -replace '(?m)^(#\s*)?NEXT_PUBLIC_API_URL=http://(?:\d{1,3}\.){3}\d{1,3}:3001', "`$1NEXT_PUBLIC_API_URL=http://${ip}:3001"
+    }
+    $envContent | Set-Content $clientEnv -Encoding UTF8
 }
 Write-Host "    Updated: $clientEnv" -ForegroundColor Cyan
 
