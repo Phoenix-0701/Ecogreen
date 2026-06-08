@@ -6,6 +6,7 @@
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -169,8 +170,7 @@ model SMART_LOGIC_CONFIGS {
 model NOTIFICATION_CONFIGS {
   Config_ID               String  @id @default(uuid())
   User_ID                 String
-  tg_chat_id              String?
-  tg_bot_token_encrypted  String?
+  tg_chat_id              String? // Chỉ cần giữ lại mỗi "Địa chỉ nhà" này thôi
   smtp_email              String?
   smtp_password_encrypted String?
   notify_on_error         Boolean @default(true)

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LogsService } from '../logs/logs.service';
 import { ActuatorsService } from '../actuators/actuators.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class SensorsService {
@@ -11,6 +12,7 @@ export class SensorsService {
     private prisma: PrismaService,
     private logsService: LogsService,
     private actuatorsService: ActuatorsService,
+    private notificationsService: NotificationsService,
   ) {}
 
   private shouldLogAlert(deviceId: string, alertType: string, cooldownMs: number): boolean {
