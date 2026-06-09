@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateDeviceDto } from './dto/create-device.dto';
@@ -32,6 +33,12 @@ export class DevicesService {
     if (existingDevice) {
       throw new ConflictException(
         'Thiết bị với địa chỉ MAC này đã tồn tại trong hệ thống!',
+      );
+    }
+
+    if (!this.discoveredMacs.has(createDeviceDto.mac_address)) {
+      throw new BadRequestException(
+        'Địa chỉ MAC không hợp lệ hoặc thiết bị chưa được hệ thống phát hiện. Vui lòng cắm nguồn thiết bị và thử lại!',
       );
     }
 
@@ -92,7 +99,37 @@ export class DevicesService {
   async findAllByUser(userId: string) {
     return this.prisma.dEVICES.findMany({
       where: { User_ID: userId },
-      include: { sensors: true, actuators: true },
+      include: {
+        sensors: {
+          include: {
+            sensor_readings: {
+              orderBy: { recorded_at: 'desc' },
+              take: 1,
+              select: {
+                value: true,
+                recorded_at: true,
+              },
+            },
+          },
+        },
+        actuators: {
+          include: {
+            actuator_logs: {
+              orderBy: { occurred_at: 'desc' },
+              take: 1,
+              select: {
+                action: true,
+                occurred_at: true,
+              },
+            },
+          },
+        },
+        smart_logic_configs: {
+          select: {
+            is_smart_mode: true,
+          },
+        },
+      },
     });
   }
 

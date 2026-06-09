@@ -5,9 +5,16 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { LogsModule } from '../logs/logs.module';
 import { ActuatorsModule } from '../actuators/actuators.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SmartLogicModule } from '../smart-logic/smart-logic.module';
 
 @Module({
-  imports: [PrismaModule, LogsModule, ActuatorsModule, NotificationsModule],
+  imports: [
+    PrismaModule,
+    LogsModule,
+    ActuatorsModule,
+    NotificationsModule,
+    SmartLogicModule,
+  ],
   controllers: [SensorsController],
   providers: [SensorsService],
   exports: [SensorsService],

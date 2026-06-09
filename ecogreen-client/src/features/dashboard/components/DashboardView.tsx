@@ -80,6 +80,19 @@ function getLogIconAndClass(log: ActivityLog) {
   };
 }
 
+const emptyTelemetry: TelemetrySnapshot = {
+  temp: 0,
+  humi: 0,
+  soil: 0,
+  light: 0,
+  autoMode: true,
+  cooldownRemain: 0,
+  pumpState: false,
+  fanState: false,
+  updatedAt: "",
+  source: "socket",
+};
+
 export function DashboardView() {
   const { language, t, translateLog, formatTemp } = useLanguage();
   const { telemetry, telemetryByMac, connected } = useRealtimeTelemetry();
@@ -131,8 +144,14 @@ export function DashboardView() {
     };
   }, [selectedDevice]);
 
-  const selectedTelemetry =
-    (selectedDevice ? telemetryByMac[selectedDevice.mac_address] : undefined) ?? telemetry;
+  const selectedTelemetry = useMemo(() => {
+    if (!selectedDevice) return emptyTelemetry;
+    const deviceMac = selectedDevice.mac_address.toLowerCase();
+    const matchedKey = Object.keys(telemetryByMac).find(
+      (key) => key.toLowerCase() === deviceMac
+    );
+    return matchedKey ? telemetryByMac[matchedKey] : emptyTelemetry;
+  }, [selectedDevice, telemetryByMac]);
   const onlineCount = devices.filter((device) => device.status === "online").length;
   const sensorCount = devices.reduce((sum, device) => sum + (device.sensors?.length ?? 0), 0);
   const actuatorCount = devices.reduce((sum, device) => sum + (device.actuators?.length ?? 0), 0);

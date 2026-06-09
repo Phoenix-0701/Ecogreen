@@ -3,9 +3,10 @@ import { SmartLogicService } from './smart-logic.service';
 import { SmartLogicController } from './smart-logic.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SchedulesModule } from '../schedules/schedules.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, forwardRef(() => SchedulesModule)],
+  imports: [PrismaModule, NotificationsModule, forwardRef(() => SchedulesModule)],
   controllers: [SmartLogicController],
   providers: [SmartLogicService],
   exports: [SmartLogicService],

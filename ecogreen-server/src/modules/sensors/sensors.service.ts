@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LogsService } from '../logs/logs.service';
 import { ActuatorsService } from '../actuators/actuators.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SmartLogicService } from '../smart-logic/smart-logic.service';
 
 @Injectable()
 export class SensorsService {
@@ -12,12 +13,14 @@ export class SensorsService {
   // Key: Sensor_ID, Value: Thời gian gửi tin nhắn cảnh báo cuối cùng (millisecond)
   private alertCache: Map<string, number> = new Map();
   private readonly ALERT_COOLDOWN_MS = 1 * 60 * 1000; // Khoảng cách giữa 2 lần spam (5 phút)
+  private lastSmartLogicSkipAlert: Map<string, number> = new Map();
 
   constructor(
     private prisma: PrismaService,
     private logsService: LogsService,
     private actuatorsService: ActuatorsService,
     private notificationsService: NotificationsService,
+    private smartLogicService: SmartLogicService,
   ) {}
 
   async saveSensorData(macAddress: string, payload: any) {
@@ -29,6 +32,8 @@ export class SensorsService {
       });
 
       if (!device) return null; // Trả về null để AppController tiến hành Discovery
+
+      const wasOffline = device.status === 'offline';
 
       const readingsToInsert: { Sensor_ID: string; value: number }[] = [];
 
@@ -59,7 +64,19 @@ export class SensorsService {
         }
       }
 
-      if (readingsToInsert.length === 0) return true;
+      if (readingsToInsert.length === 0) {
+        // Cập nhật trạng thái online và thời gian nhìn thấy cuối cùng để tránh bị nhận diện offline nhầm do không đổi số liệu cảm biến
+        await this.prisma.dEVICES.update({
+          where: { Device_ID: device.Device_ID },
+          data: { status: 'online', last_seen_at: new Date() },
+        });
+        return {
+          success: true,
+          wasOffline,
+          deviceId: device.Device_ID,
+          deviceName: device.name,
+        };
+      }
 
       // 3. TỐI ƯU HÓA 1: Lưu lịch sử và cập nhật thiết bị qua TRANSACTION
       await this.prisma.$transaction([
@@ -94,7 +111,14 @@ export class SensorsService {
       this.logger.log(
         `[THRESHOLD-DEBUG] Found ${thresholds.length} threshold(s)`,
       );
-      if (thresholds.length === 0) return true;
+      if (thresholds.length === 0) {
+        return {
+          success: true,
+          wasOffline,
+          deviceId: device.Device_ID,
+          deviceName: device.name,
+        };
+      }
 
       // 5. Tìm trạng thái thiết bị chấp hành hiện tại
       const actuatorIds = thresholds.map((t) => t.Actuator_ID);
@@ -155,6 +179,8 @@ export class SensorsService {
           ? reading.value < threshold.min_value // Quạt: tắt khi đã mát
           : reading.value > threshold.max_value; // Bơm: tắt khi đủ nước
 
+        let skipAutoPump = false;
+
         if (shouldTurnOn) {
           const alertLabel = isFan
             ? `nhiệt độ/ánh sáng QUÁ CAO (${reading.value} > Max ${threshold.max_value})`
@@ -167,14 +193,58 @@ export class SensorsService {
 
           // Chỉ tự BẬT khi AUTO và đang TẮT
           if (isAutoMode && !isCurrentlyOn) {
-            await this.logsService.createSystemLog(
-              device.Device_ID,
-              'WARNING',
-              `CẢNH BÁO ${actuatorLabel}`,
-              `${sensorName} ${alertLabel} → Tự động BẬT ${actuatorLabel}`,
-            );
-            await this.actuatorsService.toggle(actuatorID, true, 'AUTO_SYSTEM');
-            pumpStatusMap.set(actuatorID, true);
+            if (!isFan) {
+              try {
+                const smartCheck = await this.smartLogicService.shouldSkipWatering(device.Device_ID);
+                if (smartCheck.skip) {
+                  skipAutoPump = true;
+                  this.logger.log(`🛑 [THRESHOLD-AUTO] Bỏ qua tự động bật máy bơm ${actuatorID} do: ${smartCheck.reason}`);
+                  
+                  const lastAlertTime = this.lastSmartLogicSkipAlert.get(device.Device_ID) || 0;
+                  const now = Date.now();
+                  if (now - lastAlertTime > 15000) {
+                    this.lastSmartLogicSkipAlert.set(device.Device_ID, now);
+
+                    // Ghi log hoạt động hệ thống
+                    await this.logsService.createSystemLog(
+                      device.Device_ID,
+                      'SMART_LOGIC_ACTION',
+                      'warning',
+                      `Bỏ qua tự động bật máy bơm do: ${smartCheck.reason}.`,
+                    );
+
+                    // Gửi tin nhắn Telegram cảnh báo chặn tự động bật do thời tiết
+                    const config = await this.smartLogicService.getConfig(device.Device_ID);
+                    const skipMsg =
+                      `🌧️ <b>BỎ QUA TỰ ĐỘNG BẬT BƠM - TRỜI SẮP MƯA</b>\n\n` +
+                      `🌱 Vườn: <b>${device.name}</b>\n` +
+                      `⚠️ <b>${sensorName}</b>: <b>${reading.value}%</b> (Ngưỡng bật: &lt; ${threshold.min_value}%)\n` +
+                      `📍 Khu vực: <b>${config.city_name}</b>\n` +
+                      `🌧 Xác suất mưa: <b>${smartCheck.rainProbability}%</b> (ngưỡng ${config.rain_prob_threshold}%)\n\n` +
+                      `🤖 <i>Độ ẩm đất thấp nhưng hệ thống đã tự động bỏ qua kích hoạt máy bơm do dự báo thời tiết sắp có mưa để tiết kiệm nước.</i>`;
+                    
+                    this.notificationsService.sendNotificationToDeviceOwner(device.Device_ID, skipMsg, false);
+                  }
+                }
+              } catch (err) {
+                this.logger.error(`❌ Lỗi kiểm tra Smart Logic khi tự động bật bơm: ${err.message}`);
+              }
+            }
+
+            if (!skipAutoPump) {
+              await this.logsService.createSystemLog(
+                device.Device_ID,
+                'WARNING',
+                `CẢNH BÁO ${actuatorLabel}`,
+                `${sensorName} ${alertLabel} → Tự động BẬT ${actuatorLabel}`,
+              );
+              await this.actuatorsService.toggle(actuatorID, true, 'AUTO_SYSTEM');
+              pumpStatusMap.set(actuatorID, true);
+            }
+          }
+
+          if (skipAutoPump) {
+            continue;
           }
 
           // Gửi Telegram dù MANUAL hay AUTO (chống spam cooldown)
@@ -185,6 +255,32 @@ export class SensorsService {
           );
 
           if (now - lastAlert > this.ALERT_COOLDOWN_MS) {
+            // Ghi nhận cảnh báo vượt ngưỡng vào nhật ký hoạt động cứ mỗi 1 phút
+            let logEventType = 'CẢNH BÁO';
+            let logDescription = `${sensorName} vượt ngưỡng an toàn: ${reading.value}`;
+            const sType = device.sensors.find((s) => s.Sensor_ID === reading.Sensor_ID)?.type;
+            
+            if (sType === 'temperature') {
+              logEventType = 'CẢNH BÁO NHIỆT ĐỘ';
+              logDescription = `Nhiệt độ hiện tại đang ở mức quá cao (${reading.value} °C), vượt ngưỡng an toàn!`;
+            } else if (sType === 'soil_moisture') {
+              logEventType = 'CẢNH BÁO ĐẤT KHÔ';
+              logDescription = `Độ ẩm đất hiện tại đang ở mức quá thấp (${reading.value} %), dưới ngưỡng an toàn!`;
+            } else if (sType === 'humidity') {
+              logEventType = 'CẢNH BÁO ĐỘ ẨM';
+              logDescription = `Độ ẩm không khí hiện tại đang ở mức quá thấp (${reading.value} %), dưới ngưỡng an toàn!`;
+            } else if (sType === 'light') {
+              logEventType = 'CẢNH BÁO ÁNH SÁNG';
+              logDescription = `Cường độ ánh sáng hiện tại vượt ngưỡng an toàn (${reading.value} lux).`;
+            }
+
+            await this.logsService.createSystemLog(
+              device.Device_ID,
+              logEventType,
+              'warning',
+              logDescription,
+            );
+
             const modeNote = isAutoMode
               ? ''
               : '\n🕹️ <i>Chế độ Thủ công — bạn cần tự bật thiết bị.</i>';
@@ -251,12 +347,17 @@ export class SensorsService {
         }
       }
 
-      return true;
+      return {
+        success: true,
+        wasOffline,
+        deviceId: device.Device_ID,
+        deviceName: device.name,
+      };
     } catch (error) {
       this.logger.error(
         `❌ Lỗi xử lý MQTT tại SensorsService: ${error.message}`,
       );
-      return false;
+      return { success: false };
     }
   }
 

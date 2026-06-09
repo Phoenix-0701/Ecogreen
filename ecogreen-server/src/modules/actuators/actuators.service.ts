@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClientProxy } from '@nestjs/microservices';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -29,6 +29,10 @@ export class ActuatorsService {
     if (!actuator) {
       console.error(`[ACTUATOR-DEBUG] Actuator ${actuatorId} not found`);
       throw new Error('Không tìm thấy thiết bị chấp hành');
+    }
+
+    if (actuator.device.status === 'offline') {
+      throw new BadRequestException('Không thể điều khiển thiết bị');
     }
 
     const macFlat = actuator.device.mac_address.replace(/:/g, '').toUpperCase();

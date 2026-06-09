@@ -305,12 +305,12 @@ static bool mqttReconnect()
     if (WiFi.status() != WL_CONNECTED)
         return false;
 
-    Serial.print("[MQTT] Connecting to CoreIoT...");
+    Serial.println("[MQTT] Reconnecting...");
     String clientId = "GH-ESP32-" + String(random(0xffff), HEX);
 
     if (s_mqttClient.connect(clientId.c_str(), CORE_IOT_TOKEN, nullptr))
     {
-        Serial.println(" OK");
+        Serial.println("[MQTT] Connected");
         s_mqttClient.subscribe(TOPIC_RPC_REQUEST);
 
         StaticJsonDocument<128> attr;
@@ -339,12 +339,12 @@ static bool localMqttReconnect()
     if (WiFi.status() != WL_CONNECTED)
         return false;
 
-    Serial.print("[MQTT-LOCAL] Connecting...");
+    Serial.println("[MQTT] Reconnecting...");
     String clientId = "GH-LOCAL-" + String(random(0xffff), HEX);
 
     if (s_localClient.connect(clientId.c_str()))
     {
-        Serial.println(" OK");
+        Serial.println("[MQTT] Connected");
 
         String cmdTopic = "ecogreen/command/" + getMacFlat();
         s_localClient.subscribe(cmdTopic.c_str());

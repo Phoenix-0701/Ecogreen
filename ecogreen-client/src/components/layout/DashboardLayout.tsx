@@ -21,6 +21,7 @@ import {
   Settings2,
   User,
   X,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth.context";
 import { useLanguage } from "@/context/LanguageContext";
@@ -337,18 +338,27 @@ export default function DashboardLayout({
       : "US";
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = () => {
-    logout();
-    setShowLogoutModal(false);
+  const confirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      setShowLogoutModal(false);
+    } catch (err) {
+      // error toast is shown in auth.context.tsx
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const cancelLogout = () => {
     setShowLogoutModal(false);
+    setIsLoggingOut(false);
   };
 
   return (
@@ -727,14 +737,17 @@ export default function DashboardLayout({
               <div className="flex gap-3 w-full">
                 <button
                   onClick={cancelLogout}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-semibold text-slate-600 transition-all cursor-pointer text-center focus:outline-none"
+                  disabled={isLoggingOut}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-semibold text-slate-600 transition-all cursor-pointer text-center focus:outline-none disabled:opacity-50"
                 >
                   {t("cancel")}
                 </button>
                 <button
                   onClick={confirmLogout}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-sm font-bold text-white shadow-lg shadow-red-500/20 hover:shadow-red-500/30 transition-all cursor-pointer text-center focus:outline-none"
+                  disabled={isLoggingOut}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-sm font-bold text-white shadow-lg shadow-red-500/20 hover:shadow-red-500/30 transition-all cursor-pointer text-center focus:outline-none flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+                  {isLoggingOut && <Loader2 className="size-4 animate-spin" />}
                   {t("logout")}
                 </button>
               </div>

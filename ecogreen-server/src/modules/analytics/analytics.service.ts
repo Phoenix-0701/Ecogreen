@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
+import { Injectable, NotFoundException, StreamableFile, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as ExcelJS from 'exceljs';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
@@ -68,6 +68,18 @@ export class AnalyticsService {
     });
 
     if (!device) throw new NotFoundException('Khong tim thay thiet bi');
+
+    const sensorIds = device.sensors.map((s) => s.Sensor_ID);
+    const readingsCount = await this.prisma.sENSOR_READINGS.count({
+      where: {
+        Sensor_ID: { in: sensorIds },
+        recorded_at: { gte: startDate, lte: endDate },
+      },
+    });
+
+    if (readingsCount === 0) {
+      throw new BadRequestException('Không tìm thấy dữ liệu trong khoảng thời gian này');
+    }
 
     const tempSensor  = device.sensors.find((s) => s.type === 'temperature');
     const humiSensor  = device.sensors.find((s) => s.type === 'humidity');

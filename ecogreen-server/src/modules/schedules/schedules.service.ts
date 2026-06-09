@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClientProxy } from '@nestjs/microservices';
 import { SaveSchedulesDto } from './dto/save-schedules.dto';
@@ -74,8 +74,8 @@ export class SchedulesService implements OnModuleInit {
       where: { Device_ID: deviceId },
     });
 
-    if (!device) {
-      throw new NotFoundException('Không tìm thấy thiết bị');
+    if (!device || device.status === 'offline') {
+      throw new BadRequestException('Đã xảy ra lỗi, xin vui lòng thử lại trong ít phút');
     }
 
     // 1. Cập nhật trạng thái bật/tắt lịch của thiết bị

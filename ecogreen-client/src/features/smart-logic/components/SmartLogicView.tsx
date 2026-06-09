@@ -11,6 +11,10 @@ import {
   Search,
   ShieldCheck,
   Slash,
+  Thermometer,
+  CloudSun,
+  Droplets,
+  Sliders,
 } from "lucide-react";
 import { FormField } from "@/components/ui/FormField";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
@@ -108,6 +112,17 @@ export function SmartLogicView() {
     setDraft(result);
     setSaved(result);
     setSaving(false);
+
+    // Tự động kiểm tra thời tiết mới ngay sau khi áp dụng thiết lập thành công
+    setChecking(true);
+    try {
+      const freshState = await evaluateSmartLogic(result, telemetry);
+      setDraft(freshState);
+      setSaved(freshState);
+    } catch (err) {
+      console.error("Lỗi tự động cập nhật thời tiết:", err);
+    }
+    setChecking(false);
   };
 
   const handleCheckWeather = async () => {
@@ -173,7 +188,7 @@ export function SmartLogicView() {
               <select
                 value={selectedCityOption}
                 onChange={(event) => handlePresetCityChange(event.target.value)}
-                className="mt-2 w-full rounded-[1.2rem] border border-[#e4e9e5] bg-[#f5f7f6] px-4 py-4 text-[#1d2420] outline-none transition focus:border-[#0b7a50] focus:bg-white cursor-pointer"
+                className="city-select mt-2 w-full"
               >
                 {PRESET_CITIES.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -326,12 +341,28 @@ export function SmartLogicView() {
             />
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3 xl:grid-cols-5">
-            <MetricTile label={t('smartLogic.metrics.rainProb', 'Xác suất mưa')} value={`${draft.lastRainProbability}%`} />
-            <MetricTile label={t('smartLogic.metrics.blockThreshold', 'Ngưỡng chặn')} value={`${draft.rainThreshold}%`} />
-            <MetricTile label={t('smartLogic.metrics.decision', 'Quyết định')} value={blockWeather ? t('smartLogic.metrics.skip', "Bỏ qua") : t('smartLogic.metrics.allow', "Cho tưới")} />
-            <MetricTile label="Trạng thái" value={draft.weatherSummary ? (draft.weatherSummary.charAt(0).toUpperCase() + draft.weatherSummary.slice(1)) : "N/A"} />
-            <MetricTile label="Nhiệt độ" value={draft.tempC !== undefined ? `${draft.tempC}°C` : "N/A"} />
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <MetricTile 
+              label={t('smartLogic.metrics.rainProb', 'Xác suất mưa')} 
+              value={`${draft.lastRainProbability}%`}
+            />
+            <MetricTile 
+              label={t('smartLogic.metrics.blockThreshold', 'Ngưỡng chặn')} 
+              value={`${draft.rainThreshold}%`}
+            />
+            <MetricTile 
+              label={t('smartLogic.metrics.decision', 'Quyết định')} 
+              value={blockWeather ? t('smartLogic.metrics.skip', "Bỏ qua") : t('smartLogic.metrics.allow', "Cho tưới")}
+              textColor={blockWeather ? "#ef4444" : "#10b981"}
+            />
+            <MetricTile 
+              label="Trạng thái" 
+              value={draft.weatherSummary ? (draft.weatherSummary.charAt(0).toUpperCase() + draft.weatherSummary.slice(1)) : "N/A"}
+            />
+            <MetricTile 
+              label="Nhiệt độ" 
+              value={draft.tempC !== undefined ? `${draft.tempC}°C` : "N/A"}
+            />
           </div>
         </section>
 
@@ -394,6 +425,7 @@ export function SmartLogicView() {
           </div>
         </section>
       </div>
+      <style jsx>{styles}</style>
     </div>
   );
 }
@@ -444,16 +476,87 @@ function DecisionCard({
 function MetricTile({
   label,
   value,
+  textColor = "#111827",
 }: {
   label: string;
   value: string;
+  textColor?: string;
 }) {
   return (
-    <div className="rounded-[1.4rem] bg-white px-4 py-4 shadow-sm">
-      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8c9a91]">
+    <div 
+      className="metric-tile"
+      style={{
+        background: "white",
+        border: "1.5px solid #e2e8f0",
+        borderRadius: "20px",
+        padding: "1.25rem 1.25rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.40rem",
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.015)",
+        transition: "all 0.2s ease",
+        justifyContent: "center",
+      }}
+    >
+      <div 
+        style={{ 
+          fontSize: "0.72rem", 
+          fontWeight: 700, 
+          color: "#8c9a91", 
+          textTransform: "uppercase", 
+          letterSpacing: "0.10em",
+          lineHeight: 1.2,
+        }}
+      >
         {label}
       </div>
-      <div className="mt-2 text-2xl font-semibold text-[#18241c]">{value}</div>
+      <div 
+        style={{ 
+          fontSize: "1.35rem", 
+          fontWeight: 800, 
+          color: textColor,
+          lineHeight: 1.2
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
+
+// Scoped styled-jsx for custom select styling and arrow centering
+const styles = `
+  .city-select {
+    padding: 0.85rem 2.5rem 0.85rem 1.25rem;
+    border-radius: 16px;
+    border: 1.5px solid #e4e9e5;
+    background-color: #f5f7f6;
+    font-size: 0.875rem;
+    font-weight: 600;
+    outline: none;
+    color: #1d2420;
+    cursor: pointer;
+    transition: all 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 1rem center;
+    background-repeat: no-repeat;
+    background-size: 1.1rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.01);
+  }
+
+  .city-select:focus {
+    border-color: #0b7a50;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(11, 122, 80, 0.12);
+  }
+
+  .city-select:hover {
+    border-color: #cbd5e1;
+    background-color: #eef2ef;
+  }
+`;
+
+// Note: If styled-jsx isn't imported or global, we can embed it inside a style tag in JSX.
+// Let's modify the component rendering to inject this styled-jsx tag.
+

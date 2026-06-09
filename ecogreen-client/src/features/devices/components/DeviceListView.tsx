@@ -33,6 +33,7 @@ import {
   deleteDevice,
   toggleActuator,
   setDeviceMode,
+  getDiscoveredDevices,
 } from "@/services/device.service";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -273,8 +274,43 @@ export function DeviceListView() {
     if (lower === "quạt thông gió" || lower === "quạt") return "Ventilation Fan";
     return name;
   };
-  const { telemetry, telemetryByMac } = useRealtimeTelemetry();
+  const { telemetry, telemetryByMac, socket } = useRealtimeTelemetry();
   const [devices, setDevices] = useState<Device[]>([]);
+
+  // Lắng nghe trạng thái online/offline của thiết bị qua WebSocket
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDeviceStatus = (data: { Device_ID: string; status: "online" | "offline"; name: string }) => {
+      // 1. Cập nhật danh sách thiết bị
+      setDevices((prev) =>
+        prev.map((d) =>
+          d.Device_ID === data.Device_ID ? { ...d, status: data.status } : d
+        )
+      );
+
+      // 2. Hiển thị Toast thông báo
+      setToast({
+        show: true,
+        type: data.status === "offline" ? "danger" : "success",
+        title: data.status === "offline" ? "Thiết bị mất kết nối" : "Thiết bị đã kết nối",
+        message: data.status === "offline"
+          ? `Thiết bị "${data.name}" đã mất kết nối với hệ thống.`
+          : `Thiết bị "${data.name}" đã kết nối lại thành công.`,
+      });
+
+      // 3. Mở Modal cảnh báo lớn giữa màn hình khi thiết bị mất kết nối
+      if (data.status === "offline") {
+        setDisconnectDeviceName(data.name);
+      }
+    };
+
+    socket.on("device-status", handleDeviceStatus);
+
+    return () => {
+      socket.off("device-status", handleDeviceStatus);
+    };
+  }, [socket]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -289,6 +325,7 @@ export function DeviceListView() {
     new Set(),
   );
   const [deviceToDeleteId, setDeviceToDeleteId] = useState<string | null>(null);
+  const [disconnectDeviceName, setDisconnectDeviceName] = useState<string | null>(null);
   const [togglingModeDeviceId, setTogglingModeDeviceId] = useState<
     string | null
   >(null);
@@ -451,7 +488,21 @@ export function DeviceListView() {
     }
   };
 
-  const handleToggleActuator = async (actuatorId: string, currentRunning: boolean) => {
+  const handleToggleActuator = async (
+    actuatorId: string,
+    currentRunning: boolean,
+    isDeviceOnline: boolean
+  ) => {
+    if (!isDeviceOnline) {
+      setToast({
+        show: true,
+        type: "danger",
+        title: t('deviceList.mode.toastError', "Lỗi"),
+        message: "Không thể điều khiển thiết bị",
+      });
+      return;
+    }
+
     const currentState =
       actuatorStates[actuatorId] ?? createDefaultActuatorState();
     const nextRunning = !currentRunning;
@@ -476,6 +527,12 @@ export function DeviceListView() {
       });
     } catch (err) {
       console.error("Lỗi điều khiển actuator:", err);
+      setToast({
+        show: true,
+        type: "danger",
+        title: t('deviceList.mode.toastError', "Lỗi"),
+        message: err instanceof Error ? err.message : "Không thể điều khiển thiết bị",
+      });
     } finally {
       setTogglingActuatorId(null);
     }
@@ -987,7 +1044,7 @@ export function DeviceListView() {
 
                                 <button
                                   onClick={() =>
-                                    handleToggleActuator(a.Actuator_ID, running)
+                                    handleToggleActuator(a.Actuator_ID, running, isOnline)
                                   }
                                   disabled={toggling || isAuto}
                                   className="dv-actuator-toggle"
@@ -1070,6 +1127,13 @@ export function DeviceListView() {
         <ConfirmDeleteModal
           onClose={() => setDeviceToDeleteId(null)}
           onConfirm={confirmDeleteDevice}
+        />
+      )}
+
+      {disconnectDeviceName && (
+        <DisconnectModal
+          deviceName={disconnectDeviceName}
+          onClose={() => setDisconnectDeviceName(null)}
         />
       )}
 
@@ -2114,28 +2178,43 @@ function AddDeviceModal({
   const { t } = useLanguage();
   const [name, setName] = useState("");
   const [macAddress, setMacAddress] = useState("");
+  const [discoveredMacs, setDiscoveredMacs] = useState<string[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [macError, setMacError] = useState("");
 
-  const MAC_REGEX = /^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$|^[0-9A-Fa-f]{12}$/;
-
-  const handleMacChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setMacAddress(val);
-    if (val && !MAC_REGEX.test(val)) {
-      setMacError("Địa chỉ MAC không hợp lệ. VD: AA:BB:CC:DD:EE:FF hoặc AABBCCDDEEFF");
-    } else {
-      setMacError("");
+  const fetchDiscovered = useCallback(async () => {
+    setIsScanning(true);
+    setError("");
+    try {
+      const macs = await getDiscoveredDevices();
+      setDiscoveredMacs(macs);
+      if (macs.length > 0) {
+        setMacAddress(macs[0]);
+        setMacError("");
+      } else {
+        setMacAddress("");
+      }
+    } catch (err) {
+      console.error("Lỗi quét thiết bị:", err);
+      setError("Không thể quét tìm thiết bị mới!");
+    } finally {
+      setIsScanning(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDiscovered();
+  }, [fetchDiscovered]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setMacError("");
 
-    if (!MAC_REGEX.test(macAddress)) {
-      setMacError("Địa chỉ MAC không hợp lệ. VD: AA:BB:CC:DD:EE:FF hoặc AABBCCDDEEFF");
+    if (!macAddress) {
+      setMacError("Vui lòng chọn một địa chỉ MAC hợp lệ!");
       return;
     }
 
@@ -2173,21 +2252,141 @@ function AddDeviceModal({
 
         <div className="modal-field">
           <label>{t('deviceList.addModal.macLabel', "Địa chỉ MAC *")}</label>
-          <input
-            type="text"
-            placeholder={t('deviceList.addModal.macPlaceholder', "VD: AA:BB:CC:DD:EE:FF")}
-            value={macAddress}
-            onChange={handleMacChange}
-            required
-            id="device-mac-input"
-            style={{ borderColor: macError ? '#ef4444' : undefined }}
-          />
+          <div className="mac-input-row">
+            <select
+              value={macAddress}
+              onChange={(e) => {
+                setMacAddress(e.target.value);
+                setMacError("");
+              }}
+              required
+              id="device-mac-select"
+              className={macError ? 'mac-select mac-select--error' : 'mac-select'}
+            >
+              <option value="">-- Chọn địa chỉ MAC --</option>
+              {discoveredMacs.map((mac) => (
+                <option key={mac} value={mac}>{mac}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className={isScanning ? 'mac-scan-btn mac-scan-btn--spinning' : 'mac-scan-btn'}
+              onClick={fetchDiscovered}
+              disabled={isScanning}
+              title="Quét tìm thiết bị mới"
+            >
+              {isScanning ? (
+                <Loader2 size={17} className="animate-spin" />
+              ) : (
+                <RefreshCw size={17} />
+              )}
+            </button>
+          </div>
+
+          {discoveredMacs.length === 0 && !isScanning ? (
+            <div className="mac-notice mac-notice--warn">
+              <span className="mac-notice-icon">⚠️</span>
+              <span>Không tìm thấy thiết bị mới. Vui lòng cắm nguồn thiết bị ESP32 để hệ thống tự dò quét và hiển thị địa chỉ MAC tại đây.</span>
+            </div>
+          ) : discoveredMacs.length > 0 ? (
+            <div className="mac-notice mac-notice--ok">
+              <span className="mac-notice-icon">✅</span>
+              <span>Tìm thấy <strong>{discoveredMacs.length}</strong> thiết bị mới đang chờ kết nối.</span>
+            </div>
+          ) : null}
+
           {macError && (
-            <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-              {macError}
-            </p>
+            <div className="mac-notice mac-notice--err">
+              <span className="mac-notice-icon">🚫</span>
+              <span>{macError}</span>
+            </div>
           )}
         </div>
+        <style jsx>{`
+          .mac-input-row {
+            display: flex;
+            gap: 0.5rem;
+            align-items: stretch;
+          }
+          .mac-select {
+            flex: 1;
+            height: 44px;
+            padding: 0 0.875rem;
+            border-radius: 11px;
+            border: 1.5px solid #e5e7eb;
+            font-size: 0.875rem;
+            outline: none;
+            background: #fafafa;
+            color: #111827;
+            transition: all 0.2s;
+            cursor: pointer;
+            appearance: auto;
+          }
+          .mac-select:focus {
+            border-color: #22c55e;
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+            background: white;
+          }
+          .mac-select--error {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+          }
+          .mac-scan-btn {
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: 11px;
+            border: 1.5px solid #e5e7eb;
+            background: white;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.22s;
+          }
+          .mac-scan-btn:hover:not(:disabled) {
+            border-color: #22c55e;
+            background: #f0fdf4;
+            color: #16a34a;
+            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.18);
+            transform: rotate(20deg);
+          }
+          .mac-scan-btn:disabled {
+            opacity: 0.6;
+            cursor: wait;
+          }
+          .mac-notice {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            padding: 0.6rem 0.875rem;
+            border-radius: 10px;
+            font-size: 0.78rem;
+            line-height: 1.45;
+            border: 1px solid transparent;
+            margin-top: -0.15rem;
+          }
+          .mac-notice--warn {
+            background: #fff7ed;
+            border-color: #fed7aa;
+            color: #92400e;
+          }
+          .mac-notice--ok {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            color: #14532d;
+          }
+          .mac-notice--err {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #991b1b;
+          }
+          .mac-notice-icon {
+            flex-shrink: 0;
+            margin-top: 1px;
+          }
+        `}</style>
 
         <div className="modal-actions">
           <button type="button" className="modal-btn-cancel" onClick={onClose}>
@@ -2196,7 +2395,7 @@ function AddDeviceModal({
           <button
             type="submit"
             className="modal-btn-submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !macAddress || discoveredMacs.length === 0}
             id="device-submit-btn"
           >
             {isSubmitting ? (
@@ -2298,6 +2497,30 @@ function ConfirmDeleteModal({
           line-height: 1.4;
         }
 
+        .modal-actions {
+          display: flex;
+          gap: 0.75rem;
+          width: 100%;
+        }
+
+        .modal-btn-cancel {
+          flex: 1;
+          padding: 0.75rem;
+          border-radius: 12px;
+          border: 1.5px solid #e5e7eb;
+          background: white;
+          color: #6b7280;
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .modal-btn-cancel:hover {
+          background: #f9fafb;
+          border-color: #d1d5db;
+        }
+
         .modal-btn-danger {
           flex: 1;
           padding: 0.75rem;
@@ -2319,6 +2542,105 @@ function ConfirmDeleteModal({
         .modal-btn-danger:hover {
           transform: translateY(-1px);
           box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+        }
+      `}</style>
+    </ModalWrapper>
+  );
+}
+
+/* ========================================== */
+/*       DISCONNECT WARNING MODAL             */
+/* ========================================== */
+function DisconnectModal({
+  deviceName,
+  onClose,
+}: {
+  deviceName: string;
+  onClose: () => void;
+}) {
+  return (
+    <ModalWrapper onClose={onClose} title="Thiết bị mất kết nối">
+      <div className="confirm-modal-body">
+        <div className="confirm-icon-wrap">
+          <PowerOff size={32} />
+        </div>
+        <p className="confirm-text">
+          Thiết bị "{deviceName}" đã mất kết nối với hệ thống.
+        </p>
+        <p className="confirm-subtext">
+          Vui lòng kiểm tra lại nguồn điện, trạng thái hoạt động của thiết bị hoặc cấu hình kết nối mạng Wi-Fi.
+        </p>
+
+        <div className="modal-actions" style={{ marginTop: "1.5rem", width: "100%" }}>
+          <button type="button" className="modal-btn-cancel" onClick={onClose}>
+            Hủy
+          </button>
+        </div>
+      </div>
+      <style jsx>{`
+        .confirm-modal-body {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 1.5rem 1.5rem 1.25rem;
+          text-align: center;
+        }
+
+        .confirm-icon-wrap {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          background: #fef2f2;
+          color: #ef4444;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 1.25rem;
+          animation: pulseWarning 2s infinite;
+        }
+
+        @keyframes pulseWarning {
+          0% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.2);
+          }
+          70% {
+            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+          }
+        }
+
+        .confirm-text {
+          font-size: 1.05rem;
+          font-weight: 700;
+          color: #111827;
+          margin: 0 0 0.5rem 0;
+        }
+
+        .confirm-subtext {
+          font-size: 0.85rem;
+          color: #6b7280;
+          margin: 0;
+          line-height: 1.4;
+        }
+
+        .modal-btn-cancel {
+          width: 100%;
+          padding: 0.75rem;
+          border-radius: 12px;
+          border: 1.5px solid #e5e7eb;
+          background: white;
+          color: #6b7280;
+          font-size: 0.875rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .modal-btn-cancel:hover {
+          background: #f9fafb;
+          border-color: #d1d5db;
         }
       `}</style>
     </ModalWrapper>

@@ -60,7 +60,12 @@ export class SmartLogicController {
     }
 
     const nextForecast = weatherData.list[0];
-    const rainProbability = Math.round((nextForecast.pop ?? 0) * 100);
+    const slotsToCheck = Math.min(2, weatherData.list.length);
+    let rainProbability = 0;
+    for (let i = 0; i < slotsToCheck; i++) {
+      const slotPop = Math.round((weatherData.list[i].pop ?? 0) * 100);
+      if (slotPop > rainProbability) rainProbability = slotPop;
+    }
     const shouldSkip = rainProbability >= config.rain_prob_threshold;
 
     return {

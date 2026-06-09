@@ -461,6 +461,50 @@ function mapBackendThresholdState(
 
 function mapBackendLog(entry: BackendActivityLog): SmartLogicLog {
   const occurredAt = new Date(entry.occurred_at);
+  const type = (entry.event_type || "").toUpperCase();
+  const desc = (entry.description || "").toUpperCase();
+
+  let level: SmartLogicLog["level"] = "info";
+
+  if (
+    type.includes("ERROR") || 
+    type.includes("LỖI") || 
+    type.includes("OFFLINE") || 
+    type.includes("MẤT KẾT NỐI") || 
+    desc.includes("LỖI") || 
+    desc.includes("MẤT KẾT NỐI")
+  ) {
+    level = "error";
+  } else if (
+    type.includes("WARNING") || 
+    type.includes("ALERT") || 
+    type.includes("CẢNH BÁO") || 
+    desc.includes("CẢNH BÁO")
+  ) {
+    level = "warning";
+  } else if (
+    type.includes("CONFIG") || 
+    type.includes("CẤU HÌNH") || 
+    type.includes("THRESHOLD") || 
+    type.includes("SCHEDULE") || 
+    desc.includes("CẤU HÌNH") || 
+    desc.includes("LỊCH TRÌNH") ||
+    desc.includes("THIẾT LẬP")
+  ) {
+    level = "system";
+  } else if (
+    type.includes("SUCCESS") || 
+    type.includes("ONLINE") || 
+    type.includes("KẾT NỐI LẠI") || 
+    type.includes("PUMP") || 
+    type.includes("FAN") || 
+    desc.includes("THÀNH CÔNG") || 
+    desc.includes("BẮT ĐẦU") || 
+    desc.includes("HOÀN THÀNH") || 
+    desc.includes("KẾT NỐI LẠI")
+  ) {
+    level = "success";
+  }
 
   return {
     id: entry.Log_ID,
@@ -468,7 +512,7 @@ function mapBackendLog(entry: BackendActivityLog): SmartLogicLog {
       ? todayTimeLabel()
       : todayTimeLabel(occurredAt),
     message: entry.description || entry.status || entry.event_type,
-    level: entry.event_type === "WARNING" ? "success" : "info",
+    level,
   };
 }
 
@@ -639,9 +683,19 @@ export async function loadSmartLogicState() {
       city: config?.data ? config.data.city_name : fallback.city,
       rainThreshold: config?.data ? config.data.rain_prob_threshold : fallback.rainThreshold,
       // Lấy thông tin thời tiết thực tế từ API nếu có
-      lastRainProbability: config?.data?.last_weather_data?.list?.[0]?.pop 
-        ? Math.round(config.data.last_weather_data.list[0].pop * 100)
-        : fallback.lastRainProbability,
+      lastRainProbability: (() => {
+        const weatherList = config?.data?.last_weather_data?.list;
+        if (Array.isArray(weatherList) && weatherList.length > 0) {
+          const slotsToCheck = Math.min(2, weatherList.length);
+          let maxPop = 0;
+          for (let i = 0; i < slotsToCheck; i++) {
+            const slotPop = Math.round((weatherList[i].pop ?? 0) * 100);
+            if (slotPop > maxPop) maxPop = slotPop;
+          }
+          return maxPop;
+        }
+        return fallback.lastRainProbability;
+      })(),
       weatherSummary: config?.data?.last_weather_data?.list?.[0]?.weather?.[0]?.description ?? fallback.weatherSummary,
       tempC: config?.data?.last_weather_data?.list?.[0]?.main?.temp ?? fallback.tempC,
       logs: Array.isArray(logs) ? logs.map(mapBackendLog) : fallback.logs,
@@ -779,18 +833,21 @@ export async function saveScheduleState(nextState: ScheduleState) {
   const devices = await loadBackendDevices();
   const selectedDevice = selectDevice(devices);
 
-  if (selectedDevice) {
-    try {
-      await requestJson(`/v1/devices/${selectedDevice.Device_ID}/schedules`, {
-        method: "POST",
-        body: JSON.stringify({
-          enabled: nextState.enabled,
-          schedules: nextState.schedules,
-        }),
-      });
-    } catch (error) {
-      console.error("Failed to save schedules to backend", error);
-    }
+  if (!selectedDevice || selectedDevice.status === "offline") {
+    throw new Error("Đã xảy ra lỗi, xin vui lòng thử lại trong ít phút");
+  }
+
+  try {
+    await requestJson(`/v1/devices/${selectedDevice.Device_ID}/schedules`, {
+      method: "POST",
+      body: JSON.stringify({
+        enabled: nextState.enabled,
+        schedules: nextState.schedules,
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to save schedules to backend", error);
+    throw error;
   }
 
   writeStorage(STORAGE_KEYS.schedule, nextState);

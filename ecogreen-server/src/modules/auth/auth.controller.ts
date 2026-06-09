@@ -29,6 +29,14 @@ export class AuthController {
     };
   }
 
+  @ApiOperation({ summary: 'Logout' })
+  @Post('logout')
+  async logout() {
+    return {
+      message: 'Đăng xuất thành công!',
+    };
+  }
+
   // Google OAuth routes — only active when credentials are configured
   @ApiOperation({ summary: 'Active Oauth2' })
   @Get('google')

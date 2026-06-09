@@ -29,9 +29,14 @@ function unwrapDevice(response: DeviceResponse): Device {
 
 // Lấy danh sách tất cả thiết bị của user
 export const getDevices = (): Promise<Device[]> => {
-  return fetcher<DeviceResponse[]>("/v1/devices").then((devices) =>
+  return fetcher<DeviceResponse[]>("/v1/devices", { cache: "no-store" }).then((devices) =>
     devices.map(unwrapDevice)
   );
+};
+
+// Lấy danh sách địa chỉ MAC được phát hiện chưa đăng ký
+export const getDiscoveredDevices = (): Promise<string[]> => {
+  return fetcher<string[]>("/v1/devices/discovery", { cache: "no-store" });
 };
 
 // Tạo thiết bị mới

@@ -17,10 +17,48 @@ async function bootstrap() {
     }),
   );
 
+  class RawMqttDeserializer {
+    deserialize(value: any, options?: any) {
+      if (value === null || value === undefined) {
+        return {
+          pattern: options?.channel || options?.packet?.topic || '',
+          data: value,
+        };
+      }
+
+      if (typeof value === 'object' && !Buffer.isBuffer(value)) {
+        if (value.pattern !== undefined && value.data !== undefined) {
+          return value;
+        }
+        return {
+          pattern: options?.channel || options?.packet?.topic || '',
+          data: value,
+        };
+      }
+
+      try {
+        const parsed = JSON.parse(value.toString());
+        if (parsed && parsed.pattern && parsed.data !== undefined) {
+          return parsed;
+        }
+        return {
+          pattern: options?.channel || options?.packet?.topic || '',
+          data: parsed,
+        };
+      } catch (err) {
+        return {
+          pattern: options?.channel || options?.packet?.topic || '',
+          data: value.toString(),
+        };
+      }
+    }
+  }
+
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.MQTT,
     options: {
       url: process.env.MQTT_URL || 'mqtt://broker.emqx.io:1883',
+      deserializer: new RawMqttDeserializer(),
     },
   });
 

@@ -87,6 +87,7 @@ export async function requestJson<T>(
   }
 
   const res = await fetch(`${baseUrl}${endpoint}`, {
+    cache: "no-store",
     ...options,
     headers,
   });

@@ -14,6 +14,13 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   CalendarCheck,
+  Layers,
+  CalendarRange,
+  XCircle,
+  Wifi,
+  WifiOff,
+  Timer,
+  Bell,
 } from "lucide-react";
 import { getDevices } from "@/services/device.service";
 import { requestJson } from "@/services/api";
@@ -39,6 +46,9 @@ export function LogsView() {
   const { t, translateLog } = useLanguage();
   const [filter, setFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [eventTypeFilter, setEventTypeFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,56 +124,168 @@ export function LogsView() {
 
   const getEventStyle = (eventType: string) => {
     const type = eventType.toUpperCase();
+
+    // ── Device connectivity ─────────────────────────────────────────
+    const isOnline =
+      type.includes("ONLINE") ||
+      type.includes("RECONNECT") ||
+      type.includes("KẾT NỐI LẠI") ||
+      type.includes("CONNECTED");
+    if (isOnline) {
+      return {
+        icon: <Wifi size={16} />,
+        textColor: "#16a34a",  // Green
+        bgColor: "#dcfce7",
+        cooldown: false,
+        isAlert: false,
+      };
+    }
+
+    const isOffline =
+      type.includes("OFFLINE") ||
+      type.includes("DISCONNECT") ||
+      type.includes("MẤT KẾT NỐI") ||
+      type.includes("LOST");
+    if (isOffline) {
+      return {
+        icon: <WifiOff size={16} />,
+        textColor: "#dc2626",  // Red
+        bgColor: "#fee2e2",
+        cooldown: false,
+        isAlert: false,
+      };
+    }
+
+    // ── Threshold alerts — phân biệt Fan/nhiệt (cam) vs Bơm/ẩm/đất (vàng) ──
+    // Server ghi: 'CẢNH BÁO NHIỆT ĐỘ' | 'CẢNH BÁO ĐỘ ẨM' | 'CẢNH BÁO ĐẤT KHÔ' | 'CẢNH BÁO ÁNH SÁNG'
+    const isThresholdAlert =
+      type.includes("CẢNH BÁO") ||
+      type.includes("ALERT") ||
+      type.includes("WARNING") ||
+      type.includes("VƯỢT NGƯỠNG");
+
+    if (isThresholdAlert) {
+      // Quạt / nhiệt độ / ánh sáng → Cam
+      if (
+        type.includes("NHIỆT ĐỘ") ||
+        type.includes("NHIET DO") ||
+        type.includes("ÁNH SÁNG") ||
+        type.includes("ANH SANG") ||
+        type.includes("FAN") ||
+        type.includes("TEMP") ||
+        type.includes("LIGHT")
+      ) {
+        return {
+          icon: <AlertCircle size={16} />,
+          textColor: "#ea580c",  // Orange — quạt / nhiệt
+          bgColor: "#fff7ed",
+          cooldown: true,
+          isAlert: true,
+        };
+      }
+      // Bơm / đất / độ ẩm → Vàng
+      if (
+        type.includes("ĐẤT KHÔ") ||
+        type.includes("DAT KHO") ||
+        type.includes("ĐỘ ẨM") ||
+        type.includes("DO AM") ||
+        type.includes("PUMP") ||
+        type.includes("MOISTURE") ||
+        type.includes("SOIL") ||
+        type.includes("HUMIDITY")
+      ) {
+        return {
+          icon: <AlertCircle size={16} />,
+          textColor: "#ca8a04",  // Yellow-amber — bơm / đất
+          bgColor: "#fefce8",
+          cooldown: true,
+          isAlert: true,
+        };
+      }
+      // Fallback generic alert → Cam
+      return {
+        icon: <AlertCircle size={16} />,
+        textColor: "#ea580c",
+        bgColor: "#fff7ed",
+        cooldown: true,
+        isAlert: true,
+      };
+    }
+
+    // ── Pump actions (non-alert) ───────────────────────────────────
     if (type.includes("PUMP")) {
       return {
         icon: <Droplets size={16} />,
-        textColor: "#2563eb", // Blue
+        textColor: "#2563eb",
         bgColor: "#eff6ff",
+        cooldown: false,
+        isAlert: false,
       };
     }
+
+    // ── Fan actions (non-alert) ────────────────────────────────────
     if (type.includes("FAN")) {
       return {
         icon: <Wind size={16} />,
-        textColor: "#0d9488", // Teal
+        textColor: "#0d9488",
         bgColor: "#f0fdfa",
+        cooldown: false,
+        isAlert: false,
       };
     }
+
+    // ── Schedule ──────────────────────────────────────────────────
     if (type.includes("SCHEDULE_WATERING")) {
       return {
         icon: <CalendarCheck size={16} />,
-        textColor: "#059669", // Emerald
+        textColor: "#059669",
         bgColor: "#ecfdf5",
+        cooldown: false,
+        isAlert: false,
       };
     }
-    if (type.includes("SCHEDULE_UPDATE") || type.includes("SCHEDULE")) {
+    if (type.includes("SCHEDULE")) {
       return {
         icon: <Clock size={16} />,
-        textColor: "#0f172a", // Black
+        textColor: "#0f172a",
         bgColor: "#f1f5f9",
+        cooldown: false,
+        isAlert: false,
       };
     }
+
+    // ── Threshold settings change (not alert) ──────────────────────
     if (
       type.includes("THRESHOLD") &&
       (type.includes("UPDATE") || type.includes("CHANGE") || type.includes("SAVE"))
     ) {
       return {
         icon: <SlidersHorizontal size={16} />,
-        textColor: "#d97706", // Amber
+        textColor: "#d97706",
         bgColor: "#fffbeb",
+        cooldown: false,
+        isAlert: false,
       };
     }
-    if (type.includes("ALERT") || type.includes("WARNING") || type.includes("CẢNH BÁO")) {
-      const isSoil = type.includes("ĐẤT");
+
+    // ── Notification channel configuration ─────────────────────────
+    if (type.includes("CẤU HÌNH KÊNH THÔNG BÁO") || type.includes("NOTIFICATION")) {
       return {
-        icon: <AlertCircle size={16} />,
-        textColor: isSoil ? "#c2410c" : "#ea580c", // Cam đậm cho đất, cam thường cho nhiệt
-        bgColor: isSoil ? "#ffedd5" : "#fff7ed",
+        icon: <Bell size={16} />,
+        textColor: "#4f46e5",  // Indigo
+        bgColor: "#e0e7ff",
+        cooldown: false,
+        isAlert: false,
       };
     }
+
+    // ── Default ───────────────────────────────────────────────────
     return {
       icon: <Activity size={16} />,
-      textColor: "#475569", // Gray
+      textColor: "#475569",
       bgColor: "#f8fafc",
+      cooldown: false,
+      isAlert: false,
     };
   };
 
@@ -172,21 +294,54 @@ export function LogsView() {
     return date.toLocaleString("vi-VN");
   };
 
-  // Filter logs by status and search text
+  // Filter logs by status, search text, event type and date range
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       const matchesFilter = filter === "all" || log.status === filter;
       const matchesSearch =
         log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         log.eventType.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesFilter && matchesSearch;
+      if (!matchesFilter || !matchesSearch) return false;
+
+      if (eventTypeFilter !== "all") {
+        const type = log.eventType.toUpperCase();
+        if (eventTypeFilter === "PUMP" && !type.includes("PUMP")) return false;
+        if (eventTypeFilter === "FAN" && !type.includes("FAN")) return false;
+        if (eventTypeFilter === "SCHEDULE" && !type.includes("SCHEDULE")) return false;
+        if (eventTypeFilter === "THRESHOLD" && !type.includes("THRESHOLD")) return false;
+        if (eventTypeFilter === "ALERT" && !type.includes("ALERT") && !type.includes("WARNING") && !type.includes("CẢNH BÁO")) return false;
+      }
+
+      const logDate = new Date(log.time);
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (logDate < start) return false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (logDate > end) return false;
+      }
+
+      return true;
     });
-  }, [logs, filter, searchTerm]);
+  }, [logs, filter, searchTerm, eventTypeFilter, startDate, endDate]);
 
   // Reset page when filter or search changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, searchTerm]);
+  }, [filter, searchTerm, eventTypeFilter, startDate, endDate]);
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      filter !== "all" ||
+      searchTerm.trim() !== "" ||
+      eventTypeFilter !== "all" ||
+      startDate !== "" ||
+      endDate !== ""
+    );
+  }, [filter, searchTerm, eventTypeFilter, startDate, endDate]);
 
   const itemsPerPage = 25;
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage);
@@ -294,44 +449,104 @@ export function LogsView() {
 
       {/* Main Logs Table Card */}
       <div className="logs-main-card">
-        {/* Toolbar */}
-        <div className="logs-toolbar">
-          {/* Filter Pills */}
-          <div className="logs-filter-pills">
-            {filterPills.map((pill) => (
-              <button
-                key={pill.value}
-                onClick={() => setFilter(pill.value)}
-                className={`px-3 py-1.5 rounded-full border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer focus:outline-none ${
-                  filter === pill.value ? pill.activeClass : pill.inactiveClass
-                }`}
-              >
-                <span>{pill.label}</span>
-                <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                    filter === pill.value
-                      ? "bg-white/20 text-white"
-                      : "bg-white text-slate-700 border border-slate-200"
+        {/* ====== Unified Filter Toolbar ====== */}
+        <div className="logs-toolbar-wrap">
+
+          {/* Row 1: Status pills + Search */}
+          <div className="logs-toolbar-row">
+            <div className="logs-filter-pills">
+              {filterPills.map((pill) => (
+                <button
+                  key={pill.value}
+                  onClick={() => setFilter(pill.value)}
+                  className={`logs-pill ${
+                    filter === pill.value ? `logs-pill--active logs-pill--${pill.value}` : "logs-pill--idle"
                   }`}
                 >
-                  {pill.count}
-                </span>
-              </button>
-            ))}
+                  <span>{pill.label}</span>
+                  <span className={`logs-pill-count ${
+                    filter === pill.value ? "logs-pill-count--active" : ""
+                  }`}>{pill.count}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Search */}
+            <div className="logs-search-wrap">
+              <Search size={15} className="logs-search-icon" />
+              <input
+                type="text"
+                placeholder={t('activityLogs.searchPlaceholder', 'Tìm kiếm sự kiện, mô tả...')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="logs-search-input"
+              />
+              {searchTerm && (
+                <button type="button" onClick={() => setSearchTerm("")} className="logs-search-clear">
+                  <XCircle size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Search bar */}
-          <div className="flex items-center relative w-full sm:w-64">
-            <span className="absolute left-3 text-slate-400">
-              <Search size={16} />
-            </span>
-            <input
-              type="text"
-              placeholder={t('activityLogs.searchPlaceholder', 'Tìm kiếm sự kiện, mô tả...')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 bg-slate-50/50 focus:bg-white transition-all placeholder-slate-400"
-            />
+          {/* Row 2: Advanced Filters */}
+          <div className="logs-advanced-filters">
+            {/* Event type */}
+            <div className="logs-filter-group">
+              <Layers size={15} className="logs-filter-icon" />
+              <select
+                value={eventTypeFilter}
+                onChange={(e) => setEventTypeFilter(e.target.value)}
+                className="logs-select-filter"
+              >
+                <option value="all">{t('activityLogs.filters.allTypes', 'Tất cả loại sự kiện')}</option>
+                <option value="PUMP">{t('activityLogs.filters.pump', 'Thiết bị bơm (PUMP)')}</option>
+                <option value="FAN">{t('activityLogs.filters.fan', 'Quạt làm mát (FAN)')}</option>
+                <option value="SCHEDULE">{t('activityLogs.filters.schedule', 'Lịch trình tưới (SCHEDULE)')}</option>
+                <option value="THRESHOLD">{t('activityLogs.filters.threshold', 'Cài đặt ngưỡng (THRESHOLD)')}</option>
+                <option value="ALERT">{t('activityLogs.filters.alert', 'Cảnh báo / Lỗi (ALERT)')}</option>
+              </select>
+            </div>
+
+            {/* Date range */}
+            <div className="logs-date-group-wrapper">
+              <div className="logs-filter-group">
+                <CalendarRange size={15} className="logs-filter-icon" />
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="logs-date-filter"
+                  title="Từ ngày"
+                />
+              </div>
+              <span className="logs-date-sep">→</span>
+              <div className="logs-filter-group">
+                <CalendarRange size={15} className="logs-filter-icon" />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="logs-date-filter"
+                  title="Đến ngày"
+                />
+              </div>
+
+              {(startDate || endDate || eventTypeFilter !== "all") && (
+                <button
+                  type="button"
+                  className="logs-clear-filters-btn"
+                  onClick={() => {
+                    setStartDate("");
+                    setEndDate("");
+                    setEventTypeFilter("all");
+                  }}
+                >
+                  <XCircle size={14} />
+                  Đặt lại
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -344,11 +559,18 @@ export function LogsView() {
                 {t('activityLogs.loading', 'Đang tải nhật ký hoạt động...')}
               </p>
             </div>
+          ) : logs.length === 0 && !hasActiveFilters ? (
+            <div className="logs-empty-state">
+              <ScrollText size={48} className="text-slate-200 mb-2" />
+              <p className="text-sm font-semibold text-slate-400">
+                {t('activityLogs.noLogs', 'Chưa có nhật ký hoạt động nào được ghi nhận')}
+              </p>
+            </div>
           ) : filteredLogs.length === 0 ? (
             <div className="logs-empty-state">
               <ScrollText size={48} className="text-slate-200 mb-2" />
               <p className="text-sm font-semibold text-slate-400">
-                {t('activityLogs.empty', 'Không tìm thấy sự kiện nào khớp với bộ lọc.')}
+                {t('activityLogs.empty', 'Không tìm thấy nhật ký phù hợp')}
               </p>
             </div>
           ) : (
@@ -365,7 +587,7 @@ export function LogsView() {
                     style={{ backgroundColor: eventStyle.textColor }}
                   />
 
-                  {/* Left side details: Icon & Event type */}
+                  {/* Left side: Icon & Event type */}
                   <div className="log-item-meta">
                     <div
                       className="log-event-icon-wrapper"
@@ -390,15 +612,21 @@ export function LogsView() {
                     </div>
                   </div>
 
-                  {/* Center details: Description */}
+                  {/* Center: Description */}
                   <div className="log-item-desc">
                     <p className="font-medium text-slate-600">
                       {translateLog(log.description)}
                     </p>
                   </div>
 
-                  {/* Right details: Status Badge */}
+                  {/* Right: Status Badge + Cooldown chip */}
                   <div className="log-item-status">
+                    {eventStyle.cooldown && (
+                      <span className="log-cooldown-chip">
+                        <Timer size={11} />
+                        30s
+                      </span>
+                    )}
                     <span className={`log-badge log-badge--${log.status}`}>
                       {getStatusLabel(log.status)}
                     </span>
@@ -617,27 +845,223 @@ export function LogsView() {
           gap: 1.5rem;
         }
 
-        .logs-toolbar {
+        /* ===== Unified Toolbar ===== */
+        .logs-toolbar-wrap {
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: 0.875rem;
+        }
+
+        .logs-toolbar-row {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
         }
 
         @media (min-width: 640px) {
-          .logs-toolbar {
+          .logs-toolbar-row {
             flex-direction: row;
             align-items: center;
             justify-content: space-between;
           }
         }
 
+        /* ===== Status Pills ===== */
         .logs-filter-pills {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.5rem;
+          gap: 0.4rem;
         }
 
-        /* ===== List Layout ===== */
+        .logs-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          padding: 0.35rem 0.85rem;
+          border-radius: 100px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          border: 1.5px solid transparent;
+          cursor: pointer;
+          transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+          white-space: nowrap;
+        }
+
+        .logs-pill--idle {
+          background: #f8fafc;
+          color: #64748b;
+          border-color: #e2e8f0;
+        }
+        .logs-pill--idle:hover {
+          background: #f1f5f9;
+          border-color: #cbd5e1;
+          color: #0f172a;
+        }
+
+        /* Active states per type */
+        .logs-pill--active.logs-pill--all    { background: #0f172a; color: white; border-color: #0f172a; box-shadow: 0 4px 12px rgba(15,23,42,0.2); }
+        .logs-pill--active.logs-pill--success { background: #059669; color: white; border-color: #059669; box-shadow: 0 4px 12px rgba(5,150,105,0.25); }
+        .logs-pill--active.logs-pill--warning { background: #d97706; color: white; border-color: #d97706; box-shadow: 0 4px 12px rgba(217,119,6,0.25); }
+        .logs-pill--active.logs-pill--error   { background: #dc2626; color: white; border-color: #dc2626; box-shadow: 0 4px 12px rgba(220,38,38,0.25); }
+
+        .logs-pill-count {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 18px;
+          height: 18px;
+          padding: 0 5px;
+          border-radius: 100px;
+          font-size: 0.65rem;
+          font-weight: 800;
+          background: rgba(0,0,0,0.08);
+          color: inherit;
+          transition: background 0.15s;
+        }
+        .logs-pill-count--active {
+          background: rgba(255,255,255,0.22);
+        }
+
+        /* ===== Search ===== */
+        .logs-search-wrap {
+          position: relative;
+          display: flex;
+          align-items: center;
+          width: 100%;
+        }
+        @media (min-width: 640px) {
+          .logs-search-wrap { width: 260px; }
+        }
+        .logs-search-wrap :global(.logs-search-icon) {
+          position: absolute;
+          left: 0.75rem;
+          color: #94a3b8;
+          pointer-events: none;
+          flex-shrink: 0;
+        }
+        .logs-search-input {
+          width: 100%;
+          padding: 0.5rem 2.25rem 0.5rem 2.25rem;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 12px;
+          font-size: 0.78rem;
+          font-weight: 500;
+          color: #0f172a;
+          background: #f8fafc;
+          outline: none;
+          transition: all 0.18s;
+        }
+        .logs-search-input::placeholder { color: #94a3b8; }
+        .logs-search-input:focus {
+          border-color: #10b981;
+          background: white;
+          box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
+        }
+        .logs-search-clear {
+          position: absolute;
+          right: 0.65rem;
+          color: #94a3b8;
+          background: none;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          padding: 0;
+          transition: color 0.15s;
+        }
+        .logs-search-clear:hover { color: #475569; }
+
+        /* ===== Advanced Filters Row ===== */
+        .logs-advanced-filters {
+          display: flex;
+          flex-direction: column;
+          gap: 0.6rem;
+          padding: 0.875rem 1rem;
+          border-radius: 14px;
+          background: #f8fafc;
+          border: 1.5px solid #f1f5f9;
+        }
+
+        @media (min-width: 1024px) {
+          .logs-advanced-filters {
+            flex-direction: row;
+            align-items: center;
+            gap: 0.75rem;
+          }
+        }
+
+        .logs-filter-group {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: white;
+          border: 1.5px solid #e8edf2;
+          border-radius: 10px;
+          padding: 0.45rem 0.85rem;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+          transition: border-color 0.18s, box-shadow 0.18s;
+          flex: 1;
+          min-width: 0;
+        }
+        .logs-filter-group:focus-within {
+          border-color: #10b981;
+          box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
+        }
+
+        .logs-filter-group :global(.logs-filter-icon) {
+          color: #94a3b8;
+          flex-shrink: 0;
+        }
+
+        .logs-select-filter,
+        .logs-date-filter {
+          border: none;
+          outline: none;
+          background: transparent;
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: #475569;
+          width: 100%;
+          cursor: pointer;
+        }
+
+        .logs-date-group-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex: 2;
+          width: 100%;
+        }
+
+        .logs-date-sep {
+          color: #94a3b8;
+          font-weight: 700;
+          font-size: 0.85rem;
+          flex-shrink: 0;
+        }
+
+        .logs-clear-filters-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+          padding: 0.45rem 0.875rem;
+          border-radius: 10px;
+          border: 1.5px solid #e2e8f0;
+          background: white;
+          color: #64748b;
+          font-size: 0.72rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .logs-clear-filters-btn:hover {
+          background: #fef2f2;
+          border-color: #fca5a5;
+          color: #dc2626;
+        }
+
         .logs-list {
           display: flex;
           flex-direction: column;
@@ -761,12 +1185,15 @@ export function LogsView() {
         .log-item-status {
           display: flex;
           align-items: center;
+          gap: 0.4rem;
           width: 100%;
+          flex-wrap: wrap;
         }
 
         @media (min-width: 768px) {
           .log-item-status {
-            width: 110px;
+            width: auto;
+            min-width: 130px;
             flex-shrink: 0;
             justify-content: flex-end;
           }
@@ -807,6 +1234,22 @@ export function LogsView() {
           background-color: #eff6ff;
           color: #1d4ed8;
           border-color: #bfdbfe;
+        }
+
+        /* Cooldown chip */
+        .log-cooldown-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.2rem;
+          padding: 0.15rem 0.5rem;
+          border-radius: 100px;
+          font-size: 0.65rem;
+          font-weight: 800;
+          letter-spacing: 0.03em;
+          background: #fff7ed;
+          color: #c2410c;
+          border: 1px solid #fed7aa;
+          white-space: nowrap;
         }
 
         .logs-loading-state {
@@ -914,6 +1357,92 @@ export function LogsView() {
           border-color: #16a34a;
           color: white;
           box-shadow: 0 2px 8px rgba(34, 197, 94, 0.25);
+        }
+
+        .logs-advanced-filters {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          padding: 1rem 1.25rem;
+          border-radius: 16px;
+          background: #f8fafc;
+          border: 1.5px solid #f1f5f9;
+        }
+
+        @media (min-width: 1024px) {
+          .logs-advanced-filters {
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+          }
+        }
+
+        .logs-filter-group {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: white;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 0.4rem 0.75rem;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+          transition: all 0.2s;
+          flex: 1;
+        }
+
+        .logs-filter-group:focus-within {
+          border-color: #10b981;
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .logs-filter-icon-label {
+          font-size: 0.9rem;
+          user-select: none;
+        }
+
+        .logs-select-filter,
+        .logs-date-filter {
+          border: none;
+          outline: none;
+          background: transparent;
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: #475569;
+          width: 100%;
+          cursor: pointer;
+        }
+
+        .logs-date-group-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex: 2;
+          width: 100%;
+        }
+
+        .logs-date-sep {
+          color: #94a3b8;
+          font-weight: bold;
+        }
+
+        .logs-clear-filters-btn {
+          padding: 0.5rem 1rem;
+          border-radius: 10px;
+          border: 1.5px solid #e2e8f0;
+          background: white;
+          color: #64748b;
+          font-size: 0.75rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+
+        .logs-clear-filters-btn:hover {
+          background: #f1f5f9;
+          border-color: #cbd5e1;
+          color: #0f172a;
         }
       `}</style>
     </div>

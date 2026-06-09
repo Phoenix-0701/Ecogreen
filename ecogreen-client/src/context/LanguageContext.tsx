@@ -95,9 +95,13 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const lower = clean.toLowerCase();
 
     // ===== Event Types mapping =====
+    if (clean === "CẤU HÌNH KÊNH THÔNG BÁO") return "Notification Settings Changed";
     if (clean === "CẢNH BÁO ĐẤT KHÔ") return "Dry Soil Warning";
     if (clean === "CẢNH BÁO NHIỆT ĐỘ") return "Temperature Warning";
     if (clean === "CẢNH BÁO ĐỘ ẨM") return "Humidity Warning";
+    if (clean === "CẢNH BÁO MẤT KẾT NỐI") return "Connection Lost Warning";
+    if (clean === "THIẾT BỊ ONLINE") return "Device Reconnected";
+    if (clean === "CẢNH BÁO ÁNH SÁNG") return "Light Intensity Warning";
     if (clean === "CẢNH BÁO") return "Warning";
     if (clean === "PUMP_START") return "Pump Started";
     if (clean === "PUMP_STOP") return "Pump Stopped";
@@ -113,6 +117,15 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (clean === "SUCCESS") return "Success";
 
     // ===== Descriptions with regex =====
+    if (lower.includes("cập nhật cấu hình kênh nhận thông báo")) {
+      return clean
+        .replace("Cập nhật cấu hình kênh nhận thông báo", "Updated notification channel configuration")
+        .replace(/Báo lỗi/g, "Error alert")
+        .replace(/Báo hành động/g, "Action alert")
+        .replace(/Báo cấu hình/g, "Config alert")
+        .replace(/Bật/g, "ON")
+        .replace(/Tắt/g, "OFF");
+    }
     if (lower.includes("độ ẩm đất hiện tại đang ở mức quá thấp")) {
       const match = clean.match(/(\d+)\s*%/);
       const val = match ? match[1] : "0";
@@ -127,6 +140,25 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const match = clean.match(/(\d+)\s*%/);
       const val = match ? match[1] : "0";
       return `Current air humidity is too low (${val}%), below the safe threshold!`;
+    }
+    if (lower.includes("cường độ ánh sáng hiện tại vượt ngưỡng an toàn")) {
+      const match = clean.match(/(\d+)\s*lux/);
+      const val = match ? match[1] : "0";
+      return `Current light intensity exceeds safe threshold (${val} lux).`;
+    }
+    if (lower.includes("đã mất kết nối với hệ thống")) {
+      const nameMatch = clean.match(/Thiết bị (.+?) \((.+?)\) đã mất kết nối/i);
+      if (nameMatch) {
+        return `Device ${nameMatch[1]} (${nameMatch[2]}) has lost connection to the system!`;
+      }
+      return "Device connection to the system has been lost!";
+    }
+    if (lower.includes("đã kết nối lại thành công")) {
+      const nameMatch = clean.match(/Thiết bị (.+?) \((.+?)\) đã kết nối lại/i);
+      if (nameMatch) {
+        return `Device ${nameMatch[1]} (${nameMatch[2]}) has reconnected successfully.`;
+      }
+      return "Device has reconnected successfully.";
     }
 
     // ===== BE auto-action logs: "Thiết bị tự ghi nhận: TẮT/BẬT ... từ Chế độ Tự động (ESP32)" =====

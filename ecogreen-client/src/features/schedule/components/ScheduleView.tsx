@@ -27,6 +27,7 @@ import {
   saveScheduleState,
 } from "@/services/automation.service";
 import { getDevices } from "@/services/device.service";
+import { useRealtimeTelemetry } from "@/features/shared/useRealtimeTelemetry";
 import type { Device } from "@/types";
 import type { ScheduleRule, ScheduleState } from "@/types/automation";
 
@@ -61,6 +62,7 @@ function sortSchedules(schedules: ScheduleRule[]) {
 
 export function ScheduleView() {
   const { t, language } = useLanguage();
+  const { socket } = useRealtimeTelemetry();
 
   // Translate advisory text (from mock/backend - Vietnamese)
   const translateAdvisory = (text: string): string => {
@@ -141,10 +143,46 @@ export function ScheduleView() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDeviceStatus = (data: { Device_ID: string; status: "online" | "offline"; name: string }) => {
+      setDevices((prev) =>
+        prev.map((d) =>
+          d.Device_ID === data.Device_ID ? { ...d, status: data.status } : d
+        )
+      );
+    };
+
+    socket.on("device-status", handleDeviceStatus);
+
+    return () => {
+      socket.off("device-status", handleDeviceStatus);
+    };
+  }, [socket]);
+
   const dirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(saved),
     [draft, saved],
   );
+
+  const activeDevice = useMemo(() => {
+    if (devices.length === 0) return null;
+    const selectedId = typeof window !== "undefined" ? window.localStorage.getItem("ecogreen.selected-device-id") : null;
+    return devices.find((d) => d.Device_ID === selectedId) ?? devices[0];
+  }, [devices]);
+
+  const checkDeviceStatus = () => {
+    if (!activeDevice || activeDevice.status === "offline") {
+      showNotification(
+        "error",
+        t("schedule.saveFailTitle", "Lỗi lưu lịch trình"),
+        "Đã xảy ra lỗi, xin vui lòng thử lại trong ít phút"
+      );
+      return false;
+    }
+    return true;
+  };
 
   const zoneOptions = useMemo(() => {
     const deviceNames = devices.map((device) => device.name).filter(Boolean);
@@ -178,6 +216,7 @@ export function ScheduleView() {
   };
 
   const openCreateScheduleModal = () => {
+    if (!checkDeviceStatus()) return;
     const nextRule = createEmptyScheduleRule();
     setScheduleModal({
       mode: "create",
@@ -230,6 +269,15 @@ export function ScheduleView() {
   };
 
   const handleSave = async () => {
+    if (!activeDevice || activeDevice.status === "offline") {
+      showNotification(
+        "error",
+        t("schedule.saveFailTitle", "Lỗi lưu lịch trình"),
+        "Đã xảy ra lỗi, xin vui lòng thử lại trong ít phút"
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       const result = await saveScheduleState({
@@ -247,11 +295,11 @@ export function ScheduleView() {
         t("schedule.saveSuccessTitle", "Lưu lịch trình thành công"),
         t("schedule.saveSuccessMsg", "Cấu hình lịch tưới tự động đã được lưu lại hệ thống.")
       );
-    } catch {
+    } catch (error: any) {
       showNotification(
         "error",
         t("schedule.saveFailTitle", "Lỗi lưu lịch trình"),
-        t("schedule.saveFailMsg", "Không thể lưu lịch trình tới máy chủ. Vui lòng kiểm tra lại kết nối.")
+        "Đã xảy ra lỗi, xin vui lòng thử lại trong ít phút"
       );
     } finally {
       setSaving(false);
@@ -297,7 +345,10 @@ export function ScheduleView() {
             </div>
             <ToggleSwitch
               checked={draft.enabled}
-              onChange={(value) => setDraft({ ...draft, enabled: value })}
+              onChange={(value) => {
+                if (!checkDeviceStatus()) return;
+                setDraft({ ...draft, enabled: value });
+              }}
             />
           </div>
           <button
@@ -378,24 +429,31 @@ export function ScheduleView() {
                   <div className="sc-card-actions">
                     <ToggleSwitch
                       checked={schedule.enabled}
-                      onChange={(value) =>
+                      onChange={(value) => {
+                        if (!checkDeviceStatus()) return;
                         updateSchedules((current) =>
                           current.map((item) =>
                             item.id === schedule.id ? { ...item, enabled: value } : item,
                           ),
                         )
-                      }
+                      }}
                     />
                     <button
                       type="button"
-                      onClick={() => setScheduleModal({ mode: "edit", rule: schedule })}
+                      onClick={() => {
+                        if (!checkDeviceStatus()) return;
+                        setScheduleModal({ mode: "edit", rule: schedule });
+                      }}
                       className="sc-icon-btn"
                     >
                       <PenLine className="size-4" />
                     </button>
                     <button
                       type="button"
-                      onClick={() => updateSchedules((current) => current.filter((item) => item.id !== schedule.id))}
+                      onClick={() => {
+                        if (!checkDeviceStatus()) return;
+                        updateSchedules((current) => current.filter((item) => item.id !== schedule.id));
+                      }}
                       className="sc-icon-btn sc-icon-btn--danger"
                     >
                       <Trash2 className="size-4" />
@@ -413,7 +471,10 @@ export function ScheduleView() {
             </p>
             <button
               type="button"
-              onClick={applySkipSuggestion}
+              onClick={() => {
+                if (!checkDeviceStatus()) return;
+                applySkipSuggestion();
+              }}
               className="sc-ai-btn"
             >
               {t("schedule.applySuggestion", "Áp dụng gợi ý")}

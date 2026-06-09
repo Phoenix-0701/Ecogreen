@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { User, LoginPayload, LoginResponse } from "@/types";
 import { clearAccessToken, fetcher, getAccessToken, API_URL } from "@/services/api";
+import { toast } from "react-hot-toast";
 
 // ============ GOOGLE CLIENT ID ============
 // Thay bằng Google Client ID thật từ Google Cloud Console
@@ -15,7 +16,7 @@ interface AuthContextType {
   login: (payload: LoginPayload) => Promise<void>;
   loginWithGoogle: () => void;
   handleGoogleCallback: (code: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateUser: (updatedUser: User) => void;
 }
 
@@ -80,7 +81,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [persistSession]);
 
   // Đăng xuất
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await fetcher("/v1/auth/logout", {
+        method: "POST",
+      });
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast.error("Đăng xuất thất bại - Không thể kết nối đến máy chủ ");
+      throw error;
+    }
+
     setToken(null);
     setUser(null);
     clearAccessToken();
