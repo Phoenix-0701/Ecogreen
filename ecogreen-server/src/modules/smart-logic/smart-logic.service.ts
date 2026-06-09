@@ -82,7 +82,7 @@ export class SmartLogicService {
     try {
       this.logger.log(`🌥 Gọi OpenWeatherMap cho: ${cityName}`);
       const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(cityName)}&appid=${apiKey}&units=metric&lang=vi`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
       const data = await response.json();
 
       if (!response.ok) throw new Error(data.message ?? 'OpenWeatherMap error');
