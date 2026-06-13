@@ -1,43 +1,82 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.enableCors({ origin: '*' }); 
+  app.enableCors({ origin: '*' });
 
-  // KÍCH HOẠT KIỂM DUYỆT BẢO MẬT TOÀN CỤC
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Tự động vứt bỏ các trường "rác" khách cố tình gửi lên thêm để hack
-      forbidNonWhitelisted: true, // Báo lỗi nếu khách gửi trường lạ
+      whitelist: true,
+      forbidNonWhitelisted: true,
     }),
   );
-  // app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
-  // Ăng-ten bắt sóng MQTT
+  class RawMqttDeserializer {
+    deserialize(value: any, options?: any) {
+      if (value === null || value === undefined) {
+        return {
+          pattern: options?.channel || options?.packet?.topic || '',
+          data: value,
+        };
+      }
+
+      if (typeof value === 'object' && !Buffer.isBuffer(value)) {
+        if (value.pattern !== undefined && value.data !== undefined) {
+          return value;
+        }
+        return {
+          pattern: options?.channel || options?.packet?.topic || '',
+          data: value,
+        };
+      }
+
+      try {
+        const parsed = JSON.parse(value.toString());
+        if (parsed && parsed.pattern && parsed.data !== undefined) {
+          return parsed;
+        }
+        return {
+          pattern: options?.channel || options?.packet?.topic || '',
+          data: parsed,
+        };
+      } catch (err) {
+        return {
+          pattern: options?.channel || options?.packet?.topic || '',
+          data: value.toString(),
+        };
+      }
+    }
+  }
+
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.MQTT,
     options: {
-      url: 'mqtt://broker.emqx.io:1883',
+      url: process.env.MQTT_URL || 'mqtt://broker.emqx.io:1883',
+      deserializer: new RawMqttDeserializer(),
     },
   });
 
   const config = new DocumentBuilder()
     .setTitle('Ecogreen API')
-    .setDescription('API documentation for PetCare application')
+    .setDescription('API documentation for Ecogreen application')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document);
+  app.useGlobalInterceptors(new TransformInterceptor());
 
   await app.startAllMicroservices();
-  // await app.listen(process.env.PORT ?? 3000);
   await app.listen(process.env.PORT ?? 3001, process.env.HOST ?? '0.0.0.0');
 
-  console.log(`🚀 Server đang chạy HTTP (port ${process.env.PORT ?? 3001}) và đã kết nối MQTT!`);
+  console.log(
+    `Server dang chay HTTP (port ${process.env.PORT ?? 3001}) va da ket noi MQTT!`,
+  );
 }
 bootstrap();

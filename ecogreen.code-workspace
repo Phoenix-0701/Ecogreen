@@ -4,4 +4,7 @@
     { "path": "ecogreen-client" },
     { "path": "ecogreen-server" },
   ],
+  "settings": {
+    "powershell.cwd": "ecogreen-iot",
+  },
 }

@@ -78,10 +78,10 @@ void Task_PumpWatchdog(void)
         }
 
         // Ưu tiên 2: force OFF theo PUMP_MAX_ON_TIME_MS
-        // Chỉ áp dụng khi KHÔNG có lịch đang chạy
-        if (g_scheduleOffTime == 0 && elapsed >= g_pumpMaxOnMs)
+        // Chỉ áp dụng khi ở chế độ AUTO, KHÔNG phải bật thủ công, và KHÔNG có lịch đang chạy
+        if (g_autoMode && !g_pumpManual && g_scheduleOffTime == 0 && elapsed >= g_pumpMaxOnMs)
         {
-            Serial.printf("[WATCHDOG] Pump ran %lus >= max %lus -> force OFF\n",
+            Serial.printf("[WATCHDOG] Pump ran %lus >= max %lus (AUTO) -> force OFF\n",
                           elapsed / 1000,
                           (unsigned long)(g_pumpMaxOnMs / 1000));
             g_scheduleOffTime = 0;
@@ -149,7 +149,7 @@ void Task_CheckSchedule(void)
     memcpy(tmp, g_schedules, sizeof(ScheduleEntry_t) * count);
     SENSOR_UNLOCK();
 
-    if (!enabled || count == 0 || g_pumpState || g_rtcError)
+    if (!enabled || count == 0 || g_pumpState || g_rtcError || !g_autoMode)
         return;
 
     // Lấy thời gian thực từ DS3231
@@ -157,6 +157,29 @@ void Task_CheckSchedule(void)
     uint32_t currentMinute = now.hour() * 60 + now.minute();
     if (currentMinute == s_lastTriggeredMinute)
         return;
+
+    // Chặn lịch tưới tự động nếu g_weatherBlockPump = true (mưa)
+    if (g_weatherBlockPump)
+    {
+        for (uint8_t i = 0; i < count; i++)
+        {
+            ScheduleEntry_t &s = tmp[i];
+            if (!s.enabled)
+                continue;
+            if (!(s.days & (1 << now.dayOfTheWeek())))
+                continue;
+            if (s.hour != now.hour())
+                continue;
+            if (s.minute != now.minute())
+                continue;
+
+            Serial.printf("[SCHED] Weather block active - skip scheduled entry %d (%02d:%02d)\n",
+                          i, s.hour, s.minute);
+            s_lastTriggeredMinute = currentMinute;
+            break;
+        }
+        return;
+    }
 
     for (uint8_t i = 0; i < count; i++)
     {
@@ -174,9 +197,18 @@ void Task_CheckSchedule(void)
                       i, s.hour, s.minute, s.duration);
 
         s_lastTriggeredMinute = currentMinute;
+        
+        // Bật cờ để vượt qua kiểm tra cooldown trong pumpOn()
         g_scheduleTriggered = true;
         pumpOn();
-        g_scheduleOffTime = millis() + ((unsigned long)s.duration * 60000UL);
+
+        if (s.duration > 0) {
+            g_scheduleOffTime = millis() + ((unsigned long)s.duration * 60000UL);
+        } else {
+            // Tưới theo ngưỡng: reset cờ để các luồng tự động (watchdog & autoControl) tự tắt bơm
+            g_scheduleTriggered = false;
+            g_scheduleOffTime = 0;
+        }
         break;
     }
 }

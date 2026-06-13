@@ -1,12 +1,38 @@
-
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { AppController } from './app.controller';
 import { EventsGateway } from './events.gateway';
+import { DevicesModule } from './modules/devices/devices.module';
+import { SensorsModule } from './modules/sensors/sensors.module';
+import { ThresholdsModule } from './modules/thresholds/thresholds.module';
+import { LogsModule } from './modules/logs/logs.module';
+import { ActuatorsModule } from './modules/actuators/actuators.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { SchedulesModule } from './modules/schedules/schedules.module';
+import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SmartLogicModule } from './modules/smart-logic/smart-logic.module';
+
 @Module({
-  imports: [UsersModule, AuthModule, PrismaModule],
+  imports: [
+    ScheduleModule.forRoot(),
+    UsersModule,
+    AuthModule,
+    PrismaModule,
+    DevicesModule,
+    SensorsModule,
+    ThresholdsModule,
+    LogsModule,
+    ActuatorsModule,
+    AnalyticsModule,
+    SchedulesModule,
+    AiAssistantModule,
+    NotificationsModule,
+    SmartLogicModule,
+  ],
   controllers: [AppController],
   providers: [EventsGateway],
 })

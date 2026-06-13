@@ -27,7 +27,7 @@ void initSensors()
     //  ADC config: 12-bit, 11dB attenuation (đọc 0~3.3V full range)
     analogReadResolution(12);       // 12-bit: 0-4095
     analogSetAttenuation(ADC_11db); // Đọc full range 0-3.3V
-    Serial.printf("[SENSOR] Light ADC initialized (Pin GPIO%d, 12-bit)\n",
+    Serial.printf("t ADC initialized (Pin GPIO%d, 12-bit)\n",
                   LIGHT_SENSOR_PIN);
     Serial.printf("[SENSOR] Light calibration: DARK=%d, BRIGHT=%d\n",
                   LIGHT_ADC_DARK, LIGHT_ADC_BRIGHT);
@@ -47,9 +47,9 @@ void initRTC()
 {
     if (!g_rtc.begin())
     {
-        Serial.println("[RTC] ✗ DS3231 not found - halting");
-        while (1)
-            delay(1000);
+        Serial.println("[RTC] ✗ DS3231 not found - continuing without RTC");
+        g_rtcError = true;
+        return; // Không halt, để hệ thống tiếp tục chạy
     }
 
     // Fallback bằng compile time nếu pin chết / lắp mới

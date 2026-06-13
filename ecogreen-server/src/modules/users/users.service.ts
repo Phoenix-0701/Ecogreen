@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -38,11 +38,31 @@ export class UsersService {
     return `This action returns a #${id} user`;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  // Lấy thông tin cá nhân của người dùng
+  async getProfile(userId: string) {
+    const user = await this.prisma.uSERS.findUnique({
+      where: { User_ID: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy thông tin người dùng');
+    }
+
+    const { password_hash, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  //  CẬP NHẬT THÔNG TIN CÁ NHÂN
+  async updateProfile(userId: string, dto: UpdateUserDto) {
+    const updatedUser = await this.prisma.uSERS.update({
+      where: { User_ID: userId },
+      data: {
+        full_name: dto.full_name,
+        username: dto.username,
+      },
+    });
+
+    const { password_hash, ...userWithoutPassword } = updatedUser;
+    return userWithoutPassword;
   }
 }

@@ -6,19 +6,27 @@
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
-// 1. BẢNG USERS
+// 1. BẢNG USERS (ĐÃ NÂNG CẤP HỖ TRỢ GOOGLE LOGIN)
 model USERS {
   User_ID       String   @id @default(uuid())
   username      String   @unique
   email         String   @unique
-  password_hash String
+  
+  password_hash String?  
+
   full_name     String?
+
+  avatar_url    String?  // Lưu link ảnh đại diện từ Google
+  auth_provider String   @default("local") 
+  provider_id   String?  @unique 
+
   created_at    DateTime @default(now())
 
   // Các trường quan hệ (Không tạo cột trong DB)
@@ -35,6 +43,7 @@ model DEVICES {
   mac_address  String    @unique
   status       String    @default("offline")
   last_seen_at DateTime?
+  schedule_enabled Boolean @default(true)
   created_at   DateTime  @default(now())
 
   // Quan hệ
@@ -80,11 +89,11 @@ model ACTUATORS {
 
 // 5. BẢNG SENSOR_READINGS
 model SENSOR_READINGS {
-  Reading_ID  BigInt   @id @default(autoincrement())
-  Sensor_ID   String
-  value       Float
-  recorded_at DateTime @default(now())
-  is_buffered Boolean  @default(false)
+  Reading_ID   BigInt   @id @default(autoincrement())
+  Sensor_ID    String
+  value        Float
+  recorded_at  DateTime @default(now())
+  is_buffered  Boolean  @default(false)
 
   // Quan hệ
   sensor SENSORS @relation(fields: [Sensor_ID], references: [Sensor_ID], onDelete: Cascade)
@@ -111,6 +120,10 @@ model THRESHOLDS {
   Actuator_ID  String
   min_value    Float
   max_value    Float
+  max_pump_sec Int       @default(60)
+  cooldown_sec Int       @default(300)
+  temp_high    Float     @default(35)
+  temp_low     Float     @default(33)
   is_enabled   Boolean   @default(true)
   sync_status  String    @default("pending")
   sync_at      DateTime?
@@ -124,6 +137,9 @@ model THRESHOLDS {
 model SCHEDULES {
   Schedule_ID  String    @id @default(uuid())
   Actuator_ID  String
+  title        String    @default("Chu kỳ tưới")
+  zone         String    @default("Khu vực")
+  icon         String    @default("sprout")
   start_time   DateTime
   duration_min Int
   days_of_week String
@@ -154,12 +170,12 @@ model SMART_LOGIC_CONFIGS {
 model NOTIFICATION_CONFIGS {
   Config_ID               String  @id @default(uuid())
   User_ID                 String
-  tg_chat_id              String?
-  tg_bot_token_encrypted  String?
+  tg_chat_id              String? // Chỉ cần giữ lại mỗi "Địa chỉ nhà" này thôi
   smtp_email              String?
   smtp_password_encrypted String?
   notify_on_error         Boolean @default(true)
   notify_on_action        Boolean @default(false)
+  notify_on_config        Boolean @default(false)
 
   // Quan hệ
   user USERS @relation(fields: [User_ID], references: [User_ID], onDelete: Cascade)
@@ -178,7 +194,6 @@ model ACTIVITY_LOGS {
 
   // Quan hệ
   device DEVICES @relation(fields: [Device_ID], references: [Device_ID], onDelete: Cascade)
-  // Đặt SetNull để khi người dùng bị xóa, lịch sử hoạt động của thiết bị vẫn được giữ lại, chỉ mất tên người dùng
   user   USERS?  @relation(fields: [User_ID], references: [User_ID], onDelete: SetNull)
 
   @@index([Device_ID, occurred_at])

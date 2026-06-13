@@ -32,6 +32,7 @@ bool g_pumpState = false;
 bool g_fanState = false;
 bool g_ledGrowState = false;
 bool g_pumpManual = false;
+bool g_weatherBlockPump = false; // server sẽ set true khi phát hiện mưa
 
 // ==================== LỊCH TƯỚI ====================
 ScheduleEntry_t g_schedules[MAX_SCHEDULES] = {};

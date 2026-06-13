@@ -1,49 +1,60 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { CheckCircle2, Leaf, Loader2, XCircle } from "lucide-react";
 import { useAuth } from "@/features/auth/auth.context";
-import { Leaf, Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 function CallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { handleGoogleCallback } = useAuth();
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    "loading",
+  );
   const [errorMsg, setErrorMsg] = useState("");
+  const code = searchParams?.get("code") ?? "";
+  const callbackError = searchParams?.get("error");
+  const validationError = !searchParams
+    ? "Khong the doc tham so callback tu Google."
+    : callbackError
+      ? "Ban da huy dang nhap Google."
+      : !code
+        ? "Khong tim thay ma xac thuc tu Google."
+        : "";
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    const error = searchParams.get("error");
-
-    if (error) {
-      setStatus("error");
-      setErrorMsg("Bạn đã hủy đăng nhập Google.");
+    if (validationError || !code) {
       return;
     }
 
-    if (!code) {
-      setStatus("error");
-      setErrorMsg("Không tìm thấy mã xác thực từ Google.");
-      return;
-    }
+    let mounted = true;
 
-    // Gửi code lên backend để đổi lấy JWT
     handleGoogleCallback(code)
       .then(() => {
+        if (!mounted) return;
         setStatus("success");
         setTimeout(() => router.replace("/dashboard"), 1500);
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
+        if (!mounted) return;
         setStatus("error");
-        setErrorMsg(err.message || "Đăng nhập Google thất bại!");
+        setErrorMsg(
+          err instanceof Error ? err.message : "Dang nhap Google that bai!",
+        );
       });
-  }, [searchParams, handleGoogleCallback, router]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [code, validationError, handleGoogleCallback, router]);
+
+  const currentStatus = validationError ? "error" : status;
+  const currentErrorMsg = validationError || errorMsg;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a1a0f] via-[#0d2818] to-[#071510]">
       <div className="text-center p-10 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl max-w-md w-full mx-4">
-        {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white shadow-lg shadow-green-500/30">
             <Leaf size={24} />
@@ -53,43 +64,43 @@ function CallbackContent() {
           </span>
         </div>
 
-        {/* Status */}
-        {status === "loading" && (
+        {currentStatus === "loading" && (
           <div className="space-y-4">
             <Loader2 size={48} className="mx-auto text-green-400 animate-spin" />
             <h2 className="text-xl font-semibold text-white/90">
-              Đang xác thực...
+              Dang xac thuc...
             </h2>
             <p className="text-white/40 text-sm">
-              Vui lòng chờ trong khi chúng tôi hoàn tất đăng nhập Google
+              Vui long cho trong khi he thong hoan tat dang nhap Google.
             </p>
           </div>
         )}
 
-        {status === "success" && (
+        {currentStatus === "success" && (
           <div className="space-y-4">
             <CheckCircle2 size={48} className="mx-auto text-green-400" />
             <h2 className="text-xl font-semibold text-white/90">
-              Đăng nhập thành công! 🎉
+              Dang nhap thanh cong!
             </h2>
             <p className="text-white/40 text-sm">
-              Đang chuyển hướng đến Dashboard...
+              Dang chuyen huong den dashboard...
             </p>
           </div>
         )}
 
-        {status === "error" && (
+        {currentStatus === "error" && (
           <div className="space-y-4">
             <XCircle size={48} className="mx-auto text-red-400" />
             <h2 className="text-xl font-semibold text-white/90">
-              Đăng nhập thất bại
+              Dang nhap that bai
             </h2>
-            <p className="text-red-300/70 text-sm">{errorMsg}</p>
+            <p className="text-red-300/70 text-sm">{currentErrorMsg}</p>
             <button
               onClick={() => router.push("/login")}
               className="mt-4 px-6 py-2.5 rounded-xl bg-white/10 text-white/80 hover:bg-white/15 transition-all border border-white/10 text-sm font-medium"
+              type="button"
             >
-              ← Quay lại trang đăng nhập
+              Quay lai trang dang nhap
             </button>
           </div>
         )}

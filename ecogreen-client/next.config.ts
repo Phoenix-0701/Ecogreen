@@ -1,8 +1,12 @@
-const path = require("path");
+﻿import path from "node:path";
 
-module.exports = {
+const nextConfig = {
   turbopack: {
-    root: path.join(__dirname),
+    root: path.join(process.cwd()),
   },
-  allowedDevOrigins: ["172.20.10.2"],
+  allowedDevOrigins: [
+    "192.168.1.14", // phone hotspot
+  ],
 };
+
+export default nextConfig;
